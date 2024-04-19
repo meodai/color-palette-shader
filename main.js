@@ -45,42 +45,6 @@ $selectAxis.value = 1;
 $selectAxis.classList.add('axis-select');
 
 const palette = [
-  // https://lospec.com/palette-list/endesga-32
-  // https://lospec.com/palette-list/dawnbringer-16
-  /*
-  "#be4a2f",
-  "#d77643",
-  "#ead4aa",
-  "#e4a672",
-  "#b86f50",
-  "#733e39",
-  "#3e2731",
-  "#a22633",
-  "#e43b44",
-  "#f77622",
-  "#feae34",
-  "#fee761",
-  "#63c74d",
-  "#3e8948",
-  "#265c42",
-  "#193c3e",
-  "#124e89",
-  "#0099db",
-  "#2ce8f5",
-  "#ffffff",
-  "#c0cbdc",
-  "#8b9bb4",
-  "#5a6988",
-  "#3a4466",
-  "#262b44",
-  "#181425",
-  "#ff0044",
-  "#68386c",
-  "#b55088",
-  "#f6757a",
-  "#e8b796",
-  "#c28569",
-  */
 '#bc8b96',
 '#974b72',
 '#7f305c',
@@ -288,9 +252,10 @@ palette.forEach((color) => {
   $pickerInput.addEventListener("input", (e) => {
     const index = parseInt(e.target.dataset.index);
     palette[index] = e.target.value;
-    cube.material.uniforms.palette.value[index] = new THREE.Color(e.target.value);
 
-    // update --color property
+    cube.material.uniforms.paletteTexture.value = paletteToTexture(palette);
+    cube.material.uniforms.paletteLength.value = palette.length;
+
     $picker.style.setProperty("--color", e.target.value);
 
     // create new palette shader
