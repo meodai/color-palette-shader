@@ -242,14 +242,13 @@ return new THREE.ShaderMaterial({
         }
       }
 
-      vec3 rgb = vec3(0.);
-
-      rgb = polarToRGB(hsv);
-      
+      vec3 rgb = polarToRGB(hsv);
       vec3 closest = closestColor(rgb, paletteTexture, paletteLength);
+
       if (debug) {
         closest = rgb;
       }
+      
       gl_FragColor = vec4(closest, 1.);
     }`,
 });
