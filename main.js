@@ -73,6 +73,15 @@ $selectAxis.innerHTML = `
 
 $selectAxis.classList.add('axis-select');
 
+const $labelInverseLightness = document.createElement('label');
+$labelInverseLightness.textContent = 'Invert lightness';
+
+const $inverseLightnessCheckbox = document.createElement('input');
+$inverseLightnessCheckbox.type = 'checkbox';
+$inverseLightnessCheckbox.checked = false;
+
+$labelInverseLightness.appendChild($inverseLightnessCheckbox);
+
 const palette = [
   
 '#bc8b96', '#974b72', '#7f305c', '#5d2047', '#46173a', '#340d31', '#200816', 
@@ -180,6 +189,7 @@ return new THREE.ShaderMaterial({
     paletteTexture: { value: texture },
     paletteLength: { value: palette.length },
     debug: { value: false },
+    invert: { value: false },
   },
   vertexShader: `varying vec2 vUv;
       void main(){
@@ -198,6 +208,7 @@ return new THREE.ShaderMaterial({
     uniform int paletteLength;
     uniform bool debug;
     uniform int polarColorModel;
+    uniform bool invert;
     
     ${shaderSRGB2RGB}
     ${shaderHSL2RGB}
@@ -215,7 +226,6 @@ return new THREE.ShaderMaterial({
         return srgb2rgb(lch2rgb(vec3(polar.z, polar.y, polar.x)));
       }
     }
-
     void main(){
       vec3 hsv = vec3(progress, vUv.x, vUv.y);
       if(progress_axis == 1){
@@ -242,6 +252,9 @@ return new THREE.ShaderMaterial({
         }
       }
 
+      if(invert){
+        hsv.z = 1. - hsv.z;
+      }
       vec3 rgb = polarToRGB(hsv);
       vec3 closest = closestColor(rgb, paletteTexture, paletteLength);
 
@@ -333,3 +346,8 @@ $colorModel.addEventListener('change', (e) => {
     cube.material.uniforms.polarColorModel.value = 2;
   }
 });
+
+$inverseLightnessCheckbox.addEventListener("change", (e) => {
+  cube.material.uniforms.invert.value = e.target.checked;
+});
+$app.appendChild($labelInverseLightness);
