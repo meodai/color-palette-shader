@@ -257,10 +257,6 @@ palette.forEach((color) => {
     cube.material.uniforms.paletteLength.value = palette.length;
 
     $picker.style.setProperty("--color", e.target.value);
-
-    // create new palette shader
-    const newShader = paletteToShader(palette);
-    cube.material = newShader;
   });
 });
 
