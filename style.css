@@ -10,6 +10,7 @@ canvas {
   left: 50%;
   transform: translate(-50%, -50%);
   box-shadow: 0 0 0 10px rgb(0 0 0 / 100%);
+  image-rendering: pixelated;
 }
 
 .hue-slider {
