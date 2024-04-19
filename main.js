@@ -143,9 +143,7 @@ renderer.setSize(size, size);
 $app.appendChild(renderer.domElement);
 
 
-const shaderClosestColor = () => `
-${shaderOKLab}
-
+const shaderClosestColor = `
 vec3 closestColor(vec3 color, sampler2D paletteTexture, int paletteSize) {
   float minDist = 1000000.0;
   vec3 closestColor = vec3(0.0);
@@ -224,8 +222,8 @@ return new THREE.ShaderMaterial({
 
     ${shaderHSL2RGB}
     ${shaderHSV2RGB}
-
-    ${shaderClosestColor()}
+    ${shaderOKLab}
+    ${shaderClosestColor}
 
     void main(){
       vec3 hsv = vec3(progress, vUv.x, vUv.y);
