@@ -73,14 +73,17 @@ $selectAxis.innerHTML = `
 $selectAxis.classList.add('axis-select');
 
 const palette = [
+  
 '#bc8b96', '#974b72', '#7f305c', '#5d2047', '#46173a', '#340d31', '#200816', 
 '#312234', '#40364a', '#5b596d', '#7c8497', '#9daec0', '#f8e6d0', '#dcbaa0', 
 '#c08e70', '#946452', '#683a34', '#442125', '#732f31', '#a23c3c', '#b45e4e', 
 '#cf8c52', '#e8c988', '#a3ab6d', '#5e8c51', '#436852', '#3e4350', '#381d4e',
 '#3c2c6a', '#444c84', '#5c79a6', '#8bc0ca',
  /*
-  ...(new Array(5000)).fill(0).map((_, i) => {
-    return `hsl(${Math.random() * 360}, ${Math.random() * 100}%, ${Math.random() * 100}%)`;
+  ...new Array(1000).fill(0).map((_, i) => {
+    return `hsl(${Math.random() * 360}, ${Math.random() * 100}%, ${
+      Math.random() * 100
+    }%)`;
   }),*/
 ];
 
