@@ -1,7 +1,9 @@
 import './style.css'
 import * as THREE from "three";
 
-import shaderOKLab from "./oklab.frag.glsl?raw" assert { type: "raw" };
+import shaderOKLab from "./shaders/oklab.frag.glsl?raw" assert { type: "raw" };
+import shaderHSV2RGB from "./shaders/hsv2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderHSL2RGB from "./shaders/hsl2rgb.frag.glsl?raw" assert { type: "raw" };
 
 const $app = document.querySelector("#app");
 
@@ -140,20 +142,6 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(size, size);
 $app.appendChild(renderer.domElement);
 
-
-const shaderHSV2RGB = `
-vec3 hsv2rgb(vec3 c) {
-  vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-  vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-  return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-}
-`;
-
-const shaderHSL2RGB = `
-vec3 hsl2rgb( in vec3 c ) {
-  vec3 rgb = clamp( abs(mod(c.x*6.0+vec3(0.0,4.0,2.0),6.0)-3.0)-1.0, 0.0, 1.0 );
-  return c.z + c.y * (rgb-0.5)*(1.0-abs(2.0*c.z-1.0));
-}`;
 
 const shaderClosestColor = (length) => `
 ${shaderOKLab}
