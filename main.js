@@ -173,6 +173,13 @@ return new THREE.ShaderMaterial({
         float angle = atan(toCenter.y, toCenter.x);
         float radius = length(toCenter) * 1.5;
         hsv = vec3((angle / TWO_PI) - .25, 1. - progress, radius);
+        if(progress_axis == 2){
+          hsv = vec3((angle / TWO_PI) - .25, radius, 1. - progress);
+        } else if(progress_axis == 1){
+          hsv = vec3((angle / TWO_PI) - .25, 1. - progress, radius);
+        } else {
+          hsv = vec3(1.0 - abs(0.5 - progress) * 2.0, 1.0 - abs(0.5 - vUv.x) * 2.0, vUv.y);
+        }
       }
 
       vec3 rgb = vec3(0.);
