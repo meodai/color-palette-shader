@@ -1,0 +1,51 @@
+:root, body {
+  padding: 0;
+  margin: 0;
+}
+
+canvas {
+  display: block;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 10px rgb(0 0 0 / 100%);
+}
+
+.hue-slider {
+  position: fixed;
+  bottom: 10vh;
+  left: 50%;
+  width: 80vw;
+  transform: translateX(-50%);
+}
+
+.color-list {
+  position: fixed;
+  top: 10vh;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  width: 80vw;
+}
+
+.color-picker {
+  background: var(--color);
+  position: relative;
+  flex: 1 0 auto;
+  height: 1rem;
+}
+
+.color-picker-input {
+  appearance: none;
+  border: none;
+  opacity: 0;
+  position: absolute;
+}
+
+.shader-select {
+  position: fixed;
+  bottom: 10vh;
+  right: 50%;
+  transform: translateX(50%) translateY(150%);
+}
