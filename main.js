@@ -182,10 +182,10 @@ return new THREE.ShaderMaterial({
         gl_Position = vec4(position, 1.);
       }`,
   fragmentShader: `
+    #define TWO_PI 6.28318530718
     varying vec2 vUv;
     uniform float progress;
     uniform vec3 palette[${palette.length}];
-    float TWO_PI = 6.28318530718;
     uniform float time;
     uniform bool isPolar;
     uniform bool isPerceptional;
