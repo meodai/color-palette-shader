@@ -212,7 +212,7 @@ return new THREE.ShaderMaterial({
       } else if (polarColorModel == 1) {
         return isPerceptional ? srgb2rgb(okhsl_to_srgb(polar)) : hsl2rgb(polar);
       } else {
-        return lch2rgb(vec3(polar.z, polar.y, polar.x));
+        return srgb2rgb(lch2rgb(vec3(polar.z, polar.y, polar.x)));
       }
     }
 
