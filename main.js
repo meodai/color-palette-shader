@@ -143,38 +143,68 @@ renderer.setSize(size, size);
 $app.appendChild(renderer.domElement);
 
 
-const shaderClosestColor = (length) => `
+const shaderClosestColor = () => `
 ${shaderOKLab}
 
-vec3 closestColor(vec3 color, vec3 palette[${length}]){
-  float minDist = 1000000.;
-  vec3 closestColor = vec3(0.);
+vec3 closestColor(vec3 color, sampler2D paletteTexture, int paletteSize) {
+  float minDist = 1000000.0;
+  vec3 closestColor = vec3(0.0);
 
-  for(int i = 0; i < ${length}; i++){
-    float dist = distance(color, palette[i]);
+  for (int i = 0; i < paletteSize; i++) {
+    // Sample color from the texture
+    vec3 paletteColor = texture2D(paletteTexture, vec2(float(i) / float(paletteSize), 0.5)).rgb;
+
+    // Calculate distance between the sampled color and the input color
+    float dist;
     if (isPerceptional) {
-      dist = distance(linear_srgb_to_oklab(color), linear_srgb_to_oklab(palette[i]));
+      dist = distance(linear_srgb_to_oklab(color), linear_srgb_to_oklab(paletteColor));
+    } else {
+      dist = distance(color, paletteColor);
     }
-    if(dist < minDist){
+
+    // Update closest color if the distance is smaller
+    if (dist < minDist) {
       minDist = dist;
-      closestColor = palette[i];
+      closestColor = paletteColor;
     }
   }
 
   return closestColor;
 }`;
 
+function paletteToTexture (palette) {
+  const paletteColors = palette.map((color) => {
+    const c = new THREE.Color(color);
+    return { r: c.r, g: c.g, b: c.b, a: 1};
+  } );
+  const texture = new THREE.DataTexture(
+    new Float32Array(paletteColors.flatMap((color) => [color.r, color.g, color.b, color.a])),
+    palette.length,
+    1,
+    THREE.RGBAFormat,
+    THREE.FloatType
+  );
+  texture.needsUpdate = true;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.minFilter = THREE.NearestFilter;
+  texture.magFilter = THREE.NearestFilter;
+
+  return texture;
+} 
+
 function paletteToShader (palette) {
+  const texture = paletteToTexture(palette);
+
 return new THREE.ShaderMaterial({
   uniforms: {
     progress: { value: 0.0 },
     progress_axis: { value: 1 },
-    palette: {
-      value: palette.map((color) => new THREE.Color(color)),
-    },
     time: { value: 0.0 },
     isPolar: { value: true },
     isPerceptional: { value: true },
+    paletteTexture: { value: texture },
+    paletteLength: { value: palette.length },
   },
   vertexShader: `varying vec2 vUv;
       void main(){
@@ -185,16 +215,17 @@ return new THREE.ShaderMaterial({
     #define TWO_PI 6.28318530718
     varying vec2 vUv;
     uniform float progress;
-    uniform vec3 palette[${palette.length}];
     uniform float time;
     uniform bool isPolar;
     uniform bool isPerceptional;
     uniform int progress_axis;
+    uniform sampler2D paletteTexture;
+    uniform int paletteLength;
 
     ${shaderHSL2RGB}
     ${shaderHSV2RGB}
 
-    ${shaderClosestColor(palette.length)}
+    ${shaderClosestColor()}
 
     void main(){
       vec3 hsv = vec3(progress, vUv.x, vUv.y);
@@ -219,7 +250,7 @@ return new THREE.ShaderMaterial({
         rgb = hsv2rgb(hsv);
       }
       
-      vec3 closest = closestColor(rgb, palette);
+      vec3 closest = closestColor(rgb, paletteTexture, paletteLength);
 
       gl_FragColor = vec4(closest, 1.);
     }`,
@@ -259,7 +290,7 @@ palette.forEach((color) => {
   $pickerInput.addEventListener("input", (e) => {
     const index = parseInt(e.target.dataset.index);
     palette[index] = e.target.value;
-    cube.material = paletteToShader(palette);
+    cube.material.uniforms.palette.value[index] = new THREE.Color(e.target.value);
 
     // update --color property
     $picker.style.setProperty("--color", e.target.value);
