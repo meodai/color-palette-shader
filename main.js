@@ -67,7 +67,7 @@ $colorModel.innerHTML = `
 const $selectAxis = document.createElement('select');
 $selectAxis.innerHTML = `
   <option value="0">x</option>
-  <option value="1">y</option>
+  <option value="1" selected="selected">y</option>
   <option value="2">z</option>
 `;
 
@@ -248,7 +248,7 @@ return new THREE.ShaderMaterial({
       if (debug) {
         closest = rgb;
       }
-      
+
       gl_FragColor = vec4(closest, 1.);
     }`,
 });
