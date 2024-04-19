@@ -4,10 +4,11 @@ import * as THREE from "three";
 import shaderOKLab from "./shaders/oklab.frag.glsl?raw" assert { type: "raw" };
 import shaderHSV2RGB from "./shaders/hsv2rgb.frag.glsl?raw" assert { type: "raw" };
 import shaderHSL2RGB from "./shaders/hsl2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderHCL2RGB from "./shaders/hcl2rgb.frag.glsl?raw" assert { type: "raw" };
 
 const $app = document.querySelector("#app");
 
-let huePosition = 0.0;
+let progress = 0.0;
 
 const size = Math.min(window.innerWidth, window.innerHeight) * .6;
 
@@ -16,11 +17,11 @@ $hueSlider.type = 'range';
 $hueSlider.min = 0;
 $hueSlider.max = 1;
 $hueSlider.step = 0.0001;
-$hueSlider.value = huePosition;
+$hueSlider.value = progress;
 $hueSlider.classList.add('hue-slider');
 
 $hueSlider.addEventListener('input', (e) => {
-  huePosition = parseFloat(e.target.value);
+  progress = parseFloat(e.target.value);
 });
 
 const $selectShader = document.createElement('select');
@@ -58,6 +59,7 @@ $colorModel.classList.add('color-model-select');
 $colorModel.innerHTML = `
   <option value="hsv">HSV</option>
   <option value="hsl">HSL</option>
+  <option value="hcl">LCh</option>
 `;
 
 
@@ -187,14 +189,17 @@ return new THREE.ShaderMaterial({
 
     ${shaderHSL2RGB}
     ${shaderHSV2RGB}
+    ${shaderHCL2RGB}
     ${shaderOKLab}
     ${shaderClosestColor}
 
     vec3 polarToRGB(vec3 polar) {
       if (polarColorModel == 0) {
         return isPerceptional ? okhsv_to_srgb(polar) : hsv2rgb(polar);
-      } else {
+      } else if (polarColorModel == 1) {
         return isPerceptional ? okhsl_to_srgb(polar) : hsl2rgb(polar);
+      } else {
+        return hcl2rgb(polar);
       }
     }
 
@@ -243,7 +248,7 @@ scene.add(cube);
 let time = 0;
 function animate() {
   requestAnimationFrame(animate);
-  cube.material.uniforms.progress.value = huePosition;
+  cube.material.uniforms.progress.value = progress;
   cube.material.uniforms.time.value = time;
   time += 0.0001;
   renderer.render(scene, camera);
@@ -307,5 +312,12 @@ $app.appendChild($debuglabel);
 
 $app.appendChild($colorModel);
 $colorModel.addEventListener('change', (e) => {
-  cube.material.uniforms.polarColorModel.value = e.target.value === 'hsv' ? 0 : 1;
+  const value = e.target.value;
+  if(value === 'hsv'){
+    cube.material.uniforms.polarColorModel.value = 0;
+  } else if(value === 'hsl'){
+    cube.material.uniforms.polarColorModel.value = 1;
+  } else {
+    cube.material.uniforms.polarColorModel.value = 2;
+  }
 });
