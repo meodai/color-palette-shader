@@ -31,10 +31,28 @@ $selectShader.innerHTML = `
 `;
 $app.appendChild($selectShader);
 
+
+const $perccheckboxlabel = document.createElement('label');
+$perccheckboxlabel.textContent = 'Perceptual';
+
+$perccheckboxlabel.classList.add("perceptual-checkbox");
+
 const $perceptualCheckbox = document.createElement('input');
 $perceptualCheckbox.type = 'checkbox';
 $perceptualCheckbox.checked = true;
-$perceptualCheckbox.classList.add('perceptual-checkbox');
+
+$perccheckboxlabel.appendChild($perceptualCheckbox);
+
+
+const $debuglabel = document.createElement('label');
+$debuglabel.textContent = 'Debug view';
+
+const $debugCheckbox = document.createElement('input');
+$debugCheckbox.type = 'checkbox';
+$debugCheckbox.checked = false;
+
+$debuglabel.appendChild($debugCheckbox);
+
 
 const $selectAxis = document.createElement('input');
 $selectAxis.type = 'range';
@@ -138,6 +156,7 @@ return new THREE.ShaderMaterial({
     isPerceptional: { value: true },
     paletteTexture: { value: texture },
     paletteLength: { value: palette.length },
+    debug: { value: false },
   },
   vertexShader: `varying vec2 vUv;
       void main(){
@@ -154,6 +173,7 @@ return new THREE.ShaderMaterial({
     uniform int progress_axis;
     uniform sampler2D paletteTexture;
     uniform int paletteLength;
+    uniform bool debug;
 
     ${shaderHSL2RGB}
     ${shaderHSV2RGB}
@@ -195,6 +215,9 @@ return new THREE.ShaderMaterial({
       }
       
       vec3 closest = closestColor(rgb, paletteTexture, paletteLength);
+      if (debug) {
+        closest = rgb;
+      }
       gl_FragColor = vec4(closest, 1.);
     }`,
 });
@@ -255,9 +278,14 @@ $perceptualCheckbox.addEventListener("change", (e) => {
   cube.material.uniforms.isPerceptional.value = e.target.checked;
 });
 
-$app.appendChild($perceptualCheckbox);
+$app.appendChild($perccheckboxlabel);
 
 $app.appendChild($selectAxis);
-$selectAxis.addEventListener('change', (e) => {
+$selectAxis.addEventListener('input', (e) => {
   cube.material.uniforms.progress_axis.value = parseInt(e.target.value);
 });
+
+$debugCheckbox.addEventListener("change", (e) => {
+  cube.material.uniforms.debug.value = e.target.checked;
+});
+$app.appendChild($debuglabel);
