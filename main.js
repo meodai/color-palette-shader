@@ -53,13 +53,21 @@ $debugCheckbox.checked = false;
 
 $debuglabel.appendChild($debugCheckbox);
 
+const $colorModel = document.createElement('select');
+$colorModel.classList.add('color-model-select');
+$colorModel.innerHTML = `
+  <option value="hsv">HSV</option>
+  <option value="hsl">HSL</option>
+`;
 
-const $selectAxis = document.createElement('input');
-$selectAxis.type = 'range';
-$selectAxis.min = 0;
-$selectAxis.max = 2;
-$selectAxis.step = 1;
-$selectAxis.value = 1;
+
+const $selectAxis = document.createElement('select');
+$selectAxis.innerHTML = `
+  <option value="0">x</option>
+  <option value="1">y</option>
+  <option value="2">z</option>
+`;
+
 $selectAxis.classList.add('axis-select');
 
 const palette = [
@@ -151,6 +159,7 @@ return new THREE.ShaderMaterial({
   uniforms: {
     progress: { value: 0.0 },
     progress_axis: { value: 1 },
+    polarColorModel: { value: 0 }, // 0 = HSV, 1 = HSL
     time: { value: 0.0 },
     isPolar: { value: true },
     isPerceptional: { value: true },
@@ -174,11 +183,20 @@ return new THREE.ShaderMaterial({
     uniform sampler2D paletteTexture;
     uniform int paletteLength;
     uniform bool debug;
+    uniform int polarColorModel;
 
     ${shaderHSL2RGB}
     ${shaderHSV2RGB}
     ${shaderOKLab}
     ${shaderClosestColor}
+
+    vec3 polarToRGB(vec3 polar) {
+      if (polarColorModel == 0) {
+        return isPerceptional ? okhsv_to_srgb(polar) : hsv2rgb(polar);
+      } else {
+        return isPerceptional ? okhsl_to_srgb(polar) : hsl2rgb(polar);
+      }
+    }
 
     void main(){
       vec3 hsv = vec3(progress, vUv.x, vUv.y);
@@ -192,11 +210,11 @@ return new THREE.ShaderMaterial({
         vec2 toCenter = vUv - 0.5;
         float angle = atan(toCenter.y, toCenter.x);
         float radius = length(toCenter) * 1.5;
-        hsv = vec3((angle / TWO_PI) - .25, 1. - progress, radius);
+        hsv = vec3((angle / TWO_PI), 1. - progress, radius);
         if(progress_axis == 2){
-          hsv = vec3((angle / TWO_PI) - .25, radius, 1. - progress);
+          hsv = vec3((angle / TWO_PI), radius, 1. - progress);
         } else if(progress_axis == 1){
-          hsv = vec3((angle / TWO_PI) - .25, 1. - progress, radius);
+          hsv = vec3((angle / TWO_PI), 1. - progress, radius);
         } else {
           float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
           if (vUv.x > 0.5) {
@@ -208,11 +226,7 @@ return new THREE.ShaderMaterial({
 
       vec3 rgb = vec3(0.);
 
-      if (isPerceptional) {
-        rgb = okhsl_to_srgb(hsv);
-      } else {
-        rgb = hsv2rgb(hsv);
-      }
+      rgb = polarToRGB(hsv);
       
       vec3 closest = closestColor(rgb, paletteTexture, paletteLength);
       if (debug) {
@@ -281,7 +295,8 @@ $perceptualCheckbox.addEventListener("change", (e) => {
 $app.appendChild($perccheckboxlabel);
 
 $app.appendChild($selectAxis);
-$selectAxis.addEventListener('input', (e) => {
+$selectAxis.addEventListener('change', (e) => {
+  // x = 0, y = 1, z = 2
   cube.material.uniforms.progress_axis.value = parseInt(e.target.value);
 });
 
@@ -289,3 +304,8 @@ $debugCheckbox.addEventListener("change", (e) => {
   cube.material.uniforms.debug.value = e.target.checked;
 });
 $app.appendChild($debuglabel);
+
+$app.appendChild($colorModel);
+$colorModel.addEventListener('change', (e) => {
+  cube.material.uniforms.polarColorModel.value = e.target.value === 'hsv' ? 0 : 1;
+});
