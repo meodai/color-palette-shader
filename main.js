@@ -178,7 +178,11 @@ return new THREE.ShaderMaterial({
         } else if(progress_axis == 1){
           hsv = vec3((angle / TWO_PI) - .25, 1. - progress, radius);
         } else {
-          hsv = vec3(1.0 - abs(0.5 - progress) * 2.0, 1.0 - abs(0.5 - vUv.x) * 2.0, vUv.y);
+          float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
+          if (vUv.x > 0.5) {
+            hue += 0.5;
+          }
+          hsv = vec3(hue, abs(0.5 - vUv.x) * 2.0, vUv.y);
         }
       }
 
@@ -191,7 +195,6 @@ return new THREE.ShaderMaterial({
       }
       
       vec3 closest = closestColor(rgb, paletteTexture, paletteLength);
-
       gl_FragColor = vec4(closest, 1.);
     }`,
 });
