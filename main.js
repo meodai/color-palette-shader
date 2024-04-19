@@ -1,6 +1,7 @@
 import './style.css'
 import * as THREE from "three";
 
+import shaderSRGB2RGB from "./shaders/srgb2rgb.frag.glsl?raw" assert { type: "raw" };
 import shaderOKLab from "./shaders/oklab.frag.glsl?raw" assert { type: "raw" };
 import shaderHSV2RGB from "./shaders/hsv2rgb.frag.glsl?raw" assert { type: "raw" };
 import shaderHSL2RGB from "./shaders/hsl2rgb.frag.glsl?raw" assert { type: "raw" };
@@ -129,7 +130,7 @@ vec3 closestColor(vec3 color, sampler2D paletteTexture, int paletteSize) {
     // Calculate distance between the sampled color and the input color
     float dist;
     if (isPerceptional) {
-      dist = distance(linear_srgb_to_oklab(color), linear_srgb_to_oklab(paletteColor));
+      dist = distance(linear_srgb_to_oklab(srgb2rgb(color)), linear_srgb_to_oklab(srgb2rgb(paletteColor)));
     } else {
       dist = distance(color, paletteColor);
     }
@@ -197,7 +198,8 @@ return new THREE.ShaderMaterial({
     uniform int paletteLength;
     uniform bool debug;
     uniform int polarColorModel;
-
+    
+    ${shaderSRGB2RGB}
     ${shaderHSL2RGB}
     ${shaderHSV2RGB}
     ${shaderLCH2RGB}
@@ -206,9 +208,9 @@ return new THREE.ShaderMaterial({
 
     vec3 polarToRGB(vec3 polar) {
       if (polarColorModel == 0) {
-        return isPerceptional ? okhsv_to_srgb(polar) : hsv2rgb(polar);
+        return isPerceptional ? srgb2rgb(okhsv_to_srgb(polar)) : hsv2rgb(polar);
       } else if (polarColorModel == 1) {
-        return isPerceptional ? okhsl_to_srgb(polar) : hsl2rgb(polar);
+        return isPerceptional ? srgb2rgb(okhsl_to_srgb(polar)) : hsl2rgb(polar);
       } else {
         return lch2rgb(vec3(polar.z, polar.y, polar.x));
       }
@@ -225,7 +227,7 @@ return new THREE.ShaderMaterial({
       if(isPolar) {
         vec2 toCenter = vUv - 0.5;
         float angle = atan(toCenter.y, toCenter.x);
-        float radius = length(toCenter) * 1.5;
+        float radius = length(toCenter) * 2.0;
         hsv = vec3((angle / TWO_PI), 1. - progress, radius);
         if(progress_axis == 2){
           hsv = vec3((angle / TWO_PI), radius, 1. - progress);
