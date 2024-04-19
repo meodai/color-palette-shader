@@ -74,7 +74,7 @@ $selectAxis.innerHTML = `
 $selectAxis.classList.add('axis-select');
 
 const $labelInverseLightness = document.createElement('label');
-$labelInverseLightness.textContent = 'Invert lightness';
+$labelInverseLightness.textContent = 'InvertZ lightness';
 
 const $inverseLightnessCheckbox = document.createElement('input');
 $inverseLightnessCheckbox.type = 'checkbox';
@@ -189,7 +189,7 @@ return new THREE.ShaderMaterial({
     paletteTexture: { value: texture },
     paletteLength: { value: palette.length },
     debug: { value: false },
-    invert: { value: false },
+    invertZ: { value: false },
   },
   vertexShader: `varying vec2 vUv;
       void main(){
@@ -208,7 +208,7 @@ return new THREE.ShaderMaterial({
     uniform int paletteLength;
     uniform bool debug;
     uniform int polarColorModel;
-    uniform bool invert;
+    uniform bool invertZ;
     
     ${shaderSRGB2RGB}
     ${shaderHSL2RGB}
@@ -252,7 +252,7 @@ return new THREE.ShaderMaterial({
         }
       }
 
-      if(invert){
+      if(invertZ){
         hsv.z = 1. - hsv.z;
       }
       vec3 rgb = polarToRGB(hsv);
@@ -348,6 +348,6 @@ $colorModel.addEventListener('change', (e) => {
 });
 
 $inverseLightnessCheckbox.addEventListener("change", (e) => {
-  cube.material.uniforms.invert.value = e.target.checked;
+  cube.material.uniforms.invertZ.value = e.target.checked;
 });
 $app.appendChild($labelInverseLightness);
