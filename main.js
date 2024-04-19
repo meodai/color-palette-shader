@@ -10,7 +10,7 @@ const $app = document.querySelector("#app");
 
 let progress = 0.0;
 
-const size = Math.min(window.innerWidth, window.innerHeight) * .6;
+let size = Math.min(window.innerWidth, window.innerHeight) * .6;
 
 const $hueSlider = document.createElement('input');
 $hueSlider.type = 'range';
@@ -105,8 +105,16 @@ const camera = new THREE.PerspectiveCamera(
 const renderer = new THREE.WebGLRenderer({
   antialias: false,
 });
+renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(size, size);
 $app.appendChild(renderer.domElement);
+
+window.addEventListener("resize", () => {
+  size = Math.min(window.innerWidth, window.innerHeight) * .6;
+  renderer.setSize(size, size);
+  camera.aspect = size / size;
+  camera.updateProjectionMatrix();
+});
 
 
 const shaderClosestColor = `
