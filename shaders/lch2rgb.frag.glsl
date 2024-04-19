@@ -1,19 +1,21 @@
 #define M_PI 3.1415926535897932384626433832795
+
 float transfer(float v) {
-    return v <= 0.0031308 ? 12.92 * v : 1.055 *pow(v, 0.4166666666666667) - 0.055;
+    return v <= 0.0031308 ?12.92 * v : 1.055 *pow(v, 0.4166666666666667) - 0.055;
 }
 
 vec3 transfer(vec3 v) {
     return vec3(transfer(v.x), transfer(v.y), transfer(v.z));
 }
 
-vec3 hcl2rgb(vec3 hcl) {
-    hcl.y *= 0.33;
+// slightly rearranged vector components so it matches with LCH
+vec3 lch2rgb(vec3 lch) {
+    lch.y *= 0.34;
     
     vec3 lab = vec3(
-        hcl.z,
-        hcl.y * cos(hcl.x * M_PI*2.0),
-        hcl.y * sin(hcl.x * M_PI*2.0)
+        lch.x,
+        lch.y * cos(lch.z * M_PI*2.0),
+        lch.y * sin(lch.z * M_PI*2.0)
     );
     
     vec3 lms = vec3(
@@ -31,10 +33,5 @@ vec3 hcl2rgb(vec3 hcl) {
     );
      
     rgb = transfer(rgb);
-    
-    if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) {
-        rgb = vec3(0.5);
-    }
-
     return rgb;
 }

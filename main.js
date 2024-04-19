@@ -4,7 +4,7 @@ import * as THREE from "three";
 import shaderOKLab from "./shaders/oklab.frag.glsl?raw" assert { type: "raw" };
 import shaderHSV2RGB from "./shaders/hsv2rgb.frag.glsl?raw" assert { type: "raw" };
 import shaderHSL2RGB from "./shaders/hsl2rgb.frag.glsl?raw" assert { type: "raw" };
-import shaderHCL2RGB from "./shaders/hcl2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderLCH2RGB from "./shaders/lch2rgb.frag.glsl?raw" assert { type: "raw" };
 
 const $app = document.querySelector("#app");
 
@@ -59,7 +59,7 @@ $colorModel.classList.add('color-model-select');
 $colorModel.innerHTML = `
   <option value="hsv">HSV</option>
   <option value="hsl">HSL</option>
-  <option value="hcl">LCh</option>
+  <option value="lch">LCh</option>
 `;
 
 
@@ -189,7 +189,7 @@ return new THREE.ShaderMaterial({
 
     ${shaderHSL2RGB}
     ${shaderHSV2RGB}
-    ${shaderHCL2RGB}
+    ${shaderLCH2RGB}
     ${shaderOKLab}
     ${shaderClosestColor}
 
@@ -199,7 +199,7 @@ return new THREE.ShaderMaterial({
       } else if (polarColorModel == 1) {
         return isPerceptional ? okhsl_to_srgb(polar) : hsl2rgb(polar);
       } else {
-        return hcl2rgb(polar);
+        return lch2rgb(vec3(polar.z, polar.y, polar.x));
       }
     }
 
