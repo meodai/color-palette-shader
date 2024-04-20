@@ -6,7 +6,7 @@ const $palette = document.querySelector("[data-palette]");
 const $tools = document.querySelector("[data-tools]");
 
 const $app = document.querySelector("#app");
-let size = Math.min(window.innerWidth, window.innerHeight) * 0.6;
+let size = window.innerWidth * 0.2;
 
 let palette = [
   '#bc8b96', '#974b72', '#7f305c', '#5d2047', '#46173a', '#340d31', '#200816', 
@@ -36,12 +36,54 @@ function getNamesFromPalette(palette) {
     });
 }
 
-const viz = new PaletteViz({
+const options = {
   palette,
   width: size,
   height: size,
   $parent: $app,
-});
+  uniforms: {
+    progress_axis: { value: 0 },
+  },
+};
+
+const viz = new PaletteViz(options);
+
+const vizzes = [
+  viz,
+  new PaletteViz({
+    ...options,
+    uniforms: {
+      progress_axis: { value: 1 },
+    },
+  }),
+  new PaletteViz({
+    ...options,
+    uniforms: {
+      progress_axis: { value: 2 },
+    },
+  }),
+  new PaletteViz({
+    ...options,
+    uniforms: {
+      progress_axis: { value: 0 },
+      isPolar: { value: false },
+    },
+  }),
+  new PaletteViz({
+    ...options,
+    uniforms: {
+      progress_axis: { value: 1 },
+      isPolar: { value: false },
+    },
+  }),
+  new PaletteViz({
+    ...options,
+    uniforms: {
+      progress_axis: { value: 2 },
+      isPolar: { value: false },
+    },
+  }),
+];
 
 const $hueSlider = document.createElement('input');
 $hueSlider.type = 'range';
@@ -52,7 +94,10 @@ $hueSlider.value = 0;
 $hueSlider.classList.add('hue-slider');
 
 $hueSlider.addEventListener('input', (e) => {
-  viz.progress = parseFloat(e.target.value);
+  const progress = parseFloat(e.target.value);
+  vizzes.forEach((v) => {
+    v.progress = progress;
+  });
 });
 
 const $selectShader = document.createElement('select');
@@ -68,7 +113,7 @@ $selectShader.addEventListener("change", (e) => {
     viz.isPolar = true;
   }
 });
-$app.appendChild($selectShader);
+$tools.appendChild($selectShader);
 
 
 const $perccheckboxlabel = document.createElement('label');
@@ -84,10 +129,12 @@ $perccheckboxlabel.appendChild($perceptualCheckbox);
 
 
 $perceptualCheckbox.addEventListener("change", (e) => {
-  viz.isPerceptional = e.target.checked;
+  vizzes.forEach((v) => {
+    v.isPerceptional = e.target.checked;
+  });
 });
 
-$app.appendChild($perccheckboxlabel);
+$tools.appendChild($perccheckboxlabel);
 
 const $debuglabel = document.createElement('label');
 $debuglabel.textContent = 'Debug view';
@@ -126,7 +173,7 @@ $inverseLightnessCheckbox.checked = false;
 $labelInverseLightness.appendChild($inverseLightnessCheckbox);
 
 window.addEventListener("resize", () => {
-  viz.resize(Math.min(window.innerWidth, window.innerHeight) * 0.6);
+  viz.resize(window.innerWidth * 0.2);
 });
 
 function createDomFromPalette (palette) {
@@ -161,6 +208,10 @@ $palette.addEventListener("input", (e) => {
     $target.parentElement.style.setProperty("--color", $target.value);
     $target.parentElement.dataset.color = $target.value;
     viz.setColor($target.value, index);
+
+    vizzes.forEach((v) => {
+      v.setColor($target.value, index);
+    });
   }
 }, true);
 
@@ -171,32 +222,43 @@ $palette.addEventListener("click", (e) => {
     viz.removeColor(null, $target.parentElement.dataset.color);
     createDomFromPalette(viz.palette);
     $target.parentElement.remove();
+
+    vizzes.forEach((v) => {
+      v.palette = viz.palette;
+    });
   }
 });
 
 createDomFromPalette(palette);
 
-$app.appendChild($hueSlider);
+$tools.appendChild($hueSlider);
 
-
-$app.appendChild($selectAxis);
+$tools.appendChild($selectAxis);
 $selectAxis.addEventListener('change', (e) => {
-  viz.progressAxis = e.target.value;
+  vizzes.forEach((v) => {
+    v.progressAxis = e.target.value;
+  });
 });
 
 $debugCheckbox.addEventListener("change", (e) => {
-  viz.debug = e.target.checked;
+  vizzes.forEach((v) => {
+    v.debug = e.target.checked;
+  });
 });
 
-$app.appendChild($debuglabel);
+$tools.appendChild($debuglabel);
 
-$app.appendChild($colorModel);
+$tools.appendChild($colorModel);
 $colorModel.addEventListener('change', (e) => {
-  viz.polarColorModel = e.target.value;
+  vizzes.forEach((v) => {
+    v.polarColorModel = e.target.value;
+  });
 });
 
 $inverseLightnessCheckbox.addEventListener("change", (e) => {
-  viz.invertZ = e.target.checked;
+  vizzes.forEach((v) => {
+    v.invertZ = e.target.checked;
+  });
 });
-$app.appendChild($labelInverseLightness);
+$tools.appendChild($labelInverseLightness);
 

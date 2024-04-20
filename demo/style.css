@@ -18,10 +18,8 @@ button {
   font-size: .5em;
 }
 
-
-canvas {
+.palette-viz {
   display: block;
-  box-shadow: 0 0 0 10px rgb(0 0 0 / 100%);
   image-rendering: pixelated;
 }
 
@@ -54,10 +52,29 @@ h1, h2, h3, label {
 }
 
 .sidebar__tools {
-  flex: 1 1 1rem;
-  background: pink;
+  flex: 1 1 auto;
 }
 
 .palette__color {
   background: var(--color);
+}
+
+.viz {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  .palette-viz {
+    width: 33.3333% !important;
+    aspect-ratio: 1;
+    height: auto !important;
+  }
+}
+
+.shader-select,
+.axis-select {
+  display: none;
+}
+
+label {
+  font-size: .5em;
 }
