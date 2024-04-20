@@ -250,6 +250,7 @@ export class PaletteViz {
     this.#height = height;
     this.#renderer.setSize(width, height);
     this.#camera.updateProjectionMatrix();
+    this.#paint();
   }
 
   set palette(palette: ColorList) {
