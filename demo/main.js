@@ -9,17 +9,73 @@ const $app = document.querySelector("#app");
 let size = window.innerWidth * 0.2;
 
 let palette = [
+  /*
   '#bc8b96', '#974b72', '#7f305c', '#5d2047', '#46173a', '#340d31', '#200816', 
   '#312234', '#40364a', '#5b596d', '#7c8497', '#9daec0', '#f8e6d0', '#dcbaa0', 
   '#c08e70', '#946452', '#683a34', '#442125', '#732f31', '#a23c3c', '#b45e4e', 
   '#cf8c52', '#e8c988', '#a3ab6d', '#5e8c51', '#436852', '#3e4350', '#381d4e',
   '#3c2c6a', '#444c84', '#5c79a6', '#8bc0ca',
  /*
-  ...new Array(1000).fill(0).map((_, i) => {
+  ...new Array(500).fill(0).map((_, i) => {
     return `hsl(${Math.random() * 360}, ${Math.random() * 100}%, ${
       Math.random() * 100
     }%)`;
   }),*/
+
+  "#B71C1C",
+  "#C62828",
+  "#D32F2F",
+  "#E53935",
+  "#F44336",
+  "#EF5350",
+  "#E57373",
+  "#EF9A9A",
+  "#FFCDD2",
+  "#FFEBEE",
+
+  "#E65100",
+  "#EF6C00",
+  "#F57C00",
+  "#FB8C00",
+  "#FF9800",
+  "#FFA726",
+  "#FFB74D",
+  "#FFCC80",
+  "#FFE0B2",
+  "#FFF3E0",
+
+  "#1B5E20",
+  "#2E7D32",
+  "#388E3C",
+  "#43A047",
+  "#4CAF50",
+  "#66BB6A",
+  "#81C784",
+  "#A5D6A7",
+  "#C8E6C9",
+  "#E8F5E9",
+
+  "#01579B",
+  "#0277BD",
+  "#0288D1",
+  "#039BE5",
+  "#03A9F4",
+  "#29B6F6",
+  "#4FC3F7",
+  "#81D4FA",
+  "#B3E5FC",
+  "#E1F5FE",
+
+  "#212121",
+  "#424242",
+  "#616161",
+  "#757575",
+  "#9E9E9E",
+  "#BDBDBD",
+  "#E0E0E0",
+  "#EEEEEE",
+  "#F5F5F5",
+  "#FAFAFA",
 ];
 
 getNamesFromPalette(palette);

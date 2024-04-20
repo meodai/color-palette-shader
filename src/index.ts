@@ -62,7 +62,7 @@ void main(){
   if(progress_axis == 1){
     hsv = vec3(vUv.x, progress, vUv.y);
   } else if(progress_axis == 2){
-    hsv = vec3(vUv.x, vUv.y, progress);
+    hsv = vec3(vUv.x, vUv.y, 1. - progress);
   }
 
   if(isPolar) {
