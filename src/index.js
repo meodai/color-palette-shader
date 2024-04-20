@@ -162,16 +162,14 @@ export class PaletteViz {
   #$renderer = null;
   #$parent = null;
 
-  constructor(
-    { 
-      palette = randomPalette(), 
-      width = 512, 
-      height = 512, 
-      pixelRatio = window.devicePixelRatio, 
-      uniforms = paletteShaderUniforms, 
-      $parent = document.body 
-    } = {}
-  ) {
+  constructor({
+    palette = randomPalette(),
+    width = 512,
+    height = 512,
+    pixelRatio = window.devicePixelRatio,
+    uniforms = paletteShaderUniforms,
+    $parent = document.body,
+  } = {}) {
     this.#palette = palette;
     this.#width = width;
     this.#height = height;
@@ -179,7 +177,12 @@ export class PaletteViz {
 
     this.#material = paletteShaderMaterial.clone();
     this.#texture = paletteToTexture(this.#palette);
-    this.#uniforms = { ...this.#uniforms, ...uniforms };
+    this.#uniforms = {
+      ...this.#uniforms,
+      ...uniforms,
+      paletteTexture: { value: this.#texture },
+      paletteLength: { value: this.#palette.length },
+    };
     this.#material.uniforms = this.#uniforms;
 
     this.#$parent = $parent;
@@ -213,6 +216,9 @@ export class PaletteViz {
   }
 
   resize(width, height) {
+    if (height === undefined) {
+      height = width;
+    }
     this.#width = width;
     this.#height = height;
     this.#renderer.setSize(width, height);
@@ -227,11 +233,34 @@ export class PaletteViz {
     this.#paint();
   }
 
-  setColor = (index, color) => {
+  setColor = (color, index) => {
     this.#palette[index] = color;
     this.#texture = paletteToTexture(this.#palette);
     this.#material.uniforms.paletteTexture.value = this.#texture;
     this.#paint();
+  };
+
+  addColor = (color, index) => {
+    if (index === undefined) {
+      index = this.#palette.length;
+    }
+    this.#palette.splice(index, 0, color);
+    this.#texture = paletteToTexture(this.#palette);
+    this.#material.uniforms.paletteTexture.value = this.#texture;
+    this.#material.uniforms.paletteLength.value = this.#palette.length;
+  };
+
+  removeColor = (index, color) => {
+    // if index is not provided, look for the color in the palette
+    if (index === undefined && color !== undefined) {
+      index = this.#palette.indexOf(color);
+    } else if (index === undefined) {
+      throw new Error("Index or color must be provided");
+    }
+    this.#palette.splice(index, 1);
+    this.#texture = paletteToTexture(this.#palette);
+    this.#material.uniforms.paletteTexture.value = this.#texture;
+    this.#material.uniforms.paletteLength.value = this.#palette.length;
   };
 
   set progress(progress) {
@@ -246,7 +275,7 @@ export class PaletteViz {
 
   set progressAxis(axis) {
     // validate axis
-    if (!Object.key(this.#axisMap).includes(axis)) {
+    if (!Object.keys(this.#axisMap).includes(axis)) {
       throw new Error("Invalid axis. Must be one of 'x', 'y', or 'z'");
     }
     this.#progressAxis = axis;
@@ -260,7 +289,7 @@ export class PaletteViz {
 
   set polarColorModel(model) {
     // validate model
-    if (!Object.key(this.#colorModelMap).includes(model)) {
+    if (!Object.keys(this.#colorModelMap).includes(model)) {
       throw new Error(
         "Invalid color model. Must be one of 'hsv', 'hsl', or 'lch'"
       );
@@ -314,5 +343,5 @@ export class PaletteViz {
     return this.#invertZ;
   }
 
-  static paletteToTexture = (palette) => paletteToTexture(palette)
+  static paletteToTexture = (palette) => paletteToTexture(palette);
 }
