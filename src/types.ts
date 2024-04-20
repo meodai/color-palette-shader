@@ -12,3 +12,6 @@ export type PaletteVizOptions = {
   uniforms?: { [key: string]: { value: string | number | boolean | Texture}},
   $parent?: HTMLElement,
 };
+
+export type SupportedColorModels = 'hsv' | 'hsl' | 'lch';
+export type Axis = 'x' | 'y' | 'z';

@@ -13,7 +13,7 @@ import {
   Mesh,
 } from "three";
 
-import { ColorString, ColorList, PaletteVizOptions } from "./types.ts";
+import { ColorString, ColorList, PaletteVizOptions, SupportedColorModels, Axis } from "./types.ts";
 
 // @ts-ignore
 import shaderSRGB2RGB from "./shaders/srgb2rgb.frag.glsl?raw" assert { type: "raw" };
@@ -163,8 +163,8 @@ export class PaletteViz {
   #uniforms = paletteShaderUniforms;
   #animationFrame:number | null = null;
   #progress = 0.0;
-  #progressAxis: 'x' | 'y' | 'z' = "y";
-  #polarColorModel: 'hsv' | 'hsl' | 'lch' = "hsv";
+  #progressAxis:Axis = "y";
+  #polarColorModel:SupportedColorModels = "hsv";
   #isPolar = true;
   #isPerceptional = true;
   #debug = false;
@@ -301,7 +301,7 @@ export class PaletteViz {
     return this.#progress;
   }
 
-  set progressAxis(axis: "x" | "y" | "z") {
+  set progressAxis(axis: Axis) {
     // validate axis
     if (!Object.keys(this.#axisMap).includes(axis)) {
       throw new Error("Invalid axis. Must be one of 'x', 'y', or 'z'");
@@ -315,7 +315,7 @@ export class PaletteViz {
     return this.#progressAxis;
   }
 
-  set polarColorModel(model: "hsv" | "hsl" | "lch") {
+  set polarColorModel(model:SupportedColorModels) {
     // validate model
     if (!Object.keys(this.#colorModelMap).includes(model)) {
       throw new Error(
