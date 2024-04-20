@@ -50,11 +50,12 @@ ${shaderClosestColor}
 
 vec3 polarToRGB(vec3 polar) {
   if (polarColorModel == 0) {
-    return isPerceptional ? srgb2rgb(okhsv_to_srgb(polar)) : hsv2rgb(polar);
+    // maybe srgb2rgb(okhsv_to_srgb(polar));
+    return isPerceptional ? okhsv_to_srgb(polar) : hsv2rgb(polar);
   } else if (polarColorModel == 1) {
-    return isPerceptional ? srgb2rgb(okhsl_to_srgb(polar)) : hsl2rgb(polar);
+    return isPerceptional ? okhsl_to_srgb(polar) : hsl2rgb(polar);
   } else {
-    return srgb2rgb(lch2rgb(vec3(polar.z, polar.y, polar.x)));
+    return lch2rgb(vec3(polar.z, polar.y, polar.x));
   }
 }
 void main(){
