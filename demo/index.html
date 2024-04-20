@@ -3,10 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite App</title>
+    <title>Palette Viz</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:slnt,wght@-10..0,100..900&family=Marcellus&display=swap"
+      rel="stylesheet">
   </head>
   <body>
-    <div id="app"></div>
+    <!--h1>Palette Viz</h1-->
+    <div class="app">
+      <div class="sidebar">
+        <div class="sidebar__palette palette" data-palette></div>
+        <div class="sidebar__tools" data-tools></div>
+      </div>
+      <div id="app" class="viz" data-viz></div>
+    </div>
     <script type="module" src="./main.js"></script>
   </body>
 </html>
