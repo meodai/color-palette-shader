@@ -51,6 +51,16 @@ h1, h2, h3, label {
 
 .sidebar__tools {
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+  padding: .5rem;
+}
+
+.sidebar__tools label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .palette__color {
