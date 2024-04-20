@@ -99,7 +99,7 @@ void main(){
 export const paletteToTexture = (palette: ColorList) => {
   const paletteColors = palette.map((color) => {
     try {
-      const c = new Color(color);
+      const c = new Color(color).convertLinearToSRGB();
       return { r: c.r, g: c.g, b: c.b, a: 1 };
     } catch (e) {
       console.error(`Invalid color: ${color}`);
