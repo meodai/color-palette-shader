@@ -262,7 +262,15 @@ export class PaletteViz {
     this.#paint();
   }
 
+  get palette() {
+    return this.#palette;
+  }
+
   setColor = (color: ColorString, index: number) => {
+    // validate index
+    if (index < 0 || index >= this.#palette.length) {
+      throw new Error("Invalid index");
+    }
     this.#palette[index] = color;
     this.#texture = paletteToTexture(this.#palette);
     this.#material.uniforms.paletteTexture.value = this.#texture;
@@ -277,19 +285,23 @@ export class PaletteViz {
     this.#texture = paletteToTexture(this.#palette);
     this.#material.uniforms.paletteTexture.value = this.#texture;
     this.#material.uniforms.paletteLength.value = this.#palette.length;
+    this.#paint();
   };
 
-  removeColor = (index: undefined | number, color: ColorString) => {
-    // if index is not provided, look for the color in the palette
-    if (index === undefined && color !== undefined) {
+  removeColor = (index: undefined | null | number, color?: ColorString) => {
+    if ((index === null || index === undefined) && color !== undefined) {
       index = this.#palette.indexOf(color);
-    } else if (index === undefined) {
+    } else if (index === undefined || index === null) {
       throw new Error("Index or color must be provided");
+    }
+    if (index === -1) {
+      throw new Error("Color not found in palette");
     }
     this.#palette.splice(index, 1);
     this.#texture = paletteToTexture(this.#palette);
     this.#material.uniforms.paletteTexture.value = this.#texture;
     this.#material.uniforms.paletteLength.value = this.#palette.length;
+    this.#paint();
   };
 
   set progress(progress: number) {
