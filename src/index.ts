@@ -13,12 +13,19 @@ import {
   Mesh,
 } from "three";
 
+import { ColorString, ColorList, PaletteVizOptions } from "./types.ts";
 
+// @ts-ignore
 import shaderSRGB2RGB from "./shaders/srgb2rgb.frag.glsl?raw" assert { type: "raw" };
+// @ts-ignore
 import shaderOKLab from "./shaders/oklab.frag.glsl?raw" assert { type: "raw" };
+// @ts-ignore
 import shaderHSV2RGB from "./shaders/hsv2rgb.frag.glsl?raw" assert { type: "raw" };
+// @ts-ignore
 import shaderHSL2RGB from "./shaders/hsl2rgb.frag.glsl?raw" assert { type: "raw" };
+// @ts-ignore
 import shaderLCH2RGB from "./shaders/lch2rgb.frag.glsl?raw" assert { type: "raw" };
+// @ts-ignore
 import shaderClosestColor from "./shaders/closestColor.frag.glsl?raw" assert { type: "raw" };
 
 export const fragmentShader = `
@@ -89,30 +96,35 @@ void main(){
   gl_FragColor = vec4(closest, 1.);
 }`;
 
-export const paletteToTexture = (palette) => {
-    const paletteColors = palette.map((color) => {
+export const paletteToTexture = (palette: ColorList) => {
+  const paletteColors = palette.map((color) => {
+    try {
       const c = new Color(color);
       return { r: c.r, g: c.g, b: c.b, a: 1 };
-    });
-    const texture = new DataTexture(
-      new Float32Array(
-        paletteColors.flatMap((color) => [color.r, color.g, color.b, color.a])
-      ),
-      palette.length,
-      1,
-      RGBAFormat,
-      FloatType
-    );
-    texture.needsUpdate = true;
-    texture.wrapS = ClampToEdgeWrapping;
-    texture.wrapT = ClampToEdgeWrapping;
-    texture.minFilter = NearestFilter;
-    texture.magFilter = NearestFilter;
+    } catch (e) {
+      console.error(`Invalid color: ${color}`);
+      return { r: 0, g: 0, b: 0, a: 1 };
+    }
+  });
+  const texture = new DataTexture(
+    new Float32Array(
+      paletteColors.flatMap((color) => [color.r, color.g, color.b, color.a])
+    ),
+    palette.length,
+    1,
+    RGBAFormat,
+    FloatType
+  );
+  texture.needsUpdate = true;
+  texture.wrapS = ClampToEdgeWrapping;
+  texture.wrapT = ClampToEdgeWrapping;
+  texture.minFilter = NearestFilter;
+  texture.magFilter = NearestFilter;
 
-    return texture;
-  }
+  return texture;
+}
 
-export const randomPalette = (size = 20) => {
+export const randomPalette = (size = 20):ColorList => {
   const palette = [];
   for (let i = 0; i < size; i++) {
     palette.push(`rgb(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)})`);
@@ -143,16 +155,16 @@ const paletteShaderMaterial = new ShaderMaterial({
 });
 
 export class PaletteViz {
-  #palette = [];
+  #palette:ColorList = [];
   #width = 512;
   #height = 512;
 
   // uniforms
   #uniforms = paletteShaderUniforms;
-  #animationFrame = null;
+  #animationFrame:number | null = null;
   #progress = 0.0;
-  #progressAxis = "y";
-  #polarColorModel = "hsv";
+  #progressAxis: 'x' | 'y' | 'z' = "y";
+  #polarColorModel: 'hsv' | 'hsl' | 'lch' = "hsv";
   #isPolar = true;
   #isPerceptional = true;
   #debug = false;
@@ -163,18 +175,18 @@ export class PaletteViz {
   #colorModelMap = { hsv: 0, hsl: 1, lch: 2 };
 
   // three.js
-  #texture = null;
-  #material = null;
-  #geometry = null;
-  #mesh = null;
-  #renderer = null;
-  #camera = null;
-  #scene = null;
+  #texture:DataTexture;
+  #material:ShaderMaterial;
+  #geometry!:PlaneGeometry;
+  #mesh!:Mesh;
+  #renderer!:WebGLRenderer;
+  #camera!:OrthographicCamera;
+  #scene!:Scene;
   #pixelRatio = 1;
 
   // dom
-  #$renderer = null;
-  #$parent = null;
+  #$renderer!:HTMLElement;
+  #$parent!:HTMLElement;
 
   constructor({
     palette = randomPalette(),
@@ -183,7 +195,7 @@ export class PaletteViz {
     pixelRatio = window.devicePixelRatio,
     uniforms = paletteShaderUniforms,
     $parent = document.body,
-  } = {}) {
+  }:PaletteVizOptions = {}) {
     this.#palette = palette;
     this.#width = width;
     this.#height = height;
@@ -229,17 +241,18 @@ export class PaletteViz {
     });
   }
 
-  resize(width, height) {
-    if (height === undefined) {
+  resize(width: number, height: null | number): void {
+    if (!height) {
       height = width;
     }
+
     this.#width = width;
     this.#height = height;
     this.#renderer.setSize(width, height);
     this.#camera.updateProjectionMatrix();
   }
 
-  set palette(palette) {
+  set palette(palette: ColorList) {
     this.#palette = palette;
     this.#texture = paletteToTexture(palette);
     this.#material.uniforms.paletteTexture.value = this.#texture;
@@ -247,14 +260,14 @@ export class PaletteViz {
     this.#paint();
   }
 
-  setColor = (color, index) => {
+  setColor = (color: ColorString, index: number) => {
     this.#palette[index] = color;
     this.#texture = paletteToTexture(this.#palette);
     this.#material.uniforms.paletteTexture.value = this.#texture;
     this.#paint();
   };
 
-  addColor = (color, index) => {
+  addColor = (color: ColorString, index: undefined | number) => {
     if (index === undefined) {
       index = this.#palette.length;
     }
@@ -264,7 +277,7 @@ export class PaletteViz {
     this.#material.uniforms.paletteLength.value = this.#palette.length;
   };
 
-  removeColor = (index, color) => {
+  removeColor = (index: undefined | number, color: ColorString) => {
     // if index is not provided, look for the color in the palette
     if (index === undefined && color !== undefined) {
       index = this.#palette.indexOf(color);
@@ -277,8 +290,8 @@ export class PaletteViz {
     this.#material.uniforms.paletteLength.value = this.#palette.length;
   };
 
-  set progress(progress) {
-    this.#progress = parseFloat(progress);
+  set progress(progress: number) {
+    this.#progress = progress;
     this.#material.uniforms.progress.value = this.#progress;
     this.#paint();
   }
@@ -287,7 +300,7 @@ export class PaletteViz {
     return this.#progress;
   }
 
-  set progressAxis(axis) {
+  set progressAxis(axis: "x" | "y" | "z") {
     // validate axis
     if (!Object.keys(this.#axisMap).includes(axis)) {
       throw new Error("Invalid axis. Must be one of 'x', 'y', or 'z'");
@@ -301,7 +314,7 @@ export class PaletteViz {
     return this.#progressAxis;
   }
 
-  set polarColorModel(model) {
+  set polarColorModel(model: "hsv" | "hsl" | "lch") {
     // validate model
     if (!Object.keys(this.#colorModelMap).includes(model)) {
       throw new Error(
@@ -317,7 +330,7 @@ export class PaletteViz {
     return this.#polarColorModel;
   }
 
-  set isPolar(isPolar) {
+  set isPolar(isPolar: boolean) {
     this.#isPolar = isPolar;
     this.#material.uniforms.isPolar.value = isPolar;
     this.#paint();
@@ -327,7 +340,7 @@ export class PaletteViz {
     return this.#isPolar;
   }
 
-  set isPerceptional(isPerceptional) {
+  set isPerceptional(isPerceptional: boolean) {
     this.#isPerceptional = isPerceptional;
     this.#material.uniforms.isPerceptional.value = isPerceptional;
     this.#paint();
@@ -337,7 +350,7 @@ export class PaletteViz {
     return this.#isPerceptional;
   }
 
-  set debug(debug) {
+  set debug(debug: boolean) {
     this.#debug = debug;
     this.#material.uniforms.debug.value = debug;
     this.#paint();
@@ -347,7 +360,7 @@ export class PaletteViz {
     return this.#debug;
   }
 
-  set invertZ(invertZ) {
+  set invertZ(invertZ: boolean) {
     this.#invertZ = invertZ;
     this.#material.uniforms.invertZ.value = invertZ;
     this.#paint();
@@ -357,5 +370,5 @@ export class PaletteViz {
     return this.#invertZ;
   }
 
-  static paletteToTexture = (palette) => paletteToTexture(palette);
+  static paletteToTexture = (palette: ColorList) => paletteToTexture(palette);
 }

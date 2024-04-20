@@ -5,7 +5,7 @@ export default defineConfig({
   build: {
     outDir: "dist",
     lib: {
-      entry: "src/index.js",
+      entry: "src/index.ts",
       name: "palette-shader",
     },
   },
