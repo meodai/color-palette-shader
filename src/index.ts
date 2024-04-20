@@ -71,10 +71,15 @@ void main(){
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
     hsv = vec3((angle / TWO_PI), 1. - progress, radius);
+    // clamp radius
+
     if(progress_axis == 2){
       hsv = vec3((angle / TWO_PI), radius, 1. - progress);
     } else if(progress_axis == 1){
       hsv = vec3((angle / TWO_PI), 1. - progress, radius);
+      if (radius > 1.0) {
+        discard;
+      }
     } else {
       float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
       if (vUv.x > 0.5) {

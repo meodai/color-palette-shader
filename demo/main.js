@@ -72,6 +72,7 @@ const options = {
   width: size,
   height: size,
   $parent: $app,
+  pixelRatio: devicePixelRatio * 2,
   uniforms: {
     progress_axis: { value: 0 },
   },
