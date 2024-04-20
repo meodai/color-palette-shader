@@ -1,11 +1,14 @@
 import './style.css'
 import * as THREE from "three";
 
-import shaderSRGB2RGB from "./shaders/srgb2rgb.frag.glsl?raw" assert { type: "raw" };
-import shaderOKLab from "./shaders/oklab.frag.glsl?raw" assert { type: "raw" };
-import shaderHSV2RGB from "./shaders/hsv2rgb.frag.glsl?raw" assert { type: "raw" };
-import shaderHSL2RGB from "./shaders/hsl2rgb.frag.glsl?raw" assert { type: "raw" };
-import shaderLCH2RGB from "./shaders/lch2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderSRGB2RGB from "./src/shaders/srgb2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderOKLab from "./src/shaders/oklab.frag.glsl?raw" assert { type: "raw" };
+import shaderHSV2RGB from "./src/shaders/hsv2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderHSL2RGB from "./src/shaders/hsl2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderLCH2RGB from "./src/shaders/lch2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderClosestColor from "./src/shaders/closestColor.frag.glsl?raw" assert { type: "raw" };
+
+import { PaletteViz } from './src';
 
 const $app = document.querySelector("#app");
 
@@ -83,7 +86,6 @@ $inverseLightnessCheckbox.checked = false;
 $labelInverseLightness.appendChild($inverseLightnessCheckbox);
 
 const palette = [
-  
 '#bc8b96', '#974b72', '#7f305c', '#5d2047', '#46173a', '#340d31', '#200816', 
 '#312234', '#40364a', '#5b596d', '#7c8497', '#9daec0', '#f8e6d0', '#dcbaa0', 
 '#c08e70', '#946452', '#683a34', '#442125', '#732f31', '#a23c3c', '#b45e4e', 
@@ -105,12 +107,7 @@ $colorList.classList.add('color-list');
 $app.appendChild($colorList);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(
-  75,
-  window.innerWidth / window.innerHeight,
-  0.1,
-  100
-);
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: false,
@@ -126,33 +123,6 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
 });
 
-
-const shaderClosestColor = `
-vec3 closestColor(vec3 color, sampler2D paletteTexture, int paletteSize) {
-  float minDist = 1000000.0;
-  vec3 closestColor = vec3(0.0);
-
-  for (int i = 0; i < paletteSize; i++) {
-    // Sample color from the texture
-    vec3 paletteColor = texture2D(paletteTexture, vec2(float(i) / float(paletteSize), 0.5)).rgb;
-
-    // Calculate distance between the sampled color and the input color
-    float dist;
-    if (isPerceptional) {
-      dist = distance(linear_srgb_to_oklab(srgb2rgb(color)), linear_srgb_to_oklab(srgb2rgb(paletteColor)));
-    } else {
-      dist = distance(color, paletteColor);
-    }
-
-    // Update closest color if the distance is smaller
-    if (dist < minDist) {
-      minDist = dist;
-      closestColor = paletteColor;
-    }
-  }
-
-  return closestColor;
-}`;
 
 function paletteToTexture (palette) {
   const paletteColors = palette.map((color) => {
@@ -197,6 +167,7 @@ return new THREE.ShaderMaterial({
         gl_Position = vec4(position, 1.);
       }`,
   fragmentShader: `
+    
     #define TWO_PI 6.28318530718
     varying vec2 vUv;
     uniform float progress;
@@ -209,7 +180,7 @@ return new THREE.ShaderMaterial({
     uniform bool debug;
     uniform int polarColorModel;
     uniform bool invertZ;
-    
+
     ${shaderSRGB2RGB}
     ${shaderHSL2RGB}
     ${shaderHSV2RGB}
@@ -351,3 +322,7 @@ $inverseLightnessCheckbox.addEventListener("change", (e) => {
   cube.material.uniforms.invertZ.value = e.target.checked;
 });
 $app.appendChild($labelInverseLightness);
+
+/*
+new PaletteViz({});
+*/
