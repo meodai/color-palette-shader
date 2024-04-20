@@ -1,14 +1,63 @@
-:root, body {
+:root, body, input, select, textarea, button {
   padding: 0;
   margin: 0;
+
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 300;
+  font-style: normal;
+  font-variation-settings:
+    "slnt" 0;
+
+  font-size: calc(1rem + 0.5vw);
 }
+
+select,
+textarea,
+button {
+  font-size: .5em;
+}
+
 
 canvas {
   display: block;
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
   box-shadow: 0 0 0 10px rgb(0 0 0 / 100%);
   image-rendering: pixelated;
+}
+
+h1, h2, h3, label {
+  margin: 0;
+  font-family: "Marcellus", serif;
+  font-weight: 400;
+  font-style: normal;
+}
+
+.app {
+  display: flex;
+  align-items: stretch;
+  height: 100vh;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 20vw;
+  background-color: #f0f0f0;
+  box-shadow: 0 0 0 10px rgb(0 0 0 / 100%); 
+  max-height: 100%;
+}
+
+.sidebar__palette {
+  overflow-y: scroll;
+  flex: 1 1 auto;
+}
+
+.sidebar__tools {
+  flex: 1 1 1rem;
+  background: pink;
+}
+
+.palette__color {
+  background: var(--color);
 }
