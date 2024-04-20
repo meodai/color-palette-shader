@@ -1,3 +1,4 @@
+// https://lygia.xyz/
 #define SRGB_EPSILON 1e-10
 
 float srgb2rgb(const in float v) {   return (v < 0.04045) ? v * 0.0773993808 : pow((v + 0.055) * 0.947867298578199, 2.4); }

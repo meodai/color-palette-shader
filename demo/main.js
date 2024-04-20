@@ -1,6 +1,6 @@
 import './style.css'
 
-import { PaletteViz } from './src';
+import { PaletteViz } from '../src';
 
 const $app = document.querySelector("#app");
 let size = Math.min(window.innerWidth, window.innerHeight) * 0.6;

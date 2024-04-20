@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import dts from "vite-plugin-dts";
 
 export default defineConfig({
   root: "./",
@@ -8,5 +9,15 @@ export default defineConfig({
       entry: "src/index.ts",
       name: "palette-shader",
     },
+    
+    rollupOptions: {
+      external: ["three"],
+      output: {
+        globals: {
+          three: "THREE",
+        },
+      },
+    },
   },
+  plugins: [dts()],
 });

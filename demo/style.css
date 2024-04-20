@@ -1,0 +1,14 @@
+:root, body {
+  padding: 0;
+  margin: 0;
+}
+
+canvas {
+  display: block;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 10px rgb(0 0 0 / 100%);
+  image-rendering: pixelated;
+}

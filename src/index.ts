@@ -226,6 +226,7 @@ export class PaletteViz {
     this.#geometry = new PlaneGeometry(2, 2);
     this.#mesh = new Mesh(this.#geometry, this.#material);
     this.#scene.add(this.#mesh);
+    this.#$renderer.classList.add("palette-viz");
     this.#$parent.appendChild(this.#$renderer);
 
     this.#paint();
