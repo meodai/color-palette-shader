@@ -1,4 +1,18 @@
-import * as THREE from "three";
+import {
+  Color,
+  DataTexture,
+  RGBAFormat,
+  FloatType,
+  ClampToEdgeWrapping,
+  NearestFilter,
+  ShaderMaterial,
+  Scene,
+  OrthographicCamera,
+  WebGLRenderer,
+  PlaneGeometry,
+  Mesh,
+} from "three";
+
 
 import shaderSRGB2RGB from "./shaders/srgb2rgb.frag.glsl?raw" assert { type: "raw" };
 import shaderOKLab from "./shaders/oklab.frag.glsl?raw" assert { type: "raw" };
@@ -77,23 +91,23 @@ void main(){
 
 export const paletteToTexture = (palette) => {
     const paletteColors = palette.map((color) => {
-      const c = new THREE.Color(color);
+      const c = new Color(color);
       return { r: c.r, g: c.g, b: c.b, a: 1 };
     });
-    const texture = new THREE.DataTexture(
+    const texture = new DataTexture(
       new Float32Array(
         paletteColors.flatMap((color) => [color.r, color.g, color.b, color.a])
       ),
       palette.length,
       1,
-      THREE.RGBAFormat,
-      THREE.FloatType
+      RGBAFormat,
+      FloatType
     );
     texture.needsUpdate = true;
-    texture.wrapS = THREE.ClampToEdgeWrapping;
-    texture.wrapT = THREE.ClampToEdgeWrapping;
-    texture.minFilter = THREE.NearestFilter;
-    texture.magFilter = THREE.NearestFilter;
+    texture.wrapS = ClampToEdgeWrapping;
+    texture.wrapT = ClampToEdgeWrapping;
+    texture.minFilter = NearestFilter;
+    texture.magFilter = NearestFilter;
 
     return texture;
   }
@@ -118,7 +132,7 @@ export const paletteShaderUniforms = {
   invertZ: { value: false },
 };
 
-const paletteShaderMaterial = new THREE.ShaderMaterial({
+const paletteShaderMaterial = new ShaderMaterial({
   uniforms: paletteShaderUniforms,
   vertexShader: `varying vec2 vUv;
     void main(){
@@ -190,15 +204,15 @@ export class PaletteViz {
   }
 
   #initThree() {
-    this.#scene = new THREE.Scene();
-    this.#camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 1);
-    this.#renderer = new THREE.WebGLRenderer();
+    this.#scene = new Scene();
+    this.#camera = new OrthographicCamera(-1, 1, 1, -1, 0.1, 1);
+    this.#renderer = new WebGLRenderer();
     this.#renderer.setPixelRatio(this.#pixelRatio);
     this.#renderer.setSize(this.#width, this.#height);
     this.#$renderer = this.#renderer.domElement;
 
-    this.#geometry = new THREE.PlaneGeometry(2, 2);
-    this.#mesh = new THREE.Mesh(this.#geometry, this.#material);
+    this.#geometry = new PlaneGeometry(2, 2);
+    this.#mesh = new Mesh(this.#geometry, this.#material);
     this.#scene.add(this.#mesh);
     this.#$parent.appendChild(this.#$renderer);
 
