@@ -26,7 +26,11 @@ import shaderHSL2RGB from "./shaders/hsl2rgb.frag.glsl?raw" assert { type: "raw"
 // @ts-ignore
 import shaderLCH2RGB from "./shaders/lch2rgb.frag.glsl?raw" assert { type: "raw" };
 // @ts-ignore
+import shaderCAM16 from "./shaders/cam16.frag.glsl?raw" assert { type: "raw" };
+
+// @ts-ignore
 import shaderClosestColor from "./shaders/closestColor.frag.glsl?raw" assert { type: "raw" };
+import { distance } from "three/examples/jsm/nodes/Nodes.js";
 
 export const fragmentShader = `
 #define TWO_PI 6.28318530718
@@ -46,6 +50,7 @@ ${shaderHSL2RGB}
 ${shaderHSV2RGB}
 ${shaderLCH2RGB}
 ${shaderOKLab}
+${shaderCAM16}
 ${shaderClosestColor}
 
 vec3 polarToRGB(vec3 polar) {
@@ -66,12 +71,22 @@ void main(){
     hsv = vec3(vUv.x, vUv.y, 1. - progress);
   }
 
+  vec3 sRGB = vec3(0.0);
+
   if(isPolar) {
     vec2 toCenter = vUv - 0.5;
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
     hsv = vec3((angle / TWO_PI), 1. - progress, radius);
     // clamp radius
+
+    float tau = radians(360.0);
+    float J = 0.50 + 0.49*sin(tau*(0.2*radius - 0.1*progress)); // Lightness
+    float M = 0.56*J*(1.0 - J*J); // Chroma
+    float h = (angle / TWO_PI)*tau;
+
+    vec3 JMh = vec3(J, M, h);
+    sRGB = XYZ_D65_TO_sRGB*CAM16_UCS_to_XYZ_D65(JMh);
 
     if(progress_axis == 2){
       hsv = vec3((angle / TWO_PI), radius, 1. - progress);
@@ -99,7 +114,11 @@ void main(){
     closest = rgb;
   }
 
-  gl_FragColor = vec4(closest, 1.);
+  if(isPolar) {
+    gl_FragColor = vec4(sRGB_OETF(sRGB), 1.0);
+  } else {
+    gl_FragColor = vec4(closest, 1.);
+  }
 }`;
 
 export const paletteToTexture = (palette: ColorList) => {
@@ -144,6 +163,24 @@ export const paletteShaderUniforms = {
   polarColorModel: { value: 0 }, // 0 = HSV, 1 = HSL, 2 = LCH
   isPolar: { value: true },
   isPerceptional: { value: true },
+  
+  cartesianModel: { value: 0 }, // 0 = RGB, 1 = OKLab, 2 = Lab, 3 = Jab 
+  polarModel: { value: 0 }, // 0 = HSV, 1 = HSL, 2 = okHSV, 3 = okHSL, 4 = okLCh, 5 = LCh, 6 = JCh
+
+  /**
+   * cartesian: RGB
+   * polar:     HSV, HSL
+   * 
+   * cartesian: OKLab
+   * polar:     okHSV, okHSL, okLCh
+   * 
+   * cartesian: Lab
+   * polar:     LCh
+   * 
+   * cartesian: CAM16UCS Jab
+   * polar:     CAM16 JCh
+   */
+
   paletteTexture: { value: paletteToTexture(randomPalette(10)) },
   paletteLength: { value: 10 },
   debug: { value: false },
