@@ -52,6 +52,7 @@ vec3 Lab_to_sRGB(vec3 Lab) {
     return XYZ_D50_TO_sRGB*Lab_to_XYZ(Lab, D50);
 }
 
+
 // LCh(uv) ↔ Luv ↔ XYZ ↔ sRGB
 
 #define XYZ_to_uv(XYZ) vec2(4.0, 9.0)*XYZ.xy/(XYZ.x + 15.0*XYZ.y + 3.0*XYZ.z)

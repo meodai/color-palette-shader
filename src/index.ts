@@ -26,11 +26,10 @@ import shaderHSL2RGB from "./shaders/hsl2rgb.frag.glsl?raw" assert { type: "raw"
 // @ts-ignore
 import shaderLCH2RGB from "./shaders/lch2rgb.frag.glsl?raw" assert { type: "raw" };
 // @ts-ignore
-import shaderCAM16 from "./shaders/cam16.frag.glsl?raw" assert { type: "raw" };
+import shaderLabBased from "./shaders/labbased.frag.glsl?raw" assert { type: "raw" };
 
 // @ts-ignore
 import shaderClosestColor from "./shaders/closestColor.frag.glsl?raw" assert { type: "raw" };
-import { distance } from "three/examples/jsm/nodes/Nodes.js";
 
 export const fragmentShader = `
 #define TWO_PI 6.28318530718
@@ -45,13 +44,48 @@ uniform bool debug;
 uniform int polarColorModel;
 uniform bool invertZ;
 
+uniform int cartesianModel;
+uniform int polarModel;
+
 ${shaderSRGB2RGB}
 ${shaderHSL2RGB}
 ${shaderHSV2RGB}
 ${shaderLCH2RGB}
 ${shaderOKLab}
-${shaderCAM16}
+${shaderLabBased}
 ${shaderClosestColor}
+
+vec3 toRGB(vec3 coords, int model, bool isPolar) {
+  if (isPolar) {
+    vec2 toCenter = vUv - 0.5;
+    float angle = atan(toCenter.y, toCenter.x);
+    float radius = length(toCenter) * 2.0;
+    float h = (coords.x / TWO_PI) * TWO_PI;
+    vec3 polar = vec3((angle / TWO_PI), progress, radius);
+
+    switch (model) {
+      case 0: return hsv2rgb(polar);
+      case 1: return hsl2rgb(polar);
+      case 2: return okhsv_to_srgb(polar);
+      case 3: return okhsl_to_srgb(polar);
+      case 4: return okLCh_to_sRGB(polar);
+      case 5: return Lab_to_sRGB(LCh_to_Lab(polar));
+      case 6: 
+        float J = 0.50 + 0.49 * sin(TWO_PI * (0.2 * coords.y - 0.1 * coords.z)); // Lightness
+        float M = 0.56 * J * (1.0 - J * J); // Chroma
+        return sRGB_OETF(XYZ_D65_TO_sRGB * CAM16_UCS_to_XYZ_D65(vec3(J, M, h)));
+      default: return coords;
+    }
+  } else { // Cartesian
+    switch (model) {
+      case 0: return coords;
+      case 1: return okLab_to_sRGB(coords);
+      case 2: return Lab_to_sRGB(coords);
+      case 3: XYZ_D65_TO_sRGB * CAM16_UCS_to_XYZ_D65(coords);
+      default: return coords;
+    }
+  }
+}
 
 vec3 polarToRGB(vec3 polar) {
   if (polarColorModel == 0) {
@@ -64,6 +98,15 @@ vec3 polarToRGB(vec3 polar) {
   }
 }
 void main(){
+  // define x, y, z based on progress and axis
+
+  vec3 coords = vec3(progress, vUv.x, vUv.y);
+  if(progress_axis == 1){
+    coords = vec3(vUv.x, progress, vUv.y);
+  } else if(progress_axis == 2){
+    coords = vec3(vUv.x, vUv.y, progress);
+  }
+
   vec3 hsv = vec3(progress, vUv.x, vUv.y);
   if(progress_axis == 1){
     hsv = vec3(vUv.x, progress, vUv.y);
@@ -80,10 +123,9 @@ void main(){
     hsv = vec3((angle / TWO_PI), 1. - progress, radius);
     // clamp radius
 
-    float tau = radians(360.0);
-    float J = 0.50 + 0.49*sin(tau*(0.2*radius - 0.1*progress)); // Lightness
+    float J = 0.50 + 0.49*sin(TWO_PI*(0.2*radius - 0.1*progress)); // Lightness
     float M = 0.56*J*(1.0 - J*J); // Chroma
-    float h = (angle / TWO_PI)*tau;
+    float h = (angle / TWO_PI)*TWO_PI;
 
     vec3 JMh = vec3(J, M, h);
     sRGB = XYZ_D65_TO_sRGB*CAM16_UCS_to_XYZ_D65(JMh);
@@ -105,9 +147,9 @@ void main(){
   }
 
   if(invertZ){
-    hsv.z = 1. - hsv.z;
+    coords.z = 1. - coords.z;
   }
-  vec3 rgb = polarToRGB(hsv);
+  vec3 rgb = polarToRGB(coords);
   vec3 closest = closestColor(rgb, paletteTexture, paletteLength);
 
   if (debug) {
