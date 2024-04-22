@@ -57,7 +57,7 @@ ${shaderClosestColor}
 
 vec3 toRGB(vec3 coords, int model, bool isPolar) {
   if (isPolar) {
-    vec2 toCenter = vUv - 0.5;
+    vec2 toCenter = vec2(coords.x - 0.5, coords.y - 0.5);
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
     float h = (coords.x / TWO_PI) * TWO_PI;
@@ -68,8 +68,13 @@ vec3 toRGB(vec3 coords, int model, bool isPolar) {
       case 1: return hsl2rgb(polar);
       case 2: return okhsv_to_srgb(polar);
       case 3: return okhsl_to_srgb(polar);
-      case 4: return okLCh_to_sRGB(polar);
-      case 5: return Lab_to_sRGB(LCh_to_Lab(polar));
+      case 4: return okLCh_to_sRGB(vec3(polar.z, polar.y * 1.5, polar.x));
+      case 5:
+        float L = 0.50 + 0.49 * sin(TWO_PI * (0.2 * coords.y - 0.1 * coords.z));
+        float C = 0.18*L*(1.0 - L*L*L);
+        float h = TWO_PI*(fract(coords.x + 0.5*coords.x) - 0.5);
+        
+        return Lab_to_sRGB(LCh_to_Lab(vec3(L, C, h)));
       case 6: 
         float J = 0.50 + 0.49 * sin(TWO_PI * (0.2 * coords.y - 0.1 * coords.z)); // Lightness
         float M = 0.56 * J * (1.0 - J * J); // Chroma
@@ -79,8 +84,8 @@ vec3 toRGB(vec3 coords, int model, bool isPolar) {
   } else { // Cartesian
     switch (model) {
       case 0: return coords;
-      case 1: return okLab_to_sRGB(coords);
-      case 2: return Lab_to_sRGB(coords);
+      case 1: return okLab_to_sRGB(vec3(coords.x, -0.4 + coords.y * 0.8, -0.4 + coords.z * 0.8));
+      case 2: return Lab_to_sRGB(vec3(coords.x, -1. + coords.y * 2., -1. + coords.z * 2.));
       case 3: XYZ_D65_TO_sRGB * CAM16_UCS_to_XYZ_D65(coords);
       default: return coords;
     }
@@ -156,11 +161,10 @@ void main(){
     closest = rgb;
   }
 
-  if(isPolar) {
-    gl_FragColor = vec4(sRGB_OETF(sRGB), 1.0);
-  } else {
-    gl_FragColor = vec4(closest, 1.);
-  }
+  closest = toRGB(coords, 3, isPolar);
+
+  
+  gl_FragColor = vec4(closest, 1.);
 }`;
 
 export const paletteToTexture = (palette: ColorList) => {
