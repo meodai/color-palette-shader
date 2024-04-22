@@ -82,11 +82,16 @@ vec3 toRGB(vec3 coords, int model, bool isPolar) {
       return sRGB_OETF(Lab_to_sRGB(LCh_to_Lab(vec3(coords.z, coords.y * 1.5, coords.x * TWO_PI))));
     case 9: XYZ_D65_TO_sRGB * CAM16_UCS_to_XYZ_D65(coords);
     case 10: 
-      float J = 0.50 + 0.49 * sin(TWO_PI * (0.2 * coords.y - 0.1 * coords.z)); // Lightness
-      float M = 0.56 * J * (1.0 - J * J); // Chroma
+        vec2 toCenter = vUv - 0.5;
+        float angle = atan(toCenter.y, toCenter.x);
+        float radius = length(toCenter) * 2.0;
 
-      float h = (coords.x / TWO_PI) * TWO_PI;
-      return sRGB_OETF(XYZ_D65_TO_sRGB * CAM16_UCS_to_XYZ_D65(vec3(J, M, h)));
+        float J = 0.50 + 0.49*sin(TWO_PI*(0.2*radius - 0.1*progress)); // Lightness
+        float M = 0.56*J*(1.0 - J*J); // Chroma
+        float h = (angle / TWO_PI)*TWO_PI;
+
+        vec3 JMh = vec3(J, M, h);
+        return sRGB_OETF(XYZ_D65_TO_sRGB*CAM16_UCS_to_XYZ_D65(JMh));
     default: return vec3(1.0, 0, 1.0);
   }
 }
