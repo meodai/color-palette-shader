@@ -44,8 +44,7 @@ uniform bool debug;
 uniform int polarColorModel;
 uniform bool invertZ;
 
-uniform int cartesianModel;
-uniform int polarModel;
+uniform int model;
 
 ${shaderSRGB2RGB}
 ${shaderHSL2RGB}
@@ -56,39 +55,39 @@ ${shaderLabBased}
 ${shaderClosestColor}
 
 vec3 toRGB(vec3 coords, int model, bool isPolar) {
-  if (isPolar) {
-    vec2 toCenter = vec2(coords.x - 0.5, coords.y - 0.5);
-    float angle = atan(toCenter.y, toCenter.x);
-    float radius = length(toCenter) * 2.0;
-    float h = (coords.x / TWO_PI) * TWO_PI;
-    vec3 polar = vec3((angle / TWO_PI), progress, radius);
 
-    switch (model) {
-      case 0: return hsv2rgb(polar);
-      case 1: return hsl2rgb(polar);
-      case 2: return okhsv_to_srgb(polar);
-      case 3: return okhsl_to_srgb(polar);
-      case 4: return okLCh_to_sRGB(vec3(polar.z, polar.y * 1.5, polar.x));
-      case 5:
-        float L = 0.50 + 0.49 * sin(TWO_PI * (0.2 * coords.y - 0.1 * coords.z));
-        float C = 0.18*L*(1.0 - L*L*L);
-        float h = TWO_PI*(fract(coords.x + 0.5*coords.x) - 0.5);
-        
-        return Lab_to_sRGB(LCh_to_Lab(vec3(L, C, h)));
-      case 6: 
-        float J = 0.50 + 0.49 * sin(TWO_PI * (0.2 * coords.y - 0.1 * coords.z)); // Lightness
-        float M = 0.56 * J * (1.0 - J * J); // Chroma
-        return sRGB_OETF(XYZ_D65_TO_sRGB * CAM16_UCS_to_XYZ_D65(vec3(J, M, h)));
-      default: return coords;
-    }
-  } else { // Cartesian
-    switch (model) {
-      case 0: return coords;
-      case 1: return okLab_to_sRGB(vec3(coords.x, -0.4 + coords.y * 0.8, -0.4 + coords.z * 0.8));
-      case 2: return Lab_to_sRGB(vec3(coords.x, -1. + coords.y * 2., -1. + coords.z * 2.));
-      case 3: XYZ_D65_TO_sRGB * CAM16_UCS_to_XYZ_D65(coords);
-      default: return coords;
-    }
+  /*
+    0 = rgb
+    1 = hsv
+    2 = hsl
+    3 = okLab
+    4 = okhsv
+    5 = okhsl
+    6 = okLCh
+    7 = Lab
+    8 = LCh
+    9 = Jab
+    10 = JCh
+  */
+  switch (model) {
+    case 0: return coords;
+    case 1: return hsv2rgb(coords);
+    case 2: return hsl2rgb(coords);
+    case 3: return oklab_to_linear_srgb(vec3(coords.x, -0.4 + coords.y * 0.8, -0.4 + coords.z * 0.8));
+    case 4: return okhsv_to_srgb(coords);
+    case 5: return okhsl_to_srgb(coords);
+    case 6: return sRGB_OETF(okLCh_to_sRGB(vec3(coords.z, coords.y * 0.4, coords.x * TWO_PI)));
+    case 7: return sRGB_OETF(Lab_to_sRGB(vec3(coords.x, -1. + coords.y * 2., -1. + coords.z * 2.0)));
+    case 8: 
+      return sRGB_OETF(Lab_to_sRGB(LCh_to_Lab(vec3(coords.z, coords.y * 1.5, coords.x * TWO_PI))));
+    case 9: XYZ_D65_TO_sRGB * CAM16_UCS_to_XYZ_D65(coords);
+    case 10: 
+      float J = 0.50 + 0.49 * sin(TWO_PI * (0.2 * coords.y - 0.1 * coords.z)); // Lightness
+      float M = 0.56 * J * (1.0 - J * J); // Chroma
+
+      float h = (coords.x / TWO_PI) * TWO_PI;
+      return sRGB_OETF(XYZ_D65_TO_sRGB * CAM16_UCS_to_XYZ_D65(vec3(J, M, h)));
+    default: return vec3(1.0, 0, 1.0);
   }
 }
 
@@ -161,7 +160,7 @@ void main(){
     closest = rgb;
   }
 
-  closest = toRGB(coords, 3, isPolar);
+  closest = toRGB(coords, 10, false);
 
   
   gl_FragColor = vec4(closest, 1.);
@@ -210,8 +209,20 @@ export const paletteShaderUniforms = {
   isPolar: { value: true },
   isPerceptional: { value: true },
   
-  cartesianModel: { value: 0 }, // 0 = RGB, 1 = OKLab, 2 = Lab, 3 = Jab 
-  polarModel: { value: 0 }, // 0 = HSV, 1 = HSL, 2 = okHSV, 3 = okHSL, 4 = okLCh, 5 = LCh, 6 = JCh
+  mode: { value: 0 }, 
+  /*
+    0 = rgb
+    1 = hsv
+    2 = hsl
+    3 = okLab
+    4 = okhsv
+    5 = okhsl
+    6 = okLCh
+    7 = Lab
+    8 = LCh
+    9 = Jab
+    10 = JCh
+  */ 
 
   /**
    * cartesian: RGB

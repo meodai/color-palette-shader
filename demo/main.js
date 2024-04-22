@@ -75,6 +75,7 @@ const options = {
   pixelRatio: devicePixelRatio * 2,
   uniforms: {
     progress_axis: { value: 0 },
+    isPolar: { value: false },
   },
 };
 
@@ -82,25 +83,6 @@ const viz = new PaletteViz(options);
 
 const vizzes = [
   viz,
-  new PaletteViz({
-    ...options,
-    uniforms: {
-      progress_axis: { value: 1 },
-    },
-  }),
-  new PaletteViz({
-    ...options,
-    uniforms: {
-      progress_axis: { value: 2 },
-    },
-  }),
-  new PaletteViz({
-    ...options,
-    uniforms: {
-      progress_axis: { value: 0 },
-      isPolar: { value: false },
-    },
-  }),
   new PaletteViz({
     ...options,
     uniforms: {

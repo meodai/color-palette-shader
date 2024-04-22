@@ -40,7 +40,7 @@ h1, h2, h3, label {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  width: 50vw;
+  width: 25vw;
   max-height: 100%;
 }
 
@@ -73,9 +73,6 @@ h1, h2, h3, label {
   flex-wrap: wrap;
   gap: .5rem;
   .palette-viz {
-    width: calc(33.3333% - .5rem) !important;
-    aspect-ratio: 1;
-    height: auto !important;
   }
 }
 
