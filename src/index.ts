@@ -165,7 +165,7 @@ void main(){
     closest = rgb;
   }
 
-  closest = toRGB(coords, 10, false);
+  closest = toRGB(coords, 3, false);
 
   
   gl_FragColor = vec4(closest, 1.);
