@@ -18,5 +18,60 @@
       <div id="app" class="viz" data-viz></div>
     </div>
     <script type="module" src="./main.js"></script>
+
+    <article class="about">
+      <div class="about__header">
+        <h1>palette-shader</h1>
+        <a href="https://github.com/meodai/palette-shader">GitHub</a>
+      </div>
+      <p>
+        A WebGL shader (Three.js) that visualizes a color palette by mapping a color space onto a plane or polar wheel,
+        then snapping each pixel to the nearest palette color via a configurable distance metric.
+        The six views above show the same palette across X, Y and Z slices — first in polar (cylinder), then in linear (cube) mode.
+      </p>
+
+      <aside>
+        <h2>Install</h2>
+        <pre class="code"><code>npm install palette-shader</code></pre>
+      </aside>
+
+      <aside>
+        <h2>Usage</h2>
+        <figure>
+          <figcaption>Minimal example — mount a shader into a container element.</figcaption>
+          <pre class="code"><code>import { PaletteViz } from 'palette-shader';
+
+const viz = new PaletteViz({
+  palette: ['#f2f0e5', '#4b80ca', '#b45252', '#a2dcc7'],
+  container: document.querySelector('#app'),
+  colorModel: 'okhsv',   // 'okhsv' | 'okhsl' | 'oklch' | 'hsv' | 'hsl'
+  distanceMetric: 'oklab', // 'oklab' | 'deltaE2000' | 'deltaE76' | 'rgb'
+  isPolar: true,           // wheel vs. rectangle
+  axis: 'y',              // which axis the position slider controls
+  position: 0.5,          // 0–1 slice position
+});
+
+// update live
+viz.palette = ['#ff0000', '#00ff00', '#0000ff'];
+viz.position = 0.3;
+
+// clean up
+viz.destroy();</code></pre>
+        </figure>
+      </aside>
+
+      <aside>
+        <h2>Notes</h2>
+        <p>
+          Requires <a href="https://threejs.org/" target="_blank" rel="noopener noreferrer">Three.js</a> as a peer dependency.
+          Color models and distance metrics are orthogonal — the model controls how the color space is rendered,
+          the metric controls which palette color each pixel snaps to.
+        </p>
+        <p>
+          The typeface is the open-source <a href="https://be5invis.github.io/Iosevka/" target="_blank" rel="noopener noreferrer">Iosevka</a>.
+          Created by <a href="https://elastiq.ch" target="_blank" rel="noopener noreferrer">David Aerne</a>.
+        </p>
+      </aside>
+    </article>
   </body>
 </html>

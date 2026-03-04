@@ -103,7 +103,7 @@ label {
   border-bottom: none;
 }
 
-@media (max-width: 600px) {
+@media (orientation: portrait) {
   body {
     padding: .5rem;
   }
@@ -144,6 +144,7 @@ label {
     border-top: var(--s-line) solid var(--c-border);
   }
 
+  /* 2 columns × 3 rows */
   .viz .palette-viz {
     width: 50% !important;
   }
@@ -154,6 +155,14 @@ label {
 
   .viz .palette-viz:nth-child(2n) {
     border-right: none !important;
+  }
+
+  .viz .palette-viz:nth-child(n+4) {
+    border-bottom: var(--s-line) solid var(--c-surface-on);
+  }
+
+  .viz .palette-viz:nth-child(n+5) {
+    border-bottom: none;
   }
 }
 
@@ -375,4 +384,109 @@ input[type="checkbox"]:focus {
 .shader-select,
 .axis-select {
   display: none;
+}
+
+/* ── About ──────────────────────────────────────────────────────────────── */
+
+.about {
+  max-width: 40rem;
+  margin: 5vmin auto;
+  font-size: .9rem;
+  line-height: 1.6;
+}
+
+.about h1,
+.about h2 {
+  letter-spacing: -.03em;
+  font-weight: 200;
+}
+
+.about h2 {
+  margin-top: 2em;
+  margin-bottom: 0;
+}
+
+.about h2 + p,
+.about h2 + figure,
+.about h2 + pre {
+  margin-top: .75em;
+}
+
+.about p + p {
+  margin-top: .75em;
+}
+
+.about figure {
+  margin: 0;
+}
+
+.about figcaption {
+  font-size: .8em;
+  color: var(--c-surface-on-alt);
+  margin-bottom: .4em;
+}
+
+.about__header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.about__header h1 {
+  margin: 0;
+  line-height: 1;
+}
+
+a {
+  color: inherit;
+  text-underline-offset: 3px;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+}
+
+a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.about a[href^="http"]:not(:has(img))::after {
+  content: " ↗";
+  font-size: .75em;
+  vertical-align: top;
+  display: inline-block;
+  transform: translate(2px, -2px);
+  transition: transform .2s cubic-bezier(.3,.7,0,1);
+}
+
+.about a[href^="http"]:not(:has(img)):hover::after {
+  transform: translate(4px, -4px);
+}
+
+.code {
+  display: block;
+  background: var(--c-surface-on);
+  color: var(--c-surface);
+  border: var(--s-line) solid var(--c-border);
+  padding: 1rem;
+  font-size: .75rem;
+  line-height: 1.5;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.code ::selection {
+  background: var(--c-surface);
+  color: var(--c-surface-on);
+}
+
+pre, code {
+  font: inherit;
+}
+
+@media (orientation: portrait) {
+  .about {
+    max-width: min(100%, 30rem);
+  }
 }

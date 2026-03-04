@@ -20,10 +20,11 @@ const palette = [
 ];
 
 function vizSize() {
-  // 3 columns on wide, 2 on narrow; account for 1rem body padding on each side
-  const cols = window.innerWidth <= 600 ? 2 : 3;
-  const sidebarWidth = window.innerWidth <= 600 ? 0 : Math.min(320, Math.max(200, window.innerWidth * 0.35));
-  return Math.floor((window.innerWidth - sidebarWidth - 32) / cols);
+  const portrait = window.matchMedia('(orientation: portrait)').matches;
+  const cols = portrait ? 2 : 3;
+  const padding = portrait ? 16 : 32; // 0.5rem vs 1rem body padding × 2
+  const sidebarWidth = portrait ? 0 : Math.min(320, Math.max(200, window.innerWidth * 0.35));
+  return Math.floor((window.innerWidth - sidebarWidth - padding) / cols);
 }
 
 const sharedOptions = {
