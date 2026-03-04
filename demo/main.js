@@ -1,5 +1,5 @@
 import './style.css'
-import { PaletteViz } from '../src';
+import { PaletteViz } from 'palette-shader';
 
 const $palette = document.querySelector("[data-palette]");
 const $tools = document.querySelector("[data-tools]");

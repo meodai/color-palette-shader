@@ -2,22 +2,26 @@ import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
 
 export default defineConfig({
-  root: "./",
   build: {
-    outDir: "dist",
     lib: {
       entry: "src/index.ts",
-      name: "palette-shader",
+      name: "PaletteShader",
+      formats: ["es", "umd"],
+      fileName: (format) =>
+        format === "es" ? "palette-shader.js" : "palette-shader.umd.cjs",
     },
-    
     rollupOptions: {
       external: ["three"],
       output: {
-        globals: {
-          three: "THREE",
-        },
+        globals: { three: "THREE" },
       },
     },
+    sourcemap: true,
   },
-  plugins: [dts()],
+  plugins: [
+    dts({
+      rollupTypes: true,
+      tsconfigPath: "./tsconfig.json",
+    }),
+  ],
 });
