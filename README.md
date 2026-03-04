@@ -1,6 +1,6 @@
 # palette-shader
 
-A WebGL shader (Three.js) that maps any colour palette across a 3-D perceptual colour space and snaps each pixel to the nearest palette colour. Visualise how a palette distributes across HSV, HSL, LCH or their perceptual OK-variants, and compare results across five colour-distance metrics — all on the GPU.
+A dependency-free WebGL2 shader that maps any colour palette across a 3-D perceptual colour space and snaps each pixel to the nearest palette colour. Visualise how a palette distributes across HSV, HSL, LCH or their perceptual OK-variants, and compare results across six colour-distance metrics — all on the GPU.
 
 [**Live demo →**](https://meodai.github.io/color-palette-shader)
 
@@ -123,7 +123,7 @@ viz.removeColor('#a8dadc');
 
 ### `destroy()`
 
-Cancel the animation frame, dispose all Three.js resources, and remove the canvas from the DOM.
+Cancel the animation frame, release all WebGL resources (program, texture, buffer, VAO), and remove the canvas from the DOM.
 
 ---
 
@@ -208,11 +208,11 @@ console.log(fragmentShader);
 
 ## Dependencies
 
-None. The library uses raw WebGL 1 and the browser's native CSS color parser. No Three.js or any other runtime dependency is required.
+None. The library uses raw WebGL 2 and the browser's native CSS color parser. No runtime dependencies.
 
 ## Browser support
 
-Requires **WebGL 1** or higher. Supported in all modern browsers and most mobile devices.
+Requires **WebGL 2** (supported in all modern browsers and most mobile devices since ~2017). Use `canvas.getContext('webgl2')` availability to feature-detect if needed.
 
 ---
 
