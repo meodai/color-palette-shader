@@ -1,4 +1,4 @@
-// distanceMetric uniform: 0 = rgb, 1 = oklab, 2 = deltaE76, 3 = deltaE2000
+// DISTANCE_METRIC define: 0=rgb, 1=oklab, 2=deltaE76, 3=deltaE2000, 4=kotsarenkoRamos
 vec3 closestColor(vec3 color, sampler2D paletteTexture, int paletteSize) {
   float minDist = 1000000.0;
   vec3 closest = vec3(0.0);
@@ -7,22 +7,17 @@ vec3 closestColor(vec3 color, sampler2D paletteTexture, int paletteSize) {
     vec3 paletteColor = texture2D(paletteTexture, vec2(float(i) / float(paletteSize), 0.5)).rgb;
 
     float dist;
-    if (distanceMetric == 1) {
-      // OKLab: perceptually uniform Euclidean distance
+    #if DISTANCE_METRIC == 1
       dist = distance(linear_srgb_to_oklab(srgb2rgb(color)), linear_srgb_to_oklab(srgb2rgb(paletteColor)));
-    } else if (distanceMetric == 2) {
-      // CIE76: Euclidean distance in CIELab
+    #elif DISTANCE_METRIC == 2
       dist = deltaE76(srgb_to_cielab(color), srgb_to_cielab(paletteColor));
-    } else if (distanceMetric == 3) {
-      // CIEDE2000: perceptually weighted color difference
+    #elif DISTANCE_METRIC == 3
       dist = deltaE2000(srgb_to_cielab(color), srgb_to_cielab(paletteColor));
-    } else if (distanceMetric == 4) {
-      // Kotsarenko/Ramos: weighted RGB distance (fast, no conversion needed)
+    #elif DISTANCE_METRIC == 4
       dist = kotsarenkoRamos(color, paletteColor);
-    } else {
-      // RGB: plain Euclidean distance in sRGB space
+    #else
       dist = distance(color, paletteColor);
-    }
+    #endif
 
     if (dist < minDist) {
       minDist = dist;

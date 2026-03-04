@@ -42,19 +42,21 @@ import shaderClosestColor from "./shaders/closestColor.frag.glsl?raw" assert { t
 //   oklab     – M_PI, cbrt(), srgb_transfer_function(), okhsv/okhsl_to_srgb(), …
 //   hsl2rgb, hsv2rgb, lch2rgb – color model conversions (lch2rgb uses M_PI + srgb_transfer_function)
 //   deltaE    – srgb_to_cielab(), deltaE76(), deltaE2000() (uses srgb2rgb, cbrt, M_PI, TWO_PI)
-//   closestColor – branches on distanceMetric uniform; uses everything above
+//   closestColor – branches on DISTANCE_METRIC define; uses everything above
+//
+// Defines (set via ShaderMaterial.defines — triggers recompile, no runtime branching):
+//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76 3=deltaE2000 4=kotsarenkoRamos
+//   COLOR_MODEL      int  0=hsv 1=okhsv 2=hsl 3=okhsl 4=oklch
+//   PROGRESS_AXIS    int  0=x 1=y 2=z
+//   IS_POLAR         flag (defined = true)
+//   INVERT_Z         flag (defined = true)
+//   SHOW_RAW         flag (defined = true)
 export const fragmentShader = `
 #define TWO_PI 6.28318530718
 varying vec2 vUv;
 uniform float progress;
-uniform bool isPolar;
-uniform int distanceMetric;
-uniform int progress_axis;
 uniform sampler2D paletteTexture;
 uniform int paletteLength;
-uniform bool debug;
-uniform int polarColorModel;
-uniform bool invertZ;
 
 ${shaderSRGB2RGB}
 ${shaderOKLab}
@@ -64,76 +66,67 @@ ${shaderLCH2RGB}
 ${shaderDeltaE}
 ${shaderClosestColor}
 
-// polarColorModel: 0=hsv, 1=okhsv, 2=hsl, 3=okhsl, 4=oklch
+// COLOR_MODEL: 0=hsv, 1=okhsv, 2=hsl, 3=okhsl, 4=oklch
 vec3 polarToRGB(vec3 colorCoords) {
-  if (polarColorModel == 0) {
+  #if COLOR_MODEL == 0
     return hsv2rgb(colorCoords);
-  } else if (polarColorModel == 1) {
-    return okhsv_to_srgb(colorCoords);
-  } else if (polarColorModel == 2) {
+  #elif COLOR_MODEL == 2
     return hsl2rgb(colorCoords);
-  } else if (polarColorModel == 3) {
+  #elif COLOR_MODEL == 3
     return okhsl_to_srgb(colorCoords);
-  } else {
-    // oklch — lch2rgb uses the OKLab matrix so this is OKLCH
+  #elif COLOR_MODEL == 4
     return lch2rgb(vec3(colorCoords.z, colorCoords.y, colorCoords.x));
-  }
+  #else
+    return okhsv_to_srgb(colorCoords);
+  #endif
 }
 
 void main(){
-  vec3 colorCoords = vec3(progress, vUv.x, vUv.y);
-  if(progress_axis == 1){
-    colorCoords = vec3(vUv.x, progress, vUv.y);
-  } else if(progress_axis == 2){
-    colorCoords = vec3(vUv.x, vUv.y, 1. - progress);
-  }
+  #if PROGRESS_AXIS == 1
+    vec3 colorCoords = vec3(vUv.x, progress, vUv.y);
+  #elif PROGRESS_AXIS == 2
+    vec3 colorCoords = vec3(vUv.x, vUv.y, 1. - progress);
+  #else
+    vec3 colorCoords = vec3(progress, vUv.x, vUv.y);
+  #endif
 
-  if(isPolar) {
+  #ifdef IS_POLAR
     vec2 toCenter = vUv - 0.5;
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
 
-    if(progress_axis == 2){
+    #if PROGRESS_AXIS == 2
       colorCoords = vec3((angle / TWO_PI), radius, 1. - progress);
-    } else if(progress_axis == 1){
+    #elif PROGRESS_AXIS == 1
       colorCoords = vec3((angle / TWO_PI), 1. - progress, radius);
-      if (radius > 1.0) {
-        discard;
-      }
-    } else {
+      if (radius > 1.0) { discard; }
+    #else
       float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
-      if (vUv.x > 0.5) {
-        hue += 0.5;
-      }
+      if (vUv.x > 0.5) { hue += 0.5; }
       colorCoords = vec3(hue, abs(0.5 - vUv.x) * 2.0, vUv.y);
-    }
-  }
+    #endif
+  #endif
 
-  if(invertZ){
+  #ifdef INVERT_Z
     colorCoords.z = 1. - colorCoords.z;
-  }
+  #endif
 
   vec3 rgb = polarToRGB(colorCoords);
-  vec3 closest = closestColor(rgb, paletteTexture, paletteLength);
 
-  if (debug) {
-    closest = rgb;
-  }
-
-  gl_FragColor = vec4(closest, 1.);
+  #ifdef SHOW_RAW
+    gl_FragColor = vec4(rgb, 1.);
+  #else
+    gl_FragColor = vec4(closestColor(rgb, paletteTexture, paletteLength), 1.);
+  #endif
 }`;
 
 // Internal uniform shape — not part of the public API
+// Note: colorModel, distanceMetric, isPolar, invertLightness, showRaw, axis
+// are compile-time defines (ShaderMaterial.defines), not uniforms.
 type ShaderUniforms = {
   progress: { value: number };
-  progress_axis: { value: number };
-  polarColorModel: { value: number };
-  isPolar: { value: boolean };
-  distanceMetric: { value: number };
   paletteTexture: { value: DataTexture | null };
   paletteLength: { value: number };
-  debug: { value: boolean };
-  invertZ: { value: boolean };
 };
 
 const vertexShader = `varying vec2 vUv;
@@ -236,17 +229,23 @@ export class PaletteViz {
     this.#texture = paletteToTexture(this.#palette);
     this.#uniforms = {
       progress:       { value: this.#position },
-      progress_axis:  { value: this.#axisMap[this.#axis] },
-      polarColorModel:{ value: this.#colorModelMap[this.#colorModel] },
-      isPolar:        { value: this.#isPolar },
-      distanceMetric: { value: this.#distanceMetricMap[this.#distanceMetric] },
       paletteTexture: { value: this.#texture },
       paletteLength:  { value: this.#palette.length },
-      debug:          { value: this.#showRaw },
-      invertZ:        { value: this.#invertLightness },
     };
 
-    this.#material = new ShaderMaterial({ uniforms: this.#uniforms, vertexShader, fragmentShader });
+    this.#material = new ShaderMaterial({
+      uniforms: this.#uniforms,
+      vertexShader,
+      fragmentShader,
+      defines: {
+        DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
+        COLOR_MODEL:     this.#colorModelMap[this.#colorModel],
+        PROGRESS_AXIS:   this.#axisMap[this.#axis],
+        IS_POLAR:        this.#isPolar ? 1 : false,
+        INVERT_Z:        this.#invertLightness ? 1 : false,
+        SHOW_RAW:        this.#showRaw ? 1 : false,
+      },
+    });
     this.#initThree();
   }
 
@@ -363,7 +362,8 @@ export class PaletteViz {
   set axis(axis: Axis) {
     if (!(axis in this.#axisMap)) throw new Error("axis must be 'x', 'y', or 'z'");
     this.#axis = axis;
-    this.#uniforms.progress_axis.value = this.#axisMap[axis];
+    this.#material.defines.PROGRESS_AXIS = this.#axisMap[axis];
+    this.#material.needsUpdate = true;
     this.#paint();
   }
   get axis() { return this.#axis; }
@@ -371,7 +371,8 @@ export class PaletteViz {
   set colorModel(model: SupportedColorModels) {
     if (!(model in this.#colorModelMap)) throw new Error("colorModel must be 'hsv', 'okhsv', 'hsl', 'okhsl', or 'oklch'");
     this.#colorModel = model;
-    this.#uniforms.polarColorModel.value = this.#colorModelMap[model];
+    this.#material.defines.COLOR_MODEL = this.#colorModelMap[model];
+    this.#material.needsUpdate = true;
     this.#paint();
   }
   get colorModel() { return this.#colorModel; }
@@ -379,28 +380,32 @@ export class PaletteViz {
   set distanceMetric(metric: DistanceMetric) {
     if (!(metric in this.#distanceMetricMap)) throw new Error("distanceMetric must be 'rgb', 'oklab', 'deltaE76', 'deltaE2000', or 'kotsarenkoRamos'");
     this.#distanceMetric = metric;
-    this.#uniforms.distanceMetric.value = this.#distanceMetricMap[metric];
+    this.#material.defines.DISTANCE_METRIC = this.#distanceMetricMap[metric];
+    this.#material.needsUpdate = true;
     this.#paint();
   }
   get distanceMetric() { return this.#distanceMetric; }
 
   set isPolar(value: boolean) {
     this.#isPolar = value;
-    this.#uniforms.isPolar.value = value;
+    this.#material.defines.IS_POLAR = value ? 1 : false;
+    this.#material.needsUpdate = true;
     this.#paint();
   }
   get isPolar() { return this.#isPolar; }
 
   set invertLightness(value: boolean) {
     this.#invertLightness = value;
-    this.#uniforms.invertZ.value = value;
+    this.#material.defines.INVERT_Z = value ? 1 : false;
+    this.#material.needsUpdate = true;
     this.#paint();
   }
   get invertLightness() { return this.#invertLightness; }
 
   set showRaw(value: boolean) {
     this.#showRaw = value;
-    this.#uniforms.debug.value = value;
+    this.#material.defines.SHOW_RAW = value ? 1 : false;
+    this.#material.needsUpdate = true;
     this.#paint();
   }
   get showRaw() { return this.#showRaw; }

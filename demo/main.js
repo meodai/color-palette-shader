@@ -4,8 +4,9 @@ import { PaletteViz } from 'palette-shader';
 const $palette = document.querySelector("[data-palette]");
 const $tools = document.querySelector("[data-tools]");
 const $app = document.querySelector("#app");
+const $palettePaste = document.querySelector("[data-palette-paste]");
 
-if (!$palette || !$tools || !$app) {
+if (!$palette || !$tools || !$app || !$palettePaste) {
   throw new Error("Required DOM elements not found");
 }
 
@@ -45,48 +46,17 @@ window.addEventListener("resize", () => {
   vizzes.forEach((v) => v.resize(window.innerWidth * 0.2));
 });
 
-// Position slider
-const $positionSlider = document.createElement('input');
-$positionSlider.type = 'range';
-$positionSlider.min = '0';
-$positionSlider.max = '1';
-$positionSlider.step = '0.0001';
-$positionSlider.value = '0';
-$positionSlider.classList.add('hue-slider');
-
-$positionSlider.addEventListener('input', (e) => {
-  const value = parseFloat(e.target.value);
-  vizzes.forEach((v) => { v.position = value; });
-});
-
-// Polar / slice toggle
-const $selectMode = document.createElement('select');
-$selectMode.classList.add('shader-select');
-$selectMode.innerHTML = `
-  <option value="polar">Polar</option>
-  <option value="slice">Slice</option>
-`;
-$selectMode.addEventListener("change", (e) => {
-  viz.isPolar = e.target.value !== "slice";
-});
-$tools.appendChild($selectMode);
-
-// Axis
-const $selectAxis = document.createElement('select');
-$selectAxis.classList.add('axis-select');
-$selectAxis.innerHTML = `
-  <option value="x">x</option>
-  <option value="y">y</option>
-  <option value="z">z</option>
-`;
-$selectAxis.addEventListener('change', (e) => {
-  vizzes.forEach((v) => { v.axis = e.target.value; });
-});
-$tools.appendChild($selectAxis);
+function labeled(text, el) {
+  const $label = document.createElement('label');
+  const $span = document.createElement('span');
+  $span.textContent = text;
+  $label.appendChild($span);
+  $label.appendChild(el);
+  return $label;
+}
 
 // Color model
 const $colorModel = document.createElement('select');
-$colorModel.classList.add('color-model-select');
 $colorModel.innerHTML = `
   <option value="okhsv">OKHsv</option>
   <option value="okhsl">OKHsl</option>
@@ -97,11 +67,10 @@ $colorModel.innerHTML = `
 $colorModel.addEventListener('change', (e) => {
   vizzes.forEach((v) => { v.colorModel = e.target.value; });
 });
-$tools.appendChild($colorModel);
+$tools.appendChild(labeled('Color model', $colorModel));
 
 // Distance metric
 const $distanceMetric = document.createElement('select');
-$distanceMetric.classList.add('distance-metric-select');
 $distanceMetric.innerHTML = `
   <option value="oklab">OKLab</option>
   <option value="deltaE2000">ΔE2000</option>
@@ -112,31 +81,38 @@ $distanceMetric.innerHTML = `
 $distanceMetric.addEventListener('change', (e) => {
   vizzes.forEach((v) => { v.distanceMetric = e.target.value; });
 });
-$tools.appendChild($distanceMetric);
+$tools.appendChild(labeled('Distance metric', $distanceMetric));
+
+// Position slider
+const $positionSlider = document.createElement('input');
+$positionSlider.type = 'range';
+$positionSlider.min = '0';
+$positionSlider.max = '1';
+$positionSlider.step = '0.0001';
+$positionSlider.value = '0.5';
+$positionSlider.addEventListener('input', (e) => {
+  vizzes.forEach((v) => { v.position = parseFloat(e.target.value); });
+});
+vizzes.forEach((v) => { v.position = 0.5; });
+$tools.appendChild(labeled('Position', $positionSlider));
 
 // Invert lightness
-const $invertLightnessLabel = document.createElement('label');
-$invertLightnessLabel.textContent = 'Invert lightness';
 const $invertLightnessCheckbox = document.createElement('input');
 $invertLightnessCheckbox.type = 'checkbox';
 $invertLightnessCheckbox.checked = false;
-$invertLightnessLabel.appendChild($invertLightnessCheckbox);
 $invertLightnessCheckbox.addEventListener("change", (e) => {
   vizzes.forEach((v) => { v.invertLightness = e.target.checked; });
 });
-$tools.appendChild($invertLightnessLabel);
+$tools.appendChild(labeled('Invert lightness', $invertLightnessCheckbox));
 
 // Show raw (debug)
-const $showRawLabel = document.createElement('label');
-$showRawLabel.textContent = 'Show raw colors';
 const $showRawCheckbox = document.createElement('input');
 $showRawCheckbox.type = 'checkbox';
 $showRawCheckbox.checked = false;
-$showRawLabel.appendChild($showRawCheckbox);
 $showRawCheckbox.addEventListener("change", (e) => {
   vizzes.forEach((v) => { v.showRaw = e.target.checked; });
 });
-$tools.appendChild($showRawLabel);
+$tools.appendChild(labeled('Show raw colors', $showRawCheckbox));
 
 // ── Palette editor ──────────────────────────────────────────────────────────
 
@@ -182,5 +158,14 @@ $palette.addEventListener("click", (e) => {
   }
 });
 
+// ── Paste field ─────────────────────────────────────────────────────────────
+
+$palettePaste.addEventListener('input', () => {
+  const raw = $palettePaste.value;
+  const colors = raw.split(/[\s,]+/).map(s => s.trim()).filter(s => /^#([0-9a-f]{3}){1,2}$/i.test(s));
+  if (colors.length < 2) return;
+  vizzes.forEach((v) => { v.palette = colors; });
+  createDomFromPalette(colors);
+});
+
 createDomFromPalette(palette);
-$tools.appendChild($positionSlider);
