@@ -223,4 +223,4 @@ The demo lives in `demo/` and is a private workspace package. It resolves the li
 
 ## License
 
-MIT © [David Aerne](https://meodai.ch)
+MIT © [David Aerne](https://elastiq.ch)
