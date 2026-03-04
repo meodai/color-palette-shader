@@ -11,12 +11,22 @@ if (!$palette || !$tools || !$app || !$palettePaste) {
 }
 
 const palette = [
-  '#f2f0e5', '#b8b5b9', '#868188', '#646365', '#45444f',
-  '#3a3858', '#212123', '#352b42', '#43436a', '#4b80ca',
-  '#68c2d3', '#a2dcc7', '#ede19e', '#d3a068', '#b45252',
-  '#6a536e', '#4b4158', '#80493a', '#a77b5b', '#e5ceb4',
-  '#c2d368', '#8ab060', '#567b79', '#4e584a', '#7b7243',
-  '#b2b47e', '#edc8c4', '#cf8acb', '#5f556a',
+'#d1b187',
+'#c77b58',
+'#ae5d40',
+'#79444a',
+'#4b3d44',
+'#ba9158',
+'#927441',
+'#4d4539',
+'#77743b',
+'#b3a555',
+'#d2c9a5',
+'#8caba1',
+'#4b726e',
+'#574852',
+'#847875',
+'#ab9b8e',
 ];
 
 function vizSize() {
@@ -66,8 +76,8 @@ function labeled(text, el) {
 // Color model
 const $colorModel = document.createElement('select');
 $colorModel.innerHTML = `
-  <option value="okhsv">OKHsv</option>
   <option value="okhsl">OKHsl</option>
+  <option value="okhsv">OKHsv</option>
   <option value="oklch">OKLch</option>
   <option value="hsv">HSV</option>
   <option value="hsl">HSL</option>
@@ -76,6 +86,8 @@ $colorModel.addEventListener('change', (e) => {
   vizzes.forEach((v) => { v.colorModel = e.target.value; });
 });
 $tools.appendChild(labeled('Color model', $colorModel));
+// Set initial color model
+vizzes.forEach((v) => { v.colorModel = $colorModel.value; });
 
 // Distance metric
 const $distanceMetric = document.createElement('select');
@@ -91,6 +103,8 @@ $distanceMetric.addEventListener('change', (e) => {
   vizzes.forEach((v) => { v.distanceMetric = e.target.value; });
 });
 $tools.appendChild(labeled('Distance metric', $distanceMetric));
+// Set initial distance metric
+vizzes.forEach((v) => { v.distanceMetric = $distanceMetric.value; });
 
 // Position slider
 const $positionSlider = document.createElement('input');
@@ -208,7 +222,7 @@ function decodeHash(hash) {
   const params = new URLSearchParams(queryPart || '');
   return {
     colors,
-    colorModel:      params.get('model')  || 'okhsv',
+    colorModel:      params.get('model')  || 'okhsl',
     distanceMetric:  params.get('metric') || 'oklab',
     position:        parseFloat(params.get('pos') ?? '0.5'),
     invertLightness: params.get('invert') === '1',
