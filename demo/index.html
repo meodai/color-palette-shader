@@ -38,18 +38,23 @@
       <aside>
         <h2>Usage</h2>
         <figure>
-          <figcaption>Minimal example — mount a shader into a container element.</figcaption>
+          <figcaption>Minimal example — pass a container or append the canvas yourself.</figcaption>
           <pre class="code"><code>import { PaletteViz } from 'palette-shader';
 
+// option A: pass a container, canvas is appended automatically
 const viz = new PaletteViz({
   palette: ['#f2f0e5', '#4b80ca', '#b45252', '#a2dcc7'],
   container: document.querySelector('#app'),
-  colorModel: 'okhsv',   // 'okhsv' | 'okhsl' | 'oklch' | 'hsv' | 'hsl'
+  colorModel: 'okhsv',    // 'okhsv' | 'okhsl' | 'oklch' | 'hsv' | 'hsl'
   distanceMetric: 'oklab', // 'oklab' | 'deltaE2000' | 'deltaE76' | 'rgb'
-  isPolar: true,           // wheel vs. rectangle
-  axis: 'y',              // which axis the position slider controls
-  position: 0.5,          // 0–1 slice position
+  isPolar: true,            // wheel vs. rectangle
+  axis: 'y',               // which axis the position slider controls
+  position: 0.5,           // 0–1 slice position
 });
+
+// option B: no container — place the canvas yourself
+const viz = new PaletteViz({ palette });
+document.querySelector('#app').appendChild(viz.canvas);
 
 // update live
 viz.palette = ['#ff0000', '#00ff00', '#0000ff'];

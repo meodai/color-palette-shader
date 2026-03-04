@@ -197,14 +197,14 @@ export class PaletteViz {
   #animationFrame: number | null = null;
 
   // dom
-  #container!: HTMLElement;
+  #container: HTMLElement | undefined;
 
   constructor({
     palette = randomPalette(),
     width = 512,
     height = 512,
     pixelRatio = window.devicePixelRatio,
-    container = document.body,
+    container,
     colorModel = "okhsv",
     distanceMetric = "oklab",
     isPolar = true,
@@ -260,7 +260,7 @@ export class PaletteViz {
     this.#geometry = new PlaneGeometry(2, 2);
     this.#mesh = new Mesh(this.#geometry, this.#material);
     this.#scene.add(this.#mesh);
-    this.#container.appendChild(this.#renderer.domElement);
+    this.#container?.appendChild(this.#renderer.domElement);
 
     this.#paint();
   }
