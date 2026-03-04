@@ -21,15 +21,18 @@ npm install three
 ```js
 import { PaletteViz } from 'palette-shader';
 
+// option A — pass a container, canvas is appended automatically
 const viz = new PaletteViz({
   palette: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'],
   container: document.querySelector('#app'),
   width: 512,
   height: 512,
 });
-```
 
-A `<canvas>` is appended to `container` and renders immediately.
+// option B — no container, place the canvas yourself
+const viz = new PaletteViz({ palette: ['#264653', '#2a9d8f', '#e9c46a'] });
+document.querySelector('#app').appendChild(viz.canvas);
+```
 
 ---
 
@@ -44,7 +47,7 @@ All options are optional. The palette defaults to a random 20-colour set.
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `palette` | `string[]` | random | CSS colour strings (`#hex`, `rgb()`, `hsl()`, …) |
-| `container` | `HTMLElement` | `document.body` | Element the canvas is appended to |
+| `container` | `HTMLElement` | `undefined` | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself |
 | `width` | `number` | `512` | Canvas width in CSS pixels |
 | `height` | `number` | `512` | Canvas height in CSS pixels |
 | `pixelRatio` | `number` | `devicePixelRatio` | Renderer pixel ratio |
@@ -159,10 +162,12 @@ Controls how "nearest palette colour" is determined per pixel.
 ### Accessing the canvas
 
 ```js
-const viz = new PaletteViz({ container: document.body });
+// with no container, manage placement yourself
+const viz = new PaletteViz({ palette });
+document.querySelector('#app').appendChild(viz.canvas);
 
+// or style it after the fact
 viz.canvas.style.borderRadius = '50%';
-someOtherElement.appendChild(viz.canvas);
 ```
 
 ### Multiple synchronised views
