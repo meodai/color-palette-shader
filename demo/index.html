@@ -25,7 +25,7 @@
         <a href="https://github.com/meodai/palette-shader">GitHub</a>
       </div>
       <p>
-        A WebGL shader (Three.js) that visualizes a color palette by mapping a color space onto a plane or polar wheel,
+        A dependency-free WebGL2 shader that visualizes a color palette by mapping a color space onto a plane or polar wheel,
         then snapping each pixel to the nearest palette color via a configurable distance metric.
         The six views above show the same palette across X, Y and Z slices — first in polar (cylinder), then in linear (cube) mode.
       </p>
@@ -68,7 +68,7 @@ viz.destroy();</code></pre>
       <aside>
         <h2>Notes</h2>
         <p>
-          Requires <a href="https://threejs.org/" target="_blank" rel="noopener noreferrer">Three.js</a> as a peer dependency.
+          No runtime dependencies — uses raw WebGL 2 and the browser's native CSS color parser.
           Color models and distance metrics are orthogonal — the model controls how the color space is rendered,
           the metric controls which palette color each pixel snaps to.
         </p>
