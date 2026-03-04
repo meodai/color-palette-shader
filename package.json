@@ -1,9 +1,9 @@
 {
   "name": "palette-shader",
   "version": "0.1.0",
-  "description": "WebGL shader that maps any colour palette across perceptual colour spaces — OKHsv, OKHsl, OKLCH and more.",
+  "description": "Dependency-free WebGL2 shader that maps any colour palette across perceptual colour spaces — OKHsv, OKHsl, OKLCH and more.",
   "keywords": [
-    "color", "colour", "palette", "shader", "webgl",
+    "color", "colour", "palette", "shader", "webgl", "webgl2",
     "oklab", "oklch", "okhsv", "okhsl", "deltaE", "visualization", "colour-science"
   ],
   "author": "David Aerne <meodai@gmail.com>",
