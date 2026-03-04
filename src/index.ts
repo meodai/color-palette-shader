@@ -45,7 +45,7 @@ import shaderClosestColor from "./shaders/closestColor.frag.glsl?raw" assert { t
 //   closestColor – branches on DISTANCE_METRIC define; uses everything above
 //
 // Defines (set via ShaderMaterial.defines — triggers recompile, no runtime branching):
-//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76 3=deltaE2000 4=kotsarenkoRamos
+//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94
 //   COLOR_MODEL      int  0=hsv 1=okhsv 2=hsl 3=okhsl 4=oklch
 //   PROGRESS_AXIS    int  0=x 1=y 2=z
 //   IS_POLAR         flag (defined = true)
@@ -183,7 +183,7 @@ export class PaletteViz {
   // uniform value maps
   readonly #axisMap = { x: 0, y: 1, z: 2 } as const;
   readonly #colorModelMap = { hsv: 0, okhsv: 1, hsl: 2, okhsl: 3, oklch: 4 } as const;
-  readonly #distanceMetricMap = { rgb: 0, oklab: 1, deltaE76: 2, deltaE2000: 3, kotsarenkoRamos: 4 } as const;
+  readonly #distanceMetricMap = { rgb: 0, oklab: 1, deltaE76: 2, deltaE2000: 3, kotsarenkoRamos: 4, deltaE94: 5 } as const;
 
   // three.js
   #texture!: DataTexture;
@@ -378,7 +378,7 @@ export class PaletteViz {
   get colorModel() { return this.#colorModel; }
 
   set distanceMetric(metric: DistanceMetric) {
-    if (!(metric in this.#distanceMetricMap)) throw new Error("distanceMetric must be 'rgb', 'oklab', 'deltaE76', 'deltaE2000', or 'kotsarenkoRamos'");
+    if (!(metric in this.#distanceMetricMap)) throw new Error("distanceMetric must be 'rgb', 'oklab', 'deltaE76', 'deltaE94', 'deltaE2000', or 'kotsarenkoRamos'");
     this.#distanceMetric = metric;
     this.#material.defines.DISTANCE_METRIC = this.#distanceMetricMap[metric];
     this.#material.needsUpdate = true;

@@ -151,7 +151,8 @@ Controls how "nearest palette colour" is determined per pixel.
 |---|---|---|
 | `'oklab'` | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice. | low |
 | `'kotsarenkoRamos'` | Weighted Euclidean in sRGB — no colour-space conversion. Weights R and B by the mean red value for quick perceptual improvement over plain RGB. | lowest |
-| `'deltaE76'` | CIE 1976: Euclidean distance in CIELab. Classic standard, decent uniformity. | medium |
+| `'deltaE76'` | CIE 1976: plain Euclidean distance in CIELab. Classic standard, decent uniformity. | medium |
+| `'deltaE94'` | CIE 1994: adds chroma and hue weighting on top of ΔE76. Better than ΔE76, cheaper than ΔE2000. | medium |
 | `'deltaE2000'` | CIEDE2000: weighted colour difference with per-channel corrections for hue, chroma, and lightness. Most accurate, most expensive. | high |
 | `'rgb'` | Plain Euclidean in sRGB. Not perceptually uniform. Useful as a baseline. | lowest |
 

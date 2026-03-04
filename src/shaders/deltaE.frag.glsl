@@ -43,8 +43,22 @@ vec3 srgb_to_cielab(vec3 srgb) {
 
 // CIE76: plain Euclidean distance in CIELab
 float deltaE76(vec3 lab1, vec3 lab2) {
-    vec3 d = lab1 - lab2;
-    return sqrt(d.x*d.x + d.y*d.y + d.z*d.z);
+    return distance(lab1, lab2);
+}
+
+// CIE94: weighted chroma/hue corrections, cheaper than CIEDE2000
+// Uses graphics application constants: kL=1, K1=0.045, K2=0.015
+float deltaE94(vec3 lab1, vec3 lab2) {
+    float dL = lab1.x - lab2.x;
+    float da = lab1.y - lab2.y;
+    float db = lab1.z - lab2.z;
+    float C1 = sqrt(lab1.y * lab1.y + lab1.z * lab1.z);
+    float C2 = sqrt(lab2.y * lab2.y + lab2.z * lab2.z);
+    float dC = C1 - C2;
+    float dH = sqrt(max(0.0, da*da + db*db - dC*dC));
+    float SC = 1.0 + 0.045 * C1;
+    float SH = 1.0 + 0.015 * C1;
+    return sqrt(dL*dL + (dC/SC)*(dC/SC) + (dH/SH)*(dH/SH));
 }
 
 // CIEDE2000

@@ -3,7 +3,7 @@ export type ColorList = ColorString[];
 
 export type SupportedColorModels = 'hsv' | 'okhsv' | 'hsl' | 'okhsl' | 'oklch';
 export type Axis = 'x' | 'y' | 'z';
-export type DistanceMetric = 'rgb' | 'oklab' | 'deltaE76' | 'deltaE2000' | 'kotsarenkoRamos';
+export type DistanceMetric = 'rgb' | 'oklab' | 'deltaE76' | 'deltaE94' | 'deltaE2000' | 'kotsarenkoRamos';
 
 export type PaletteVizOptions = {
   palette?: ColorList;
