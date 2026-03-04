@@ -2,7 +2,7 @@
 
 A dependency-free WebGL2 shader that maps any colour palette across a 3-D perceptual colour space and snaps each pixel to the nearest palette colour. Visualise how a palette distributes across HSV, HSL, LCH or their perceptual OK-variants, and compare results across six colour-distance metrics — all on the GPU.
 
-[**Live demo →**](https://meodai.github.io/color-palette-shader)
+[**Live demo →**](https://meodai.github.io/color-palette-shader/)
 
 ---
 
