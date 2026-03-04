@@ -1,3 +1,14 @@
+// Kotsarenko/Ramos weighted RGB distance.
+// Operates on sRGB values directly (no linearisation needed).
+// Weights red and blue channels by the mean red value, which improves
+// perceptual uniformity compared to plain Euclidean RGB at minimal cost.
+float kotsarenkoRamos(vec3 c1, vec3 c2) {
+    float rMean = (c1.r + c2.r) * 0.5;
+    vec3 d = c1 - c2;
+    return sqrt((2.0 + rMean) * d.r*d.r + 4.0 * d.g*d.g + (3.0 - rMean) * d.b*d.b);
+}
+
+// ── CIELab ────────────────────────────────────────────────────────────────────
 // sRGB -> XYZ (D65) -> CIELab
 // Depends on: srgb2rgb() from srgb2rgb.frag.glsl, cbrt() from oklab.frag.glsl
 
@@ -55,10 +66,15 @@ float deltaE2000(vec3 lab1, vec3 lab2) {
     float C1p = sqrt(a1p*a1p + b1*b1);
     float C2p = sqrt(a2p*a2p + b2*b2);
 
-    // Hue angles [0, 2π]
-    float h1p = atan(b1, a1p);
+    // Guard atan(0,0): GLSL ES leaves that undefined, so skip it for achromatic colors.
+    // When a color has no chroma its hue angle is meaningless — we just need it to
+    // be a well-defined number so it doesn't corrupt the rest of the formula.
+    bool c1Achromatic = C1p < 1e-6;
+    bool c2Achromatic = C2p < 1e-6;
+
+    float h1p = c1Achromatic ? 0.0 : atan(b1, a1p);
     if (h1p < 0.0) h1p += TWO_PI;
-    float h2p = atan(b2, a2p);
+    float h2p = c2Achromatic ? 0.0 : atan(b2, a2p);
     if (h2p < 0.0) h2p += TWO_PI;
 
     // Deltas
@@ -66,7 +82,7 @@ float deltaE2000(vec3 lab1, vec3 lab2) {
     float dCp = C2p - C1p;
 
     float dhp = 0.0;
-    if (C1p * C2p > 0.0) {
+    if (!c1Achromatic && !c2Achromatic) {
         dhp = h2p - h1p;
         if      (dhp >  M_PI) dhp -= TWO_PI;
         else if (dhp < -M_PI) dhp += TWO_PI;
@@ -77,8 +93,9 @@ float deltaE2000(vec3 lab1, vec3 lab2) {
     float Lp = (L1 + L2) * 0.5;
     float Cp = (C1p + C2p) * 0.5;
 
+    // When one color is achromatic, its hue is 0 and the average is simply the other's hue
     float hp;
-    if (C1p * C2p == 0.0) {
+    if (c1Achromatic || c2Achromatic) {
         hp = h1p + h2p;
     } else if (abs(h1p - h2p) <= M_PI) {
         hp = (h1p + h2p) * 0.5;

@@ -106,6 +106,7 @@ $distanceMetric.innerHTML = `
   <option value="oklab">OKLab</option>
   <option value="deltaE2000">ΔE2000</option>
   <option value="deltaE76">ΔE76</option>
+  <option value="kotsarenkoRamos">Kotsarenko/Ramos</option>
   <option value="rgb">RGB</option>
 `;
 $distanceMetric.addEventListener('change', (e) => {

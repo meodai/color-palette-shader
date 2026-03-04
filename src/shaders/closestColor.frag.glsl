@@ -16,6 +16,9 @@ vec3 closestColor(vec3 color, sampler2D paletteTexture, int paletteSize) {
     } else if (distanceMetric == 3) {
       // CIEDE2000: perceptually weighted color difference
       dist = deltaE2000(srgb_to_cielab(color), srgb_to_cielab(paletteColor));
+    } else if (distanceMetric == 4) {
+      // Kotsarenko/Ramos: weighted RGB distance (fast, no conversion needed)
+      dist = kotsarenkoRamos(color, paletteColor);
     } else {
       // RGB: plain Euclidean distance in sRGB space
       dist = distance(color, paletteColor);

@@ -190,7 +190,7 @@ export class PaletteViz {
   // uniform value maps
   readonly #axisMap = { x: 0, y: 1, z: 2 } as const;
   readonly #colorModelMap = { hsv: 0, okhsv: 1, hsl: 2, okhsl: 3, oklch: 4 } as const;
-  readonly #distanceMetricMap = { rgb: 0, oklab: 1, deltaE76: 2, deltaE2000: 3 } as const;
+  readonly #distanceMetricMap = { rgb: 0, oklab: 1, deltaE76: 2, deltaE2000: 3, kotsarenkoRamos: 4 } as const;
 
   // three.js
   #texture!: DataTexture;
@@ -377,7 +377,7 @@ export class PaletteViz {
   get colorModel() { return this.#colorModel; }
 
   set distanceMetric(metric: DistanceMetric) {
-    if (!(metric in this.#distanceMetricMap)) throw new Error("distanceMetric must be 'rgb', 'oklab', 'deltaE76', or 'deltaE2000'");
+    if (!(metric in this.#distanceMetricMap)) throw new Error("distanceMetric must be 'rgb', 'oklab', 'deltaE76', 'deltaE2000', or 'kotsarenkoRamos'");
     this.#distanceMetric = metric;
     this.#uniforms.distanceMetric.value = this.#distanceMetricMap[metric];
     this.#paint();
