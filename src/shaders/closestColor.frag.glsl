@@ -1,5 +1,6 @@
 // DISTANCE_METRIC define: 0=rgb, 1=oklab, 2=deltaE76, 3=deltaE2000, 4=kotsarenkoRamos, 5=deltaE94
-vec3 closestColor(vec3 color, sampler2D paletteTexture, int paletteSize) {
+vec3 closestColor(vec3 color, sampler2D paletteTexture) {
+  int paletteSize = textureSize(paletteTexture, 0).x;
   float minDist = 1000000.0;
   vec3 closest = vec3(0.0);
 
@@ -13,7 +14,7 @@ vec3 closestColor(vec3 color, sampler2D paletteTexture, int paletteSize) {
   #endif
 
   for (int i = 0; i < paletteSize; i++) {
-    vec3 paletteColor = texture(paletteTexture, vec2(float(i) / float(paletteSize), 0.5)).rgb;
+    vec3 paletteColor = texelFetch(paletteTexture, ivec2(i, 0), 0).rgb;
 
     float dist;
     #if DISTANCE_METRIC == 1

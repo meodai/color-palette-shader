@@ -39,7 +39,7 @@ import shaderClosestColor from "./shaders/closestColor.frag.glsl?raw" assert { t
 
 const vertexShaderSrc = `
 precision highp float;
-in vec2 a_position;
+layout(location = 0) in vec2 a_position;
 out vec2 vUv;
 void main() {
   vUv = a_position * 0.5 + 0.5;
@@ -57,7 +57,6 @@ in vec2 vUv;
 out vec4 fragColor;
 uniform float progress;
 uniform sampler2D paletteTexture;
-uniform int paletteLength;
 
 ${shaderSRGB2RGB}
 ${shaderOKLab}
@@ -117,7 +116,7 @@ void main(){
   #ifdef SHOW_RAW
     fragColor = vec4(rgb, 1.);
   #else
-    fragColor = vec4(closestColor(rgb, paletteTexture, paletteLength), 1.);
+    fragColor = vec4(closestColor(rgb, paletteTexture), 1.);
   #endif
 }`;
 
@@ -220,7 +219,8 @@ function buildProgram(gl: WebGL2RenderingContext, defines: Defines, fragSrc: str
 
 function uploadPaletteTexture(gl: WebGL2RenderingContext, tex: WebGLTexture, palette: ColorList): void {
   gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, palette.length, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, paletteToRGBA(palette));
+  // RGBA8: sized internal format required by WebGL2 spec
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, palette.length, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, paletteToRGBA(palette));
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -255,13 +255,12 @@ export class PaletteViz {
   #program: WebGLProgram | null = null;
   #texture: WebGLTexture | null = null;
   #quadBuffer: WebGLBuffer | null = null;
+  #vao: WebGLVertexArrayObject | null = null;
   #animationFrame: number | null = null;
 
-  // cached locations
+  // cached uniform locations (re-queried after each program rebuild)
   #uProgress: WebGLUniformLocation | null = null;
   #uPaletteTexture: WebGLUniformLocation | null = null;
-  #uPaletteLength: WebGLUniformLocation | null = null;
-  #aPosition = -1;
 
   // dom
   #container: HTMLElement | undefined;
@@ -299,9 +298,18 @@ export class PaletteViz {
     if (!gl) throw new Error("WebGL2 not supported");
     this.#gl = gl;
 
+    // Quad buffer + VAO — set up once, reused every frame.
+    // layout(location=0) in the vertex shader pins a_position to slot 0,
+    // so the VAO remains valid across shader recompiles.
     this.#quadBuffer = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#quadBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+
+    this.#vao = gl.createVertexArray()!;
+    gl.bindVertexArray(this.#vao);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.bindVertexArray(null);
 
     this.#texture = gl.createTexture()!;
     uploadPaletteTexture(gl, this.#texture, this.#palette);
@@ -329,8 +337,6 @@ export class PaletteViz {
     this.#program = buildProgram(gl, this.#defines(), fragmentShader, vertexShaderSrc);
     this.#uProgress       = gl.getUniformLocation(this.#program, "progress");
     this.#uPaletteTexture = gl.getUniformLocation(this.#program, "paletteTexture");
-    this.#uPaletteLength  = gl.getUniformLocation(this.#program, "paletteLength");
-    this.#aPosition       = gl.getAttribLocation(this.#program, "a_position");
   }
 
   #setSize(w: number, h: number): void {
@@ -350,17 +356,14 @@ export class PaletteViz {
       gl.useProgram(this.#program);
 
       gl.uniform1f(this.#uProgress, this.#position);
-      gl.uniform1i(this.#uPaletteLength, this.#palette.length);
 
       gl.activeTexture(gl.TEXTURE0);
       gl.bindTexture(gl.TEXTURE_2D, this.#texture);
       gl.uniform1i(this.#uPaletteTexture, 0);
 
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.#quadBuffer);
-      gl.enableVertexAttribArray(this.#aPosition);
-      gl.vertexAttribPointer(this.#aPosition, 2, gl.FLOAT, false, 0, 0);
-
+      gl.bindVertexArray(this.#vao);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.bindVertexArray(null);
     });
   }
 
@@ -386,6 +389,7 @@ export class PaletteViz {
     gl.deleteProgram(this.#program);
     gl.deleteTexture(this.#texture);
     gl.deleteBuffer(this.#quadBuffer);
+    gl.deleteVertexArray(this.#vao);
     this.#canvas.remove();
     gl.getExtension("WEBGL_lose_context")?.loseContext();
   }
