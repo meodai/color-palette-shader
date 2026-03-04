@@ -106,71 +106,6 @@ label {
   border-bottom: none;
 }
 
-@media (orientation: portrait) {
-  body {
-    padding: .5rem;
-  }
-
-  .app {
-    flex-direction: column;
-    min-height: calc(100dvh - 1rem);
-    overflow: visible;
-  }
-
-  .sidebar {
-    position: static;
-    width: 100%;
-    border-right: none;
-    border-bottom: var(--s-line) solid var(--c-surface-on);
-  }
-
-  .viz {
-    margin-left: 0;
-  }
-
-  .sidebar__palette {
-    display: flex;
-    flex-wrap: wrap;
-    overflow: visible;
-  }
-
-  .sidebar__palette .color-picker {
-    width: 2rem;
-    flex-direction: column;
-  }
-
-  .sidebar__palette .color-picker input[type="color"] {
-    height: 1.5rem;
-  }
-
-  .sidebar__palette .color-picker button {
-    width: 100%;
-    height: 1rem;
-    border-left: none;
-    border-top: var(--s-line) solid var(--c-border);
-  }
-
-  /* 2 columns × 3 rows */
-  .viz .palette-viz {
-    width: 50% !important;
-  }
-
-  .viz .palette-viz:nth-child(3n) {
-    border-right: var(--s-line) solid var(--c-surface-on);
-  }
-
-  .viz .palette-viz:nth-child(2n) {
-    border-right: none !important;
-  }
-
-  .viz .palette-viz:nth-child(n+4) {
-    border-bottom: var(--s-line) solid var(--c-surface-on);
-  }
-
-  .viz .palette-viz:nth-child(n+5) {
-    border-bottom: none;
-  }
-}
 
 /* ── Form controls ──────────────────────────────────────────────────────── */
 
@@ -494,5 +429,72 @@ pre, code {
 @media (orientation: portrait) {
   .about {
     max-width: min(100%, 30rem);
+  }
+}
+
+
+@media (orientation: portrait) {
+  body {
+    padding: .5rem;
+  }
+
+  .app {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+  }
+
+  .sidebar {
+    position: static;
+    width: 100%;
+    border-right: none;
+    border-bottom: var(--s-line) solid var(--c-surface-on);
+  }
+
+  .viz {
+    margin-left: 0;
+  }
+
+  .sidebar__palette {
+    display: flex;
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+
+  .sidebar__palette .color-picker {
+    width: 2rem;
+    flex-direction: column;
+  }
+
+  .sidebar__palette .color-picker input[type="color"] {
+    height: 1.5rem;
+  }
+
+  .sidebar__palette .color-picker button {
+    width: 100%;
+    height: 1rem;
+    border-left: none;
+    border-top: var(--s-line) solid var(--c-border);
+  }
+
+  /* 2 columns × 3 rows */
+  .viz .palette-viz {
+    width: 50% !important;
+  }
+
+  .viz .palette-viz:nth-child(3n) {
+    border-right: var(--s-line) solid var(--c-surface-on);
+  }
+
+  .viz .palette-viz:nth-child(2n) {
+    border-right: none !important;
+  }
+
+  .viz .palette-viz:nth-child(n+4) {
+    border-bottom: var(--s-line) solid var(--c-surface-on);
+  }
+
+  .viz .palette-viz:nth-child(n+5) {
+    border-bottom: none;
   }
 }
