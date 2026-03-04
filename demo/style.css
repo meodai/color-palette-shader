@@ -60,26 +60,29 @@ label {
 /* ── Layout ─────────────────────────────────────────────────────────────── */
 
 .app {
-  display: flex;
-  align-items: stretch;
-  height: calc(100dvh - 2rem);
+  position: relative;
   border: var(--s-line) solid var(--c-surface-on);
   overflow: hidden;
 }
 
 .sidebar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   width: clamp(200px, 35vw, 320px);
-  flex-shrink: 0;
-  max-height: 100%;
+  background: var(--c-surface);
   border-right: var(--s-line) solid var(--c-surface-on);
 }
 
 .sidebar__palette {
   overflow-y: scroll;
   flex: 1 1 auto;
+  min-height: 0;
 }
 
 .sidebar__tools {
@@ -110,16 +113,19 @@ label {
 
   .app {
     flex-direction: column;
-    height: auto;
     min-height: calc(100dvh - 1rem);
     overflow: visible;
   }
 
   .sidebar {
+    position: static;
     width: 100%;
-    max-height: none;
     border-right: none;
     border-bottom: var(--s-line) solid var(--c-surface-on);
+  }
+
+  .viz {
+    margin-left: 0;
   }
 
   .sidebar__palette {
@@ -358,11 +364,11 @@ input[type="checkbox"]:focus {
 
 .viz {
   display: flex;
-  flex: 1 1 auto;
   flex-wrap: wrap;
   gap: 0;
   align-content: flex-start;
   overflow: hidden;
+  margin-left: clamp(200px, 35vw, 320px);
 
   .palette-viz {
     width: calc(33.3333%) !important;

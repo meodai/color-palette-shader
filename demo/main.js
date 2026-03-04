@@ -22,9 +22,10 @@ const palette = [
 function vizSize() {
   const portrait = window.matchMedia('(orientation: portrait)').matches;
   const cols = portrait ? 2 : 3;
-  const padding = portrait ? 16 : 32; // 0.5rem vs 1rem body padding × 2
+  const padding = portrait ? 16 : 32;
   const sidebarWidth = portrait ? 0 : Math.min(320, Math.max(200, window.innerWidth * 0.35));
-  return Math.floor((window.innerWidth - sidebarWidth - padding) / cols);
+  const vizWidth = window.innerWidth - sidebarWidth - padding;
+  return Math.floor(vizWidth / cols);
 }
 
 const sharedOptions = {
