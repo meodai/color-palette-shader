@@ -171,10 +171,108 @@ $palette.addEventListener("click", (e) => {
 
 $palettePaste.addEventListener('input', () => {
   const raw = $palettePaste.value;
-  const colors = raw.split(/[\s,]+/).map(s => s.trim()).filter(s => /^#([0-9a-f]{3}){1,2}$/i.test(s));
+  const colors = raw.split(/[\s,]+/).map(s => s.trim().replace(/^#?/, '#')).filter(s => /^#([0-9a-f]{3}){1,2}$/i.test(s));
   if (colors.length < 2) return;
   vizzes.forEach((v) => { v.palette = colors; });
   createDomFromPalette(colors);
 });
 
 createDomFromPalette(palette);
+
+// ── URL hash state ───────────────────────────────────────────────────────────
+
+function encodeHash(colors, settings) {
+  const colorStr = colors.map(c => c.replace('#', '')).join('-');
+  const params = new URLSearchParams({
+    model:  settings.colorModel,
+    metric: settings.distanceMetric,
+    pos:    settings.position.toFixed(4),
+    ...(settings.invertLightness && { invert: '1' }),
+    ...(settings.showRaw         && { raw: '1' }),
+  });
+  return `#colors/${colorStr}?${params}`;
+}
+
+function decodeHash(hash) {
+  if (!hash || !hash.startsWith('#colors/')) return null;
+  const withoutPrefix = hash.slice('#colors/'.length);
+  const [colorPart, queryPart] = withoutPrefix.split('?');
+
+  const colors = colorPart
+    .split('-')
+    .map(h => `#${h}`)
+    .filter(c => /^#([0-9a-f]{3}){1,2}$/i.test(c));
+
+  if (colors.length < 2) return null;
+
+  const params = new URLSearchParams(queryPart || '');
+  return {
+    colors,
+    colorModel:      params.get('model')  || 'okhsv',
+    distanceMetric:  params.get('metric') || 'oklab',
+    position:        parseFloat(params.get('pos') ?? '0.5'),
+    invertLightness: params.get('invert') === '1',
+    showRaw:         params.get('raw')    === '1',
+  };
+}
+
+function getSettings() {
+  return {
+    colorModel:      $colorModel.value,
+    distanceMetric:  $distanceMetric.value,
+    position:        parseFloat($positionSlider.value),
+    invertLightness: $invertLightnessCheckbox.checked,
+    showRaw:         $showRawCheckbox.checked,
+  };
+}
+
+function applyState(state) {
+  // palette
+  vizzes.forEach((v) => { v.palette = state.colors; });
+  createDomFromPalette(state.colors);
+
+  // controls
+  $colorModel.value = state.colorModel;
+  $distanceMetric.value = state.distanceMetric;
+  $positionSlider.value = String(state.position);
+  $invertLightnessCheckbox.checked = state.invertLightness;
+  $showRawCheckbox.checked = state.showRaw;
+
+  vizzes.forEach((v) => {
+    v.colorModel      = state.colorModel;
+    v.distanceMetric  = state.distanceMetric;
+    v.position        = state.position;
+    v.invertLightness = state.invertLightness;
+    v.showRaw         = state.showRaw;
+  });
+}
+
+// debounced hash writer
+let _hashTimer = null;
+function scheduleHashUpdate() {
+  clearTimeout(_hashTimer);
+  _hashTimer = setTimeout(() => {
+    const hash = encodeHash(viz.palette, getSettings());
+    history.replaceState(null, '', hash);
+  }, 400);
+}
+
+// hook all control changes to also update hash
+$colorModel.addEventListener('change',           scheduleHashUpdate);
+$distanceMetric.addEventListener('change',       scheduleHashUpdate);
+$positionSlider.addEventListener('input',        scheduleHashUpdate);
+$invertLightnessCheckbox.addEventListener('change', scheduleHashUpdate);
+$showRawCheckbox.addEventListener('change',      scheduleHashUpdate);
+$palette.addEventListener('input',               scheduleHashUpdate, true);
+$palette.addEventListener('click', (e) => {
+  if (e.target.classList.contains('color-picker__remove')) scheduleHashUpdate();
+});
+$palettePaste.addEventListener('input', scheduleHashUpdate);
+
+// async load from hash — after first paint so it never blocks rendering
+requestAnimationFrame(() => {
+  setTimeout(() => {
+    const state = decodeHash(location.hash);
+    if (state) applyState(state);
+  }, 0);
+});
