@@ -1,28 +1,22 @@
-import { Texture } from 'three';
-
 export type ColorString = string;
 export type ColorList = ColorString[];
 
-export type PaletteShaderUniforms = {
-  progress: { value: number };
-  progress_axis: { value: number };
-  polarColorModel: { value: number };
-  isPolar: { value: boolean };
-  isPerceptional: { value: boolean };
-  paletteTexture: { value: Texture | null };
-  paletteLength: { value: number };
-  debug: { value: boolean };
-  invertZ: { value: boolean };
-};
+export type SupportedColorModels = 'hsv' | 'okhsv' | 'hsl' | 'okhsl' | 'oklch';
+export type Axis = 'x' | 'y' | 'z';
+export type DistanceMetric = 'rgb' | 'oklab' | 'deltaE76' | 'deltaE2000';
 
 export type PaletteVizOptions = {
-  palette?: ColorList,
-  width?: number,
-  height?: number,
-  pixelRatio?: number,
-  uniforms?: Partial<PaletteShaderUniforms>,
-  $parent?: HTMLElement,
+  palette?: ColorList;
+  width?: number;
+  height?: number;
+  pixelRatio?: number;
+  container?: HTMLElement;
+  // shader options
+  colorModel?: SupportedColorModels;
+  distanceMetric?: DistanceMetric;
+  isPolar?: boolean;
+  axis?: Axis;
+  position?: number;
+  invertLightness?: boolean;
+  showRaw?: boolean;
 };
-
-export type SupportedColorModels = 'hsv' | 'hsl' | 'lch';
-export type Axis = 'x' | 'y' | 'z';
