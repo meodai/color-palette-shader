@@ -4,68 +4,45 @@ import { PaletteViz } from '../src';
 
 const $palette = document.querySelector("[data-palette]");
 const $tools = document.querySelector("[data-tools]");
-
 const $app = document.querySelector("#app");
+
+if (!$palette || !$tools || !$app) {
+  throw new Error("Required DOM elements not found");
+}
+
 let size = window.innerWidth * 0.2;
 
 let palette = [
-  /*
-  '#bc8b96', '#974b72', '#7f305c', '#5d2047', '#46173a', '#340d31', '#200816', 
-  '#312234', '#40364a', '#5b596d', '#7c8497', '#9daec0', '#f8e6d0', '#dcbaa0', 
-  '#c08e70', '#946452', '#683a34', '#442125', '#732f31', '#a23c3c', '#b45e4e', 
-  '#cf8c52', '#e8c988', '#a3ab6d', '#5e8c51', '#436852', '#3e4350', '#381d4e',
-  '#3c2c6a', '#444c84', '#5c79a6', '#8bc0ca',
- /*
-  ...new Array(500).fill(0).map((_, i) => {
-    return `hsl(${Math.random() * 360}, ${Math.random() * 100}%, ${
-      Math.random() * 100
-    }%)`;
-  }),*/
-
-'#f2f0e5',
-'#b8b5b9',
-'#868188',
-'#646365',
-'#45444f',
-'#3a3858',
-'#212123',
-'#352b42',
-'#43436a',
-'#4b80ca',
-'#68c2d3',
-'#a2dcc7',
-'#ede19e',
-'#d3a068',
-'#b45252',
-'#6a536e',
-'#4b4158',
-'#80493a',
-'#a77b5b',
-'#e5ceb4',
-'#c2d368',
-'#8ab060',
-'#567b79',
-'#4e584a',
-'#7b7243',
-'#b2b47e',
-'#edc8c4',
-'#cf8acb',
-'#5f556a',
+  '#f2f0e5',
+  '#b8b5b9',
+  '#868188',
+  '#646365',
+  '#45444f',
+  '#3a3858',
+  '#212123',
+  '#352b42',
+  '#43436a',
+  '#4b80ca',
+  '#68c2d3',
+  '#a2dcc7',
+  '#ede19e',
+  '#d3a068',
+  '#b45252',
+  '#6a536e',
+  '#4b4158',
+  '#80493a',
+  '#a77b5b',
+  '#e5ceb4',
+  '#c2d368',
+  '#8ab060',
+  '#567b79',
+  '#4e584a',
+  '#7b7243',
+  '#b2b47e',
+  '#edc8c4',
+  '#cf8acb',
+  '#5f556a',
 ];
-
-getNamesFromPalette(palette);
-
-function getNamesFromPalette(palette) {
-  fetch(
-    `https://api.color.pizza/v1/?values=${palette
-      .map((color) => color.slice(1))
-      .join(",")}&list=bestOf&noduplicates=true`
-  )
-    .then((res) => res.json())
-    .then((data) => {
-      console.log(data.colors);
-    });
-}
 
 const options = {
   palette,
@@ -119,10 +96,10 @@ const vizzes = [
 
 const $hueSlider = document.createElement('input');
 $hueSlider.type = 'range';
-$hueSlider.min = 0;
-$hueSlider.max = 1;
-$hueSlider.step = 0.0001;
-$hueSlider.value = 0;
+$hueSlider.min = '0';
+$hueSlider.max = '1';
+$hueSlider.step = '0.0001';
+$hueSlider.value = '0';
 $hueSlider.classList.add('hue-slider');
 
 $hueSlider.addEventListener('input', (e) => {
@@ -139,11 +116,7 @@ $selectShader.innerHTML = `
   <option value="slice">Slice</option>
 `;
 $selectShader.addEventListener("change", (e) => {
-  if (e.target.value === "slice") {
-    viz.isPolar = false;
-  } else {
-    viz.isPolar = true;
-  }
+  viz.isPolar = e.target.value !== "slice";
 });
 $tools.appendChild($selectShader);
 
@@ -158,7 +131,6 @@ $perceptualCheckbox.type = 'checkbox';
 $perceptualCheckbox.checked = true;
 
 $perccheckboxlabel.appendChild($perceptualCheckbox);
-
 
 $perceptualCheckbox.addEventListener("change", (e) => {
   vizzes.forEach((v) => {
@@ -208,9 +180,9 @@ window.addEventListener("resize", () => {
   viz.resize(window.innerWidth * 0.2);
 });
 
-function createDomFromPalette (palette) {
+function createDomFromPalette(palette) {
   $palette.innerHTML = "";
-  palette.forEach((color) => {
+  palette.forEach((color, index) => {
     const $picker = document.createElement("div");
     $picker.style.setProperty("--color", color);
     $picker.classList.add("color-picker", "palette__color");
@@ -220,7 +192,7 @@ function createDomFromPalette (palette) {
     $pickerInput.type = "color";
     $pickerInput.value = color;
     $pickerInput.classList.add("color-picker-input");
-    $picker.dataset.index = palette.indexOf(color);
+    $picker.dataset.index = index;
 
     const $removeButton = document.createElement("button");
     $removeButton.textContent = "x";
@@ -233,14 +205,11 @@ function createDomFromPalette (palette) {
 }
 
 $palette.addEventListener("input", (e) => {
-  // make sure the event comes from a color picker using the dataset
   if (e.target.parentElement.dataset.index !== undefined) {
     const $target = e.target;
     const index = parseInt($target.parentElement.dataset.index);
     $target.parentElement.style.setProperty("--color", $target.value);
     $target.parentElement.dataset.color = $target.value;
-    viz.setColor($target.value, index);
-
     vizzes.forEach((v) => {
       v.setColor($target.value, index);
     });
@@ -251,9 +220,8 @@ $palette.addEventListener("click", (e) => {
   if (e.target.classList.contains("color-picker__remove")) {
     const $target = e.target;
 
-    viz.removeColor(null, $target.parentElement.dataset.color);
+    viz.removeColor($target.parentElement.dataset.color);
     createDomFromPalette(viz.palette);
-    $target.parentElement.remove();
 
     vizzes.forEach((v) => {
       v.palette = viz.palette;
@@ -293,4 +261,3 @@ $inverseLightnessCheckbox.addEventListener("change", (e) => {
   });
 });
 $tools.appendChild($labelInverseLightness);
-
