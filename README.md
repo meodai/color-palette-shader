@@ -10,9 +10,9 @@ A WebGL shader (Three.js) that maps any colour palette across a 3-D perceptual c
 
 ```bash
 npm install palette-shader
-# peer dependency — install if you don't have it already
-npm install three
 ```
+
+No dependencies — only a browser with WebGL support is required.
 
 ---
 
@@ -191,10 +191,11 @@ document.querySelector('#slider').addEventListener('input', (e) => {
 ### Utility exports
 
 ```js
-import { paletteToTexture, randomPalette, fragmentShader } from 'palette-shader';
+import { paletteToRGBA, randomPalette, fragmentShader } from 'palette-shader';
 
-// Build a DataTexture directly (for use in your own Three.js scene)
-const texture = paletteToTexture(['#ff0000', '#00ff00', '#0000ff']);
+// Get raw RGBA bytes (Uint8Array, sRGB, 4 bytes per color)
+// Useful for building your own WebGL texture or processing palette data
+const rgba = paletteToRGBA(['#ff0000', '#00ff00', '#0000ff']);
 
 // Quick random palette for prototyping
 const palette = randomPalette(16);
@@ -204,6 +205,10 @@ console.log(fragmentShader);
 ```
 
 ---
+
+## Dependencies
+
+None. The library uses raw WebGL 1 and the browser's native CSS color parser. No Three.js or any other runtime dependency is required.
 
 ## Browser support
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "WebGL shader that maps any colour palette across perceptual colour spaces — OKHsv, OKHsl, OKLCH and more.",
   "keywords": [
-    "color", "colour", "palette", "shader", "webgl", "three", "three.js",
+    "color", "colour", "palette", "shader", "webgl",
     "oklab", "oklch", "okhsv", "okhsl", "deltaE", "visualization", "colour-science"
   ],
   "author": "David Aerne <meodai@gmail.com>",
@@ -41,12 +41,7 @@
     "typecheck": "tsc --noEmit",
     "preview": "npm run preview -w demo"
   },
-  "peerDependencies": {
-    "three": ">=0.150.0"
-  },
   "devDependencies": {
-    "@types/three": "^0.183.0",
-    "three": "^0.183.0",
     "typescript": "^5.4.5",
     "vite": "^7.0.0",
     "vite-plugin-dts": "^4.5.4"

@@ -13,7 +13,7 @@ vec3 closestColor(vec3 color, sampler2D paletteTexture, int paletteSize) {
   #endif
 
   for (int i = 0; i < paletteSize; i++) {
-    vec3 paletteColor = texture2D(paletteTexture, vec2(float(i) / float(paletteSize), 0.5)).rgb;
+    vec3 paletteColor = texture(paletteTexture, vec2(float(i) / float(paletteSize), 0.5)).rgb;
 
     float dist;
     #if DISTANCE_METRIC == 1
