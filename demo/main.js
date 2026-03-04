@@ -19,12 +19,17 @@ const palette = [
   '#b2b47e', '#edc8c4', '#cf8acb', '#5f556a',
 ];
 
-const size = window.innerWidth * 0.2;
+function vizSize() {
+  // 3 columns on wide, 2 on narrow; account for 1rem body padding on each side
+  const cols = window.innerWidth <= 600 ? 2 : 3;
+  const sidebarWidth = window.innerWidth <= 600 ? 0 : Math.min(320, Math.max(200, window.innerWidth * 0.35));
+  return Math.floor((window.innerWidth - sidebarWidth - 32) / cols);
+}
 
 const sharedOptions = {
   palette,
-  width: size,
-  height: size,
+  width: vizSize(),
+  height: vizSize(),
   container: $app,
   pixelRatio: devicePixelRatio * 2,
 };
@@ -43,7 +48,8 @@ const vizzes = [
 // ── Controls ────────────────────────────────────────────────────────────────
 
 window.addEventListener("resize", () => {
-  vizzes.forEach((v) => v.resize(window.innerWidth * 0.2));
+  const s = vizSize();
+  vizzes.forEach((v) => v.resize(s));
 });
 
 function labeled(text, el) {
