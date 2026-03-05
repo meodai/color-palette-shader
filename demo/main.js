@@ -46,16 +46,17 @@ const sharedOptions = {
   pixelRatio: devicePixelRatio * 2,
 };
 
-const viz = new PaletteViz({ ...sharedOptions, axis: 'x' });
+const viz = new PaletteViz({ ...sharedOptions, axis: 'x', position: 0 });
 
 const vizzes = [
   viz,
-  new PaletteViz({ ...sharedOptions, axis: 'y' }),
-  new PaletteViz({ ...sharedOptions, axis: 'z' }),
-  new PaletteViz({ ...sharedOptions, axis: 'x', isPolar: false }),
-  new PaletteViz({ ...sharedOptions, axis: 'y', isPolar: false }),
-  new PaletteViz({ ...sharedOptions, axis: 'z', isPolar: false }),
+  new PaletteViz({ ...sharedOptions, axis: 'y', position: 0 }),
+  new PaletteViz({ ...sharedOptions, axis: 'z', position: 0 }),
+  new PaletteViz({ ...sharedOptions, axis: 'x', position: 1 }),
+  new PaletteViz({ ...sharedOptions, axis: 'y', position: 1 }),
+  new PaletteViz({ ...sharedOptions, axis: 'z', position: 1 }),
 ];
+// t=0 default: first row at 0 (one extreme), second row at 1 (other side)
 
 // ── Controls ────────────────────────────────────────────────────────────────
 
@@ -76,11 +77,18 @@ function labeled(text, el) {
 // Color model
 const $colorModel = document.createElement('select');
 $colorModel.innerHTML = `
+  <option value="okhslPolar">OKHsl Polar</option>
   <option value="okhsl">OKHsl</option>
   <option value="okhsv">OKHsv</option>
+  <option value="okhsvPolar">OKHsv Polar</option>
   <option value="oklch">OKLch</option>
-  <option value="hsv">HSV</option>
+  <option value="oklchPolar">OKLch Polar</option>
   <option value="hsl">HSL</option>
+  <option value="hslPolar">HSL Polar</option>
+  <option value="hsv">HSV</option>
+  <option value="hsvPolar">HSV Polar</option>
+  <option value="oklab">OKLab</option>
+  <option value="rgb">RGB</option>
 `;
 $colorModel.addEventListener('change', (e) => {
   vizzes.forEach((v) => { v.colorModel = e.target.value; });
@@ -106,17 +114,23 @@ $tools.appendChild(labeled('Distance metric', $distanceMetric));
 // Set initial distance metric
 vizzes.forEach((v) => { v.distanceMetric = $distanceMetric.value; });
 
-// Position slider
+// Position slider (t=1 → faces at 0 and 1; t=0.5 → faces at 0.25 and 0.75)
 const $positionSlider = document.createElement('input');
 $positionSlider.type = 'range';
 $positionSlider.min = '0';
 $positionSlider.max = '1';
 $positionSlider.step = '0.0001';
-$positionSlider.value = '0.5';
+$positionSlider.value = '0';
+
+function applyPosition(t) {
+  vizzes.slice(0, 3).forEach(v => { v.position = t; });
+  vizzes.slice(3, 6).forEach(v => { v.position = 1 - t; });
+}
+
 $positionSlider.addEventListener('input', (e) => {
-  vizzes.forEach((v) => { v.position = parseFloat(e.target.value); });
+  applyPosition(parseFloat(e.target.value));
 });
-vizzes.forEach((v) => { v.position = 0.5; });
+applyPosition(0);
 $tools.appendChild(labeled('Position', $positionSlider));
 
 // Invert lightness
@@ -200,7 +214,7 @@ function encodeHash(colors, settings) {
   const params = new URLSearchParams({
     model:  settings.colorModel,
     metric: settings.distanceMetric,
-    pos:    settings.position.toFixed(4),
+    pos:    settings.pos.toFixed(4),
     ...(settings.invertLightness && { invert: '1' }),
     ...(settings.showRaw         && { raw: '1' }),
   });
@@ -224,7 +238,7 @@ function decodeHash(hash) {
     colors,
     colorModel:      params.get('model')  || 'okhsl',
     distanceMetric:  params.get('metric') || 'oklab',
-    position:        parseFloat(params.get('pos') ?? '0.5'),
+    pos:             parseFloat(params.get('pos') ?? '0'),
     invertLightness: params.get('invert') === '1',
     showRaw:         params.get('raw')    === '1',
   };
@@ -234,7 +248,7 @@ function getSettings() {
   return {
     colorModel:      $colorModel.value,
     distanceMetric:  $distanceMetric.value,
-    position:        parseFloat($positionSlider.value),
+    pos:             parseFloat($positionSlider.value),
     invertLightness: $invertLightnessCheckbox.checked,
     showRaw:         $showRawCheckbox.checked,
   };
@@ -248,17 +262,17 @@ function applyState(state) {
   // controls
   $colorModel.value = state.colorModel;
   $distanceMetric.value = state.distanceMetric;
-  $positionSlider.value = String(state.position);
+  $positionSlider.value = String(state.pos);
   $invertLightnessCheckbox.checked = state.invertLightness;
   $showRawCheckbox.checked = state.showRaw;
 
   vizzes.forEach((v) => {
     v.colorModel      = state.colorModel;
     v.distanceMetric  = state.distanceMetric;
-    v.position        = state.position;
     v.invertLightness = state.invertLightness;
     v.showRaw         = state.showRaw;
   });
+  applyPosition(state.pos);
 }
 
 // debounced hash writer

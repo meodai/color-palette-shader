@@ -65,7 +65,6 @@ All options are optional. The palette defaults to a random 20-colour set.
 | `pixelRatio` | `number` | `devicePixelRatio` | Renderer pixel ratio |
 | `colorModel` | `string` | `'okhsv'` | Colour space for the visualisation (see [Colour models](#colour-models)) |
 | `distanceMetric` | `string` | `'oklab'` | Distance function for nearest-colour matching (see [Distance metrics](#distance-metrics)) |
-| `isPolar` | `boolean` | `true` | `true` = circular wheel, `false` = rectangular slice |
 | `axis` | `'x' \| 'y' \| 'z'` | `'y'` | Which axis the `position` value controls |
 | `position` | `number` | `0` | 0–1 position along the chosen axis |
 | `invertLightness` | `boolean` | `false` | Flip the lightness/value axis |
@@ -80,9 +79,8 @@ Every constructor option is also a live setter/getter. Assigning any of them re-
 ```js
 viz.palette = ['#ff0000', '#00ff00', '#0000ff'];
 viz.position = 0.5;
-viz.colorModel = 'okhsl';
+viz.colorModel = 'okhslPolar';
 viz.distanceMetric = 'deltaE2000';
-viz.isPolar = false;
 viz.invertLightness = true;
 viz.showRaw = true;
 ```
@@ -141,17 +139,34 @@ Cancel the animation frame, release all WebGL resources (program, texture, buffe
 
 ## Colour models
 
-Controls the 3-D colour space the wheel or slice is rendered in.
+Controls the 3-D colour space the visualisation is rendered in. Polar variants (`*Polar`) map hue to angle and show a circular wheel; non-polar variants show a rectangular slice.
 
-| Value | Description |
-|---|---|
-| `'okhsv'` | **Default.** Hue–Saturation–Value built on OKLab. Gamut-aware hue wheel with perceptually uniform saturation steps. |
-| `'okhsl'` | Hue–Saturation–Lightness built on OKLab. Better lightness uniformity across hues. |
-| `'oklch'` | OKLab in cylindrical form (Lightness, Chroma, Hue). Ideal for chroma or lightness slices. |
-| `'hsv'` | Classic HSV. Not perceptually uniform — hue jumps are uneven — but familiar and fast. |
-| `'hsl'` | Classic HSL. Same caveats as `'hsv'`. |
+| Value | Shape | Description |
+|---|---|---|
+| `'okhsv'` | cube | **Default.** Hue–Saturation–Value built on OKLab. Gamut-aware with perceptually uniform saturation steps. |
+| `'okhsvPolar'` | wheel | Polar (cylindrical) form of OKHsv. |
+| `'okhsl'` | cube | Hue–Saturation–Lightness built on OKLab. Better lightness uniformity across hues. |
+| `'okhslPolar'` | wheel | Polar form of OKHsl. |
+| `'oklch'` | cube | OKLab in cylindrical coordinates (L, C, h). Ideal for chroma or lightness slices. |
+| `'oklchPolar'` | wheel | Polar form of OKLch. |
+| `'hsv'` | cube | Classic HSV. Not perceptually uniform, but familiar and fast. |
+| `'hsvPolar'` | wheel | Polar form of HSV. |
+| `'hsl'` | cube | Classic HSL. Same caveats as `'hsv'`. |
+| `'hslPolar'` | wheel | Polar form of HSL. |
+| `'oklab'` | cube | Raw OKLab cube: x→a, y→b, z→L. Cube only — no polar variant. |
+| `'rgb'` | cube | Raw sRGB cube. Useful as a baseline. Cube only — no polar variant. |
 
-The OK-variants rely on Björn Ottosson's gamut-aware implementation. They produce significantly more even hue distributions than the classic variants, at the same GPU cost.
+The OK-variants rely on Björn Ottosson's gamut-aware implementation and produce significantly more even hue distributions than the classic variants at the same GPU cost.
+
+### Cube vs. polar — which to use?
+
+Both shapes render the same underlying colour space; they just arrange it differently on screen.
+
+**Cube (rectangular slice)** lays the three axes out as a flat grid. One axis is fixed by the `position` slider, the other two fill the canvas. This makes it easy to read absolute values — you can see exactly where on the hue, saturation and lightness axes each palette colour falls, and compare palettes side-by-side without any projection distortion.
+
+**Polar (wheel)** wraps the hue axis around a circle. Hue runs around the circumference, saturation (or chroma) runs outward from the centre, and the third axis is controlled by `position`. This matches the intuition most designers have for colour — it's immediately obvious whether two colours are complementary, analogous or triadic. Voronoi regions that are nearly circular indicate a well-balanced palette; lopsided regions reveal hue bias.
+
+A practical starting point: use a **polar** model to get an intuitive read on hue distribution and harmony, then switch to a **cube** slice to inspect individual lightness or saturation bands in detail. `rgb` and `oklab` have no polar variant because they aren't hue-based cylindrical spaces.
 
 ---
 
@@ -190,9 +205,9 @@ const palette = ['#264653', '#2a9d8f', '#e9c46a'];
 const shared = { palette, width: 256, height: 256, container: document.querySelector('#views') };
 
 const views = [
-  new PaletteViz({ ...shared, axis: 'x', colorModel: 'okhsv' }),
-  new PaletteViz({ ...shared, axis: 'y', colorModel: 'okhsl' }),
-  new PaletteViz({ ...shared, axis: 'z', colorModel: 'oklch' }),
+  new PaletteViz({ ...shared, axis: 'x', colorModel: 'okhslPolar' }),
+  new PaletteViz({ ...shared, axis: 'y', colorModel: 'okhslPolar' }),
+  new PaletteViz({ ...shared, axis: 'z', colorModel: 'okhslPolar' }),
 ];
 
 document.querySelector('#slider').addEventListener('input', (e) => {

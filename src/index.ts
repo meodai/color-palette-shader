@@ -31,9 +31,9 @@ import shaderClosestColor from "./shaders/closestColor.frag.glsl?raw" assert { t
 //
 // Defines (compile-time, prepended to shader source — trigger recompile, no runtime branching):
 //   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94
-//   COLOR_MODEL      int  0=hsv 1=okhsv 2=hsl 3=okhsl 4=oklch
+//   COLOR_MODEL      int  0=rgb 1=oklab 2=okhsv 3=okhsvPolar 4=okhsl 5=okhslPolar
+//                         6=oklch 7=oklchPolar 8=hsv 9=hsvPolar 10=hsl 11=hslPolar
 //   PROGRESS_AXIS    int  0=x 1=y 2=z
-//   IS_POLAR         flag (defined = true)
 //   INVERT_Z         flag (defined = true)
 //   SHOW_RAW         flag (defined = true)
 
@@ -66,18 +66,24 @@ ${shaderLCH2RGB}
 ${shaderDeltaE}
 ${shaderClosestColor}
 
-// COLOR_MODEL: 0=hsv, 1=okhsv, 2=hsl, 3=okhsl, 4=oklch
-vec3 polarToRGB(vec3 colorCoords) {
+// COLOR_MODEL: 0=rgb, 1=oklab, 2=okhsv, 3=okhsvPolar, 4=okhsl, 5=okhslPolar,
+//              6=oklch, 7=oklchPolar, 8=hsv, 9=hsvPolar, 10=hsl, 11=hslPolar
+vec3 modelToRGB(vec3 colorCoords) {
   #if COLOR_MODEL == 0
-    return hsv2rgb(colorCoords);
-  #elif COLOR_MODEL == 2
-    return hsl2rgb(colorCoords);
-  #elif COLOR_MODEL == 3
-    return okhsl_to_srgb(colorCoords);
-  #elif COLOR_MODEL == 4
-    return lch2rgb(vec3(colorCoords.z, colorCoords.y, colorCoords.x));
-  #else
+    return colorCoords;
+  #elif COLOR_MODEL == 1
+    vec3 linear = oklab_to_linear_srgb(vec3(colorCoords.z, colorCoords.x - 0.5, colorCoords.y - 0.5));
+    return clamp(vec3(srgb_transfer_function(linear.r), srgb_transfer_function(linear.g), srgb_transfer_function(linear.b)), 0.0, 1.0);
+  #elif COLOR_MODEL == 2 || COLOR_MODEL == 3
     return okhsv_to_srgb(colorCoords);
+  #elif COLOR_MODEL == 4 || COLOR_MODEL == 5
+    return okhsl_to_srgb(colorCoords);
+  #elif COLOR_MODEL == 6 || COLOR_MODEL == 7
+    return lch2rgb(vec3(colorCoords.z, colorCoords.y, colorCoords.x));
+  #elif COLOR_MODEL == 8 || COLOR_MODEL == 9
+    return hsv2rgb(colorCoords);
+  #else
+    return hsl2rgb(colorCoords);
   #endif
 }
 
@@ -90,7 +96,7 @@ void main(){
     vec3 colorCoords = vec3(progress, vUv.x, vUv.y);
   #endif
 
-  #ifdef IS_POLAR
+  #if COLOR_MODEL == 3 || COLOR_MODEL == 5 || COLOR_MODEL == 7 || COLOR_MODEL == 9 || COLOR_MODEL == 11
     vec2 toCenter = vUv - 0.5;
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
@@ -111,7 +117,7 @@ void main(){
     colorCoords.z = 1. - colorCoords.z;
   #endif
 
-  vec3 rgb = polarToRGB(colorCoords);
+  vec3 rgb = modelToRGB(colorCoords);
 
   #ifdef SHOW_RAW
     fragColor = vec4(rgb, 1.);
@@ -240,13 +246,19 @@ export class PaletteViz {
   #axis: Axis = "y";
   #colorModel: SupportedColorModels = "okhsv";
   #distanceMetric: DistanceMetric = "oklab";
-  #isPolar = true;
   #invertLightness = false;
   #showRaw = false;
 
   // uniform value maps
   readonly #axisMap           = { x: 0, y: 1, z: 2 } as const;
-  readonly #colorModelMap     = { hsv: 0, okhsv: 1, hsl: 2, okhsl: 3, oklch: 4 } as const;
+  readonly #colorModelMap     = {
+    rgb: 0, oklab: 1,
+    okhsv: 2, okhsvPolar: 3,
+    okhsl: 4, okhslPolar: 5,
+    oklch: 6, oklchPolar: 7,
+    hsv: 8,  hsvPolar: 9,
+    hsl: 10, hslPolar: 11,
+  } as const;
   readonly #distanceMetricMap = { rgb: 0, oklab: 1, deltaE76: 2, deltaE2000: 3, kotsarenkoRamos: 4, deltaE94: 5 } as const;
 
   // WebGL
@@ -273,7 +285,6 @@ export class PaletteViz {
     container,
     colorModel = "okhsv",
     distanceMetric = "oklab",
-    isPolar = true,
     axis = "y",
     position = 0.0,
     invertLightness = false,
@@ -285,7 +296,6 @@ export class PaletteViz {
     this.#pixelRatio = pixelRatio;
     this.#colorModel = colorModel;
     this.#distanceMetric = distanceMetric;
-    this.#isPolar = isPolar;
     this.#axis = axis;
     this.#position = position;
     this.#invertLightness = invertLightness;
@@ -325,7 +335,6 @@ export class PaletteViz {
       DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
       COLOR_MODEL:     this.#colorModelMap[this.#colorModel],
       PROGRESS_AXIS:   this.#axisMap[this.#axis],
-      IS_POLAR:        this.#isPolar ? 1 : false,
       INVERT_Z:        this.#invertLightness ? 1 : false,
       SHOW_RAW:        this.#showRaw ? 1 : false,
     };
@@ -443,7 +452,7 @@ export class PaletteViz {
   get axis() { return this.#axis; }
 
   set colorModel(model: SupportedColorModels) {
-    if (!(model in this.#colorModelMap)) throw new Error("colorModel must be 'hsv', 'okhsv', 'hsl', 'okhsl', or 'oklch'");
+    if (!(model in this.#colorModelMap)) throw new Error(`colorModel '${model}' is not supported`);
     this.#colorModel = model;
     this.#buildProgram();
     this.#paint();
@@ -457,13 +466,6 @@ export class PaletteViz {
     this.#paint();
   }
   get distanceMetric() { return this.#distanceMetric; }
-
-  set isPolar(value: boolean) {
-    this.#isPolar = value;
-    this.#buildProgram();
-    this.#paint();
-  }
-  get isPolar() { return this.#isPolar; }
 
   set invertLightness(value: boolean) {
     this.#invertLightness = value;

@@ -27,7 +27,7 @@
       <p>
         A dependency-free WebGL2 shader that visualizes a color palette by mapping a color space onto a plane or polar wheel,
         then snapping each pixel to the nearest palette color via a configurable distance metric.
-        The six views above show the same palette across X, Y and Z slices — first in polar (cylinder), then in linear (cube) mode.
+        The six views above show the same palette across the X, Y and Z axes — the top row at one end, the bottom row at the other.
       </p>
 
       <aside>
@@ -62,11 +62,10 @@
 const viz = new PaletteViz({
   palette: ['#f2f0e5', '#4b80ca', '#b45252', '#a2dcc7'],
   container: document.querySelector('#app'),
-  colorModel: 'okhsl',    // 'okhsv' | 'okhsl' | 'oklch' | 'hsv' | 'hsl'
-  distanceMetric: 'oklab', // 'oklab' | 'deltaE2000' | 'deltaE76' | 'rgb'
-  isPolar: true,            // wheel vs. rectangle
-  axis: 'y',               // which axis the position slider controls
-  position: 0.5,           // 0–1 slice position
+  colorModel: 'okhslPolar', // 'okhslPolar' | 'okhsvPolar' | 'oklchPolar' | 'okhsl' | …
+  distanceMetric: 'oklab',  // 'oklab' | 'deltaE2000' | 'deltaE76' | 'rgb' | …
+  axis: 'y',                // which axis the position slider controls
+  position: 0,              // 0–1 slice position (0 = one extreme, 1 = other side)
 });
 
 // option B: no container — place the canvas yourself
