@@ -238,18 +238,39 @@ function labeled(text, el) {
 // Color model
 const $colorModel = document.createElement('select');
 $colorModel.innerHTML = `
-  <option value="okhslPolar">OKHsl Polar</option>
-  <option value="okhsl">OKHsl</option>
-  <option value="okhsv">OKHsv</option>
-  <option value="okhsvPolar">OKHsv Polar</option>
-  <option value="oklch">OKLch</option>
-  <option value="oklchPolar">OKLch Polar</option>
-  <option value="hsl">HSL</option>
-  <option value="hslPolar">HSL Polar</option>
-  <option value="hsv">HSV</option>
-  <option value="hsvPolar">HSV Polar</option>
-  <option value="oklab">OKLab</option>
-  <option value="rgb">RGB</option>
+  <optgroup label="OK — Hue-based">
+    <option value="okhslPolar">OKHsl Polar</option>
+    <option value="okhsl">OKHsl</option>
+    <option value="okhsvPolar">OKHsv Polar</option>
+    <option value="okhsv">OKHsv</option>
+  </optgroup>
+  <optgroup label="OK — Lab / LCH">
+    <option value="oklab">OKLab</option>
+    <option value="oklch">OKLch</option>
+    <option value="oklchPolar">OKLch Polar</option>
+    <option value="oklrab">OKLrab</option>
+    <option value="oklrch">OKLrch</option>
+    <option value="oklrchPolar">OKLrch Polar</option>
+  </optgroup>
+  <optgroup label="CIE Lab / LCH — D65">
+    <option value="cielab">CIELab</option>
+    <option value="cielch">CIELch</option>
+    <option value="cielchPolar">CIELch Polar</option>
+  </optgroup>
+  <optgroup label="CIE Lab / LCH — D50">
+    <option value="cielabD50">CIELab</option>
+    <option value="cielchD50">CIELch</option>
+    <option value="cielchD50Polar">CIELch Polar</option>
+  </optgroup>
+  <optgroup label="Classic">
+    <option value="hslPolar">HSL Polar</option>
+    <option value="hsl">HSL</option>
+    <option value="hsvPolar">HSV Polar</option>
+    <option value="hsv">HSV</option>
+    <option value="hwbPolar">HWB Polar</option>
+    <option value="hwb">HWB</option>
+    <option value="rgb">RGB</option>
+  </optgroup>
 `;
 $colorModel.addEventListener('change', (e) => {
   vizzes.forEach((v) => {
@@ -265,12 +286,24 @@ vizzes.forEach((v) => {
 // Distance metric
 const $distanceMetric = document.createElement('select');
 $distanceMetric.innerHTML = `
-  <option value="oklab">OKLab</option>
-  <option value="deltaE2000">ΔE2000 (slow)</option>
-  <option value="deltaE94">ΔE94 (slow)</option>
-  <option value="deltaE76">ΔE76 (slow)</option>
-  <option value="kotsarenkoRamos">Kotsarenko/Ramos</option>
-  <option value="rgb">RGB</option>
+  <optgroup label="OK">
+    <option value="oklab">OKLab</option>
+    <option value="oklrab">OKLrab</option>
+  </optgroup>
+  <optgroup label="CIE — D65">
+    <option value="deltaE76">Euclidean / ΔE76</option>
+    <option value="deltaE94">ΔE94</option>
+    <option value="deltaE2000">ΔE2000</option>
+  </optgroup>
+  <optgroup label="CIE — D50">
+    <option value="cielabD50">Euclidean</option>
+  </optgroup>
+  <optgroup label="Heuristic">
+    <option value="kotsarenkoRamos">Kotsarenko / Ramos</option>
+  </optgroup>
+  <optgroup label="Simple">
+    <option value="rgb">RGB</option>
+  </optgroup>
 `;
 $distanceMetric.addEventListener('change', (e) => {
   vizzes.forEach((v) => {

@@ -1,6 +1,6 @@
 # palette-shader
 
-A dependency-free WebGL2 shader that maps any colour palette across a 3-D perceptual colour space and snaps each pixel to the nearest palette colour. Visualise how a palette distributes across HSV, HSL, LCH or their perceptual OK-variants, and compare results across six colour-distance metrics — all on the GPU.
+A dependency-free WebGL2 shader that maps any colour palette across a 3-D perceptual colour space and snaps each pixel to the nearest palette colour. Visualise how a palette distributes across more than twenty colour models — OKHsl, OKHsv, OKLab, OKLrab, OKLch, CIELab, CIELch, HSL, HSV, HWB, RGB and their D50 / polar variants — and compare results across eight distance metrics from plain RGB to CIEDE2000, all on the GPU.
 
 [**Live demo →**](https://meodai.github.io/color-palette-shader/)
 
@@ -143,20 +143,53 @@ Cancel the animation frame, release all WebGL resources (programs, textures, fra
 
 Controls the 3-D colour space the visualisation is rendered in. Polar variants (`*Polar`) map hue to angle and show a circular wheel; non-polar variants show a rectangular slice.
 
+**OK — hue-based**
+
 | Value          | Shape | Description                                                                                               |
 | -------------- | ----- | --------------------------------------------------------------------------------------------------------- |
 | `'okhsv'`      | cube  | **Default.** Hue–Saturation–Value built on OKLab. Gamut-aware with perceptually uniform saturation steps. |
-| `'okhsvPolar'` | wheel | Polar (cylindrical) form of OKHsv.                                                                        |
+| `'okhsvPolar'` | wheel | Polar form of OKHsv.                                                                                      |
 | `'okhsl'`      | cube  | Hue–Saturation–Lightness built on OKLab. Better lightness uniformity across hues.                         |
 | `'okhslPolar'` | wheel | Polar form of OKHsl.                                                                                      |
-| `'oklch'`      | cube  | OKLab in cylindrical coordinates (L, C, h). Ideal for chroma or lightness slices.                         |
-| `'oklchPolar'` | wheel | Polar form of OKLch.                                                                                      |
-| `'hsv'`        | cube  | Classic HSV. Not perceptually uniform, but familiar and fast.                                             |
-| `'hsvPolar'`   | wheel | Polar form of HSV.                                                                                        |
-| `'hsl'`        | cube  | Classic HSL. Same caveats as `'hsv'`.                                                                     |
-| `'hslPolar'`   | wheel | Polar form of HSL.                                                                                        |
-| `'oklab'`      | cube  | Raw OKLab cube: x→a, y→b, z→L. Cube only — no polar variant.                                              |
-| `'rgb'`        | cube  | Raw sRGB cube. Useful as a baseline. Cube only — no polar variant.                                        |
+
+**OK — Lab / LCH**
+
+| Value            | Shape | Description                                                                                     |
+| ---------------- | ----- | ----------------------------------------------------------------------------------------------- |
+| `'oklab'`        | cube  | Raw OKLab: x→a, y→b, z→L.                                                                      |
+| `'oklch'`        | cube  | OKLab in cylindrical LCH coordinates. Ideal for chroma or lightness slices.                    |
+| `'oklchPolar'`   | wheel | Polar form of OKLch.                                                                            |
+| `'oklrab'`       | cube  | OKLab with toe-corrected lightness (Lr). Better perceptual uniformity in dark tones.            |
+| `'oklrch'`       | cube  | OKLrab in cylindrical LCH coordinates.                                                          |
+| `'oklrchPolar'`  | wheel | Polar form of OKLrch.                                                                           |
+
+**CIE Lab / LCH — D65**
+
+| Value            | Shape | Description                                                                                     |
+| ---------------- | ----- | ----------------------------------------------------------------------------------------------- |
+| `'cielab'`       | cube  | CIELab D65: x→a, y→b, z→L. The classic perceptual colour space.                                |
+| `'cielch'`       | cube  | CIELab D65 in cylindrical LCH coordinates.                                                     |
+| `'cielchPolar'`  | wheel | Polar form of CIELch D65.                                                                       |
+
+**CIE Lab / LCH — D50**
+
+| Value               | Shape | Description                                                                                  |
+| ------------------- | ----- | -------------------------------------------------------------------------------------------- |
+| `'cielabD50'`       | cube  | CIELab adapted to D50 illuminant (ICC / print standard).                                     |
+| `'cielchD50'`       | cube  | CIELab D50 in cylindrical LCH coordinates.                                                   |
+| `'cielchD50Polar'`  | wheel | Polar form of CIELch D50.                                                                    |
+
+**Classic**
+
+| Value        | Shape | Description                                            |
+| ------------ | ----- | ------------------------------------------------------ |
+| `'hsv'`      | cube  | Classic HSV. Not perceptually uniform, but familiar.   |
+| `'hsvPolar'` | wheel | Polar form of HSV.                                     |
+| `'hsl'`      | cube  | Classic HSL.                                           |
+| `'hslPolar'` | wheel | Polar form of HSL.                                     |
+| `'hwb'`      | cube  | HWB (Hue–Whiteness–Blackness). CSS Color 4 model.      |
+| `'hwbPolar'` | wheel | Polar form of HWB.                                     |
+| `'rgb'`      | cube  | Raw sRGB cube. Useful as a baseline.                   |
 
 The OK-variants rely on Björn Ottosson's gamut-aware implementation and produce significantly more even hue distributions than the classic variants at the same GPU cost.
 
@@ -176,14 +209,33 @@ A practical starting point: use a **polar** model to get an intuitive read on hu
 
 Controls how "nearest palette colour" is determined per pixel.
 
-| Value               | Description                                                                                                                                     | Cost   |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
-| `'oklab'`           | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice.                                         | low    |
-| `'kotsarenkoRamos'` | Weighted Euclidean in sRGB — no colour-space conversion. Weights R and B by the mean red value for quick perceptual improvement over plain RGB. | lowest |
-| `'deltaE76'`        | CIE 1976: plain Euclidean distance in CIELab. Classic standard, decent uniformity.                                                              | medium |
-| `'deltaE94'`        | CIE 1994: adds chroma and hue weighting on top of ΔE76. Better than ΔE76, cheaper than ΔE2000.                                                  | medium |
-| `'deltaE2000'`      | CIEDE2000: weighted colour difference with per-channel corrections for hue, chroma, and lightness. Most accurate, most expensive.               | high   |
-| `'rgb'`             | Plain Euclidean in sRGB. Not perceptually uniform. Useful as a baseline.                                                                        | lowest |
+**OK**
+
+| Value      | Description                                                                                             | Cost |
+| ---------- | ------------------------------------------------------------------------------------------------------- | ---- |
+| `'oklab'`  | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice. | low  |
+| `'oklrab'` | Euclidean in OKLab with toe-corrected lightness. Slightly better uniformity in dark tones than OKLab.   | low  |
+
+**CIE — D65**
+
+| Value          | Description                                                                                                | Cost   |
+| -------------- | ---------------------------------------------------------------------------------------------------------- | ------ |
+| `'deltaE76'`   | Euclidean distance in CIELab D65. Identical to ΔE76. Classic standard, decent uniformity.                  | medium |
+| `'deltaE94'`   | CIE 1994: adds chroma and hue weighting. Better than ΔE76, cheaper than ΔE2000.                            | medium |
+| `'deltaE2000'` | CIEDE2000: per-channel corrections for hue, chroma and lightness. Most accurate CIE formula, most complex. | high   |
+
+**CIE — D50**
+
+| Value         | Description                                                                      | Cost   |
+| ------------- | -------------------------------------------------------------------------------- | ------ |
+| `'cielabD50'` | Euclidean distance in CIELab D50. Useful when working in print / ICC workflows.  | medium |
+
+**Heuristic / simple**
+
+| Value               | Description                                                                                                | Cost   |
+| ------------------- | ---------------------------------------------------------------------------------------------------------- | ------ |
+| `'kotsarenkoRamos'` | Weighted Euclidean in sRGB. Weights R and B by mean red for quick perceptual improvement over plain RGB.   | lowest |
+| `'rgb'`             | Plain Euclidean in sRGB. Not perceptually uniform. Useful as a baseline.                                   | lowest |
 
 ---
 

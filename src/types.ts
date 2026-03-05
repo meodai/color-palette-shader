@@ -13,7 +13,18 @@ export type SupportedColorModels =
   | 'hsv'
   | 'hsvPolar'
   | 'hsl'
-  | 'hslPolar';
+  | 'hslPolar'
+  | 'hwb'
+  | 'hwbPolar'
+  | 'oklrab'
+  | 'oklrch'
+  | 'oklrchPolar'
+  | 'cielab'
+  | 'cielch'
+  | 'cielchPolar'
+  | 'cielabD50'
+  | 'cielchD50'
+  | 'cielchD50Polar';
 export type Axis = 'x' | 'y' | 'z';
 export type DistanceMetric =
   | 'rgb'
@@ -21,7 +32,9 @@ export type DistanceMetric =
   | 'deltaE76'
   | 'deltaE94'
   | 'deltaE2000'
-  | 'kotsarenkoRamos';
+  | 'kotsarenkoRamos'
+  | 'oklrab'
+  | 'cielabD50';
 
 export type PaletteVizOptions = {
   palette?: ColorList;

@@ -18,6 +18,12 @@ import shaderHSV2RGB from './shaders/hsv2rgb.frag.glsl?raw' assert { type: 'raw'
 // @ts-ignore
 import shaderLCH2RGB from './shaders/lch2rgb.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
+import shaderHWB2RGB from './shaders/hwb2rgb.frag.glsl?raw' assert { type: 'raw' };
+// @ts-ignore
+import shaderOKLrab from './shaders/oklrab.frag.glsl?raw' assert { type: 'raw' };
+// @ts-ignore
+import shaderCIELab2RGB from './shaders/cielab2rgb.frag.glsl?raw' assert { type: 'raw' };
+// @ts-ignore
 import shaderDeltaE from './shaders/deltaE.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
 import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { type: 'raw' };
@@ -30,9 +36,12 @@ import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { t
 //   closestColor – branches on DISTANCE_METRIC define; uses everything above
 //
 // Defines (compile-time, prepended to shader source — trigger recompile, no runtime branching):
-//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94
+//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76(=cielabD65) 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94 6=oklrab 7=cielabD50
 //   COLOR_MODEL      int  0=rgb 1=oklab 2=okhsv 3=okhsvPolar 4=okhsl 5=okhslPolar
 //                         6=oklch 7=oklchPolar 8=hsv 9=hsvPolar 10=hsl 11=hslPolar
+//                         12=hwb 13=hwbPolar 14=oklrab 15=oklrch 16=oklrchPolar
+//                         17=cielab 18=cielch 19=cielchPolar
+//                         20=cielabD50 21=cielchD50 22=cielchD50Polar
 //   PROGRESS_AXIS    int  0=x 1=y 2=z
 //   INVERT_Z         flag (defined = true)
 //   SHOW_RAW         flag (defined = true)
@@ -63,11 +72,17 @@ ${shaderOKLab}
 ${shaderHSL2RGB}
 ${shaderHSV2RGB}
 ${shaderLCH2RGB}
+${shaderHWB2RGB}
+${shaderOKLrab}
+${shaderCIELab2RGB}
 ${shaderDeltaE}
 ${shaderClosestColor}
 
 // COLOR_MODEL: 0=rgb, 1=oklab, 2=okhsv, 3=okhsvPolar, 4=okhsl, 5=okhslPolar,
-//              6=oklch, 7=oklchPolar, 8=hsv, 9=hsvPolar, 10=hsl, 11=hslPolar
+//              6=oklch, 7=oklchPolar, 8=hsv, 9=hsvPolar, 10=hsl, 11=hslPolar,
+//              12=hwb, 13=hwbPolar, 14=oklrab, 15=oklrch, 16=oklrchPolar,
+//              17=cielab, 18=cielch, 19=cielchPolar,
+//              20=cielabD50, 21=cielchD50, 22=cielchD50Polar
 vec3 modelToRGB(vec3 colorCoords) {
   #if COLOR_MODEL == 0
     return colorCoords;
@@ -82,8 +97,25 @@ vec3 modelToRGB(vec3 colorCoords) {
     return lch2rgb(vec3(colorCoords.z, colorCoords.y, colorCoords.x));
   #elif COLOR_MODEL == 8 || COLOR_MODEL == 9
     return hsv2rgb(colorCoords);
-  #else
+  #elif COLOR_MODEL == 10 || COLOR_MODEL == 11
     return hsl2rgb(colorCoords);
+  #elif COLOR_MODEL == 12 || COLOR_MODEL == 13
+    return hwb2rgb(colorCoords);
+  #elif COLOR_MODEL == 14
+    vec3 linear14 = oklab_to_linear_srgb(vec3(oklrab_toe_inv(colorCoords.z), colorCoords.x - 0.5, colorCoords.y - 0.5));
+    return clamp(vec3(srgb_transfer_function(linear14.r), srgb_transfer_function(linear14.g), srgb_transfer_function(linear14.b)), 0.0, 1.0);
+  #elif COLOR_MODEL == 15 || COLOR_MODEL == 16
+    return lch2rgb(vec3(oklrab_toe_inv(colorCoords.z), colorCoords.y, colorCoords.x));
+  #elif COLOR_MODEL == 17
+    return cielab_d65_to_rgb(vec3(colorCoords.z * 100.0, (colorCoords.x - 0.5) * 256.0, (colorCoords.y - 0.5) * 256.0));
+  #elif COLOR_MODEL == 18 || COLOR_MODEL == 19
+    return cielab_d65_to_rgb(vec3(colorCoords.z * 100.0, colorCoords.y * 150.0 * cos(colorCoords.x * TWO_PI), colorCoords.y * 150.0 * sin(colorCoords.x * TWO_PI)));
+  #elif COLOR_MODEL == 20
+    return cielab_d50_to_rgb(vec3(colorCoords.z * 100.0, (colorCoords.x - 0.5) * 256.0, (colorCoords.y - 0.5) * 256.0));
+  #elif COLOR_MODEL == 21 || COLOR_MODEL == 22
+    return cielab_d50_to_rgb(vec3(colorCoords.z * 100.0, colorCoords.y * 150.0 * cos(colorCoords.x * TWO_PI), colorCoords.y * 150.0 * sin(colorCoords.x * TWO_PI)));
+  #else
+    return colorCoords;
   #endif
 }
 
@@ -96,7 +128,7 @@ void main(){
     vec3 colorCoords = vec3(progress, vUv.x, vUv.y);
   #endif
 
-  #if COLOR_MODEL == 3 || COLOR_MODEL == 5 || COLOR_MODEL == 7 || COLOR_MODEL == 9 || COLOR_MODEL == 11
+  #if COLOR_MODEL == 3 || COLOR_MODEL == 5 || COLOR_MODEL == 7 || COLOR_MODEL == 9 || COLOR_MODEL == 11 || COLOR_MODEL == 16 || COLOR_MODEL == 19 || COLOR_MODEL == 22
     vec2 toCenter = vUv - 0.5;
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
@@ -110,6 +142,25 @@ void main(){
       float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
       if (vUv.x > 0.5) { hue += 0.5; }
       colorCoords = vec3(hue, abs(0.5 - vUv.x) * 2.0, vUv.y);
+    #endif
+  #elif COLOR_MODEL == 13
+    // hwbPolar: hue = angle, slider = blackness (0=vivid, 1=dark)
+    vec2 toCenter = vUv - 0.5;
+    float angle = atan(toCenter.y, toCenter.x);
+    float radius = length(toCenter) * 2.0;
+
+    #if PROGRESS_AXIS == 2
+      // top/bottom cap: full square, white at centre, hue at edge
+      colorCoords = vec3(angle / TWO_PI, 1.0 - radius, progress);
+    #elif PROGRESS_AXIS == 1
+      // disc: clip to circle, hue at centre, white at edge
+      if (radius > 1.0) { discard; }
+      colorCoords = vec3(angle / TWO_PI, radius, progress);
+    #else
+      // side view: cylinder unrolled — white at centre column, hues at edges
+      float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
+      if (vUv.x > 0.5) { hue += 0.5; }
+      colorCoords = vec3(hue, 1.0 - abs(0.5 - vUv.x) * 2.0, vUv.y);
     #endif
   #endif
 
@@ -316,6 +367,17 @@ export class PaletteViz {
     hsvPolar: 9,
     hsl: 10,
     hslPolar: 11,
+    hwb: 12,
+    hwbPolar: 13,
+    oklrab: 14,
+    oklrch: 15,
+    oklrchPolar: 16,
+    cielab: 17,
+    cielch: 18,
+    cielchPolar: 19,
+    cielabD50: 20,
+    cielchD50: 21,
+    cielchD50Polar: 22,
   } as const;
   readonly #distanceMetricMap = {
     rgb: 0,
@@ -324,6 +386,8 @@ export class PaletteViz {
     deltaE2000: 3,
     kotsarenkoRamos: 4,
     deltaE94: 5,
+    oklrab: 6,
+    cielabD50: 7,
   } as const;
 
   // WebGL
