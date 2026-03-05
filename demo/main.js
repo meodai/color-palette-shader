@@ -1,6 +1,8 @@
 import './style.css';
 import { PaletteViz } from 'palette-shader';
 
+const randomColor = () => `#${Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0')}`;
+
 const $palette = document.querySelector('[data-palette]');
 const $tools = document.querySelector('[data-tools]');
 const $app = document.querySelector('#app');
@@ -191,6 +193,20 @@ function createDomFromPalette(palette) {
     $picker.appendChild($removeButton);
     $palette.appendChild($picker);
   });
+
+  const $addButton = document.createElement('button');
+  $addButton.textContent = '+';
+  $addButton.classList.add('palette__add');
+  $addButton.addEventListener('click', () => {
+    const color = randomColor();
+    viz.addColor(color);
+    vizzes.forEach((v) => {
+      v.palette = viz.palette;
+    });
+    createDomFromPalette(viz.palette);
+    scheduleHashUpdate();
+  });
+  $palette.appendChild($addButton);
 }
 
 $palette.addEventListener(

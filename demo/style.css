@@ -266,6 +266,7 @@ input[type='checkbox']:focus {
     transform 0.15s ease,
     box-shadow 0.15s linear;
   position: relative;
+  overflow: hidden;
 }
 
 .color-picker:hover {
@@ -298,10 +299,46 @@ input[type='checkbox']:focus {
   transition:
     background 0.05s linear,
     color 0.05s linear,
-    box-shadow 0.15s linear;
+    box-shadow 0.15s linear,
+    transform 0.15s cubic-bezier(0.3, 0.7, 0, 1);
 }
 
 .color-picker button:hover {
+  background: var(--c-surface-on);
+  color: var(--c-surface);
+}
+
+@media (hover: hover) {
+  .color-picker button {
+    transform: translateX(100%);
+  }
+
+  .color-picker:hover button {
+    transform: translateX(0);
+  }
+}
+
+/* ── Add color button ───────────────────────────────────────────────────── */
+
+.palette__add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 2rem;
+  border: none;
+  border-bottom: var(--s-line) solid var(--c-border);
+  background: var(--c-surface);
+  color: var(--c-surface-on-alt);
+  cursor: pointer;
+  font-size: 1rem;
+  font-family: inherit;
+  transition:
+    background 0.05s linear,
+    color 0.05s linear;
+}
+
+.palette__add:hover {
   background: var(--c-surface-on);
   color: var(--c-surface);
 }
@@ -486,6 +523,14 @@ code {
     height: 1rem;
     border-left: none;
     border-top: var(--s-line) solid var(--c-border);
+    transform: none;
+  }
+
+  .sidebar__palette .palette__add {
+    width: 2rem;
+    height: 2.5rem;
+    border-bottom: none;
+    border-right: var(--s-line) solid var(--c-border);
   }
 
   /* 2 columns × 3 rows */
