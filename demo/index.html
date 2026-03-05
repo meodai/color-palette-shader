@@ -19,6 +19,20 @@
           data-palette-paste
           placeholder="Paste hex colors (comma or space separated)…"
         ></textarea>
+        <div class="sidebar__beam">
+          <input
+            class="beam__token"
+            data-beam-token
+            type="text"
+            placeholder="Token Beam session token…"
+            spellcheck="false"
+            autocomplete="off"
+          />
+          <div class="beam__bar">
+            <span class="beam__status" data-beam-status></span>
+            <button class="beam__connect" data-beam-connect disabled>Connect</button>
+          </div>
+        </div>
         <div class="sidebar__palette palette" data-palette></div>
         <div class="sidebar__tools" data-tools></div>
       </div>

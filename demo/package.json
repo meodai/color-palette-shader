@@ -10,5 +10,8 @@
   },
   "devDependencies": {
     "vite": "^7.0.0"
+  },
+  "dependencies": {
+    "token-beam": "^1.9.0"
   }
 }

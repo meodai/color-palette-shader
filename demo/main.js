@@ -1,5 +1,6 @@
 import './style.css';
 import { PaletteViz } from 'palette-shader';
+import { TargetSession, extractColorTokens } from 'token-beam';
 
 const randomColor = () =>
   `#${Math.floor(Math.random() * 0xffffff)
@@ -521,6 +522,82 @@ $palette.addEventListener('click', (e) => {
   if (e.target.classList.contains('color-picker__remove')) scheduleHashUpdate();
 });
 $palettePaste.addEventListener('input', scheduleHashUpdate);
+
+// ── Token Beam receiver ──────────────────────────────────────────────────────
+
+const $beamToken = document.querySelector('[data-beam-token]');
+const $beamConnect = document.querySelector('[data-beam-connect]');
+const $beamStatus = document.querySelector('[data-beam-status]');
+let beamSession = null;
+
+function beamSetStatus(text, state = null) {
+  $beamStatus.textContent = text;
+  if (state) $beamStatus.dataset.state = state;
+  else delete $beamStatus.dataset.state;
+}
+
+function beamResetUI() {
+  $beamToken.disabled = false;
+  $beamConnect.textContent = 'Connect';
+  $beamConnect.disabled = !$beamToken.value.trim();
+  beamSession = null;
+}
+
+$beamToken.addEventListener('input', () => {
+  $beamConnect.disabled = !$beamToken.value.trim();
+});
+
+$beamConnect.addEventListener('click', () => {
+  if (beamSession) {
+    beamSession.disconnect();
+    beamResetUI();
+    beamSetStatus('');
+    return;
+  }
+
+  const token = $beamToken.value.trim();
+  if (!token) return;
+
+  beamSetStatus('Connecting…', 'connecting');
+  $beamToken.disabled = true;
+  $beamConnect.disabled = true;
+
+  beamSession = new TargetSession({
+    serverUrl: 'wss://tokenbeam.dev',
+    clientType: 'palette-shader',
+    sessionToken: token,
+  });
+
+  beamSession.on('paired', ({ origin }) => {
+    beamSetStatus(`Paired with ${origin ?? 'unknown source'}`, 'connected');
+    $beamConnect.textContent = 'Disconnect';
+    $beamConnect.disabled = false;
+  });
+
+  beamSession.on('sync', ({ payload }) => {
+    const hexColors = [...new Set(extractColorTokens(payload).map((e) => e.hex))];
+    if (hexColors.length >= 1) {
+      vizzes.forEach((v) => (v.palette = hexColors));
+      createDomFromPalette(hexColors);
+      scheduleHashUpdate();
+    }
+  });
+
+  beamSession.on('error', ({ message }) => {
+    beamSetStatus(message, 'error');
+    beamResetUI();
+  });
+
+  beamSession.on('disconnected', () => {
+    beamSetStatus('Disconnected', 'error');
+    beamResetUI();
+  });
+
+  beamSession.connect().catch((err) => {
+    beamSetStatus(err instanceof Error ? err.message : 'Could not connect', 'error');
+    beamResetUI();
+  });
+});
 
 // async load from hash — after first paint so it never blocks rendering
 requestAnimationFrame(() => {
