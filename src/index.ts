@@ -474,8 +474,9 @@ export class PaletteViz {
       const gl = this.#gl;
 
       // ── Pass 1: closest-color render ────────────────────────────────────────
-      // Target: FBO when outline is active, canvas otherwise.
-      if (this.#fbo) gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
+      // Target: FBO when outline is active (and not showing raw), canvas otherwise.
+      const useOutline = this.#fbo && !this.#showRaw;
+      if (useOutline) gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
 
       gl.useProgram(this.#program);
       gl.uniform1f(this.#uProgress, this.#position);
@@ -488,7 +489,7 @@ export class PaletteViz {
       gl.bindVertexArray(this.#vao);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-      if (!this.#fbo) { gl.bindVertexArray(null); return; }
+      if (!useOutline) { gl.bindVertexArray(null); return; }
 
       // ── Pass 2: edge-detection using FBO texture ─────────────────────────────
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
