@@ -3,8 +3,19 @@
   "version": "0.2.0",
   "description": "Dependency-free WebGL2 shader that maps any colour palette across perceptual colour spaces — OKHsv, OKHsl, OKLCH and more.",
   "keywords": [
-    "color", "colour", "palette", "shader", "webgl", "webgl2",
-    "oklab", "oklch", "okhsv", "okhsl", "deltaE", "visualization", "colour-science"
+    "color",
+    "colour",
+    "palette",
+    "shader",
+    "webgl",
+    "webgl2",
+    "oklab",
+    "oklch",
+    "okhsv",
+    "okhsl",
+    "deltaE",
+    "visualization",
+    "colour-science"
   ],
   "author": "David Aerne <meodai@gmail.com>",
   "license": "MIT",
@@ -39,9 +50,11 @@
     "dev": "npm run dev -w demo",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
     "preview": "npm run preview -w demo"
   },
   "devDependencies": {
+    "prettier": "^3.8.1",
     "typescript": "^5.4.5",
     "vite": "^7.0.0",
     "vite-plugin-dts": "^4.5.4"

@@ -56,19 +56,19 @@ new PaletteViz(options?: PaletteVizOptions)
 
 All options are optional. The palette defaults to a random 20-colour set.
 
-| Option | Type | Default | Description |
-|---|---|---|---|
-| `palette` | `string[]` | random | CSS colour strings (`#hex`, `rgb()`, `hsl()`, …) |
-| `container` | `HTMLElement` | `undefined` | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself |
-| `width` | `number` | `512` | Canvas width in CSS pixels |
-| `height` | `number` | `512` | Canvas height in CSS pixels |
-| `pixelRatio` | `number` | `devicePixelRatio` | Renderer pixel ratio |
-| `colorModel` | `string` | `'okhsv'` | Colour space for the visualisation (see [Colour models](#colour-models)) |
-| `distanceMetric` | `string` | `'oklab'` | Distance function for nearest-colour matching (see [Distance metrics](#distance-metrics)) |
-| `axis` | `'x' \| 'y' \| 'z'` | `'y'` | Which axis the `position` value controls |
-| `position` | `number` | `0` | 0–1 position along the chosen axis |
-| `invertLightness` | `boolean` | `false` | Flip the lightness/value axis |
-| `showRaw` | `boolean` | `false` | Bypass nearest-colour matching (shows the raw colour space) |
+| Option            | Type                | Default            | Description                                                                               |
+| ----------------- | ------------------- | ------------------ | ----------------------------------------------------------------------------------------- |
+| `palette`         | `string[]`          | random             | CSS colour strings (`#hex`, `rgb()`, `hsl()`, …)                                          |
+| `container`       | `HTMLElement`       | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself         |
+| `width`           | `number`            | `512`              | Canvas width in CSS pixels                                                                |
+| `height`          | `number`            | `512`              | Canvas height in CSS pixels                                                               |
+| `pixelRatio`      | `number`            | `devicePixelRatio` | Renderer pixel ratio                                                                      |
+| `colorModel`      | `string`            | `'okhsv'`          | Colour space for the visualisation (see [Colour models](#colour-models))                  |
+| `distanceMetric`  | `string`            | `'oklab'`          | Distance function for nearest-colour matching (see [Distance metrics](#distance-metrics)) |
+| `axis`            | `'x' \| 'y' \| 'z'` | `'y'`              | Which axis the `position` value controls                                                  |
+| `position`        | `number`            | `0`                | 0–1 position along the chosen axis                                                        |
+| `invertLightness` | `boolean`           | `false`            | Flip the lightness/value axis                                                             |
+| `showRaw`         | `boolean`           | `false`            | Bypass nearest-colour matching (shows the raw colour space)                               |
 
 ---
 
@@ -87,11 +87,11 @@ viz.showRaw = true;
 
 Additional read-only properties:
 
-| Property | Type | Description |
-|---|---|---|
+| Property | Type                | Description                   |
+| -------- | ------------------- | ----------------------------- |
 | `canvas` | `HTMLCanvasElement` | The underlying canvas element |
-| `width` | `number` | Current width in CSS pixels |
-| `height` | `number` | Current height in CSS pixels |
+| `width`  | `number`            | Current width in CSS pixels   |
+| `height` | `number`            | Current height in CSS pixels  |
 
 ---
 
@@ -118,8 +118,8 @@ viz.setColor('#e63946', 2);
 Insert a colour at `index` (appends if omitted).
 
 ```js
-viz.addColor('#a8dadc');       // append
-viz.addColor('#457b9d', 0);   // prepend
+viz.addColor('#a8dadc'); // append
+viz.addColor('#457b9d', 0); // prepend
 ```
 
 ### `removeColor(index | color)`
@@ -141,20 +141,20 @@ Cancel the animation frame, release all WebGL resources (program, texture, buffe
 
 Controls the 3-D colour space the visualisation is rendered in. Polar variants (`*Polar`) map hue to angle and show a circular wheel; non-polar variants show a rectangular slice.
 
-| Value | Shape | Description |
-|---|---|---|
-| `'okhsv'` | cube | **Default.** Hue–Saturation–Value built on OKLab. Gamut-aware with perceptually uniform saturation steps. |
-| `'okhsvPolar'` | wheel | Polar (cylindrical) form of OKHsv. |
-| `'okhsl'` | cube | Hue–Saturation–Lightness built on OKLab. Better lightness uniformity across hues. |
-| `'okhslPolar'` | wheel | Polar form of OKHsl. |
-| `'oklch'` | cube | OKLab in cylindrical coordinates (L, C, h). Ideal for chroma or lightness slices. |
-| `'oklchPolar'` | wheel | Polar form of OKLch. |
-| `'hsv'` | cube | Classic HSV. Not perceptually uniform, but familiar and fast. |
-| `'hsvPolar'` | wheel | Polar form of HSV. |
-| `'hsl'` | cube | Classic HSL. Same caveats as `'hsv'`. |
-| `'hslPolar'` | wheel | Polar form of HSL. |
-| `'oklab'` | cube | Raw OKLab cube: x→a, y→b, z→L. Cube only — no polar variant. |
-| `'rgb'` | cube | Raw sRGB cube. Useful as a baseline. Cube only — no polar variant. |
+| Value          | Shape | Description                                                                                               |
+| -------------- | ----- | --------------------------------------------------------------------------------------------------------- |
+| `'okhsv'`      | cube  | **Default.** Hue–Saturation–Value built on OKLab. Gamut-aware with perceptually uniform saturation steps. |
+| `'okhsvPolar'` | wheel | Polar (cylindrical) form of OKHsv.                                                                        |
+| `'okhsl'`      | cube  | Hue–Saturation–Lightness built on OKLab. Better lightness uniformity across hues.                         |
+| `'okhslPolar'` | wheel | Polar form of OKHsl.                                                                                      |
+| `'oklch'`      | cube  | OKLab in cylindrical coordinates (L, C, h). Ideal for chroma or lightness slices.                         |
+| `'oklchPolar'` | wheel | Polar form of OKLch.                                                                                      |
+| `'hsv'`        | cube  | Classic HSV. Not perceptually uniform, but familiar and fast.                                             |
+| `'hsvPolar'`   | wheel | Polar form of HSV.                                                                                        |
+| `'hsl'`        | cube  | Classic HSL. Same caveats as `'hsv'`.                                                                     |
+| `'hslPolar'`   | wheel | Polar form of HSL.                                                                                        |
+| `'oklab'`      | cube  | Raw OKLab cube: x→a, y→b, z→L. Cube only — no polar variant.                                              |
+| `'rgb'`        | cube  | Raw sRGB cube. Useful as a baseline. Cube only — no polar variant.                                        |
 
 The OK-variants rely on Björn Ottosson's gamut-aware implementation and produce significantly more even hue distributions than the classic variants at the same GPU cost.
 
@@ -174,14 +174,14 @@ A practical starting point: use a **polar** model to get an intuitive read on hu
 
 Controls how "nearest palette colour" is determined per pixel.
 
-| Value | Description | Cost |
-|---|---|---|
-| `'oklab'` | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice. | low |
+| Value               | Description                                                                                                                                     | Cost   |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `'oklab'`           | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice.                                         | low    |
 | `'kotsarenkoRamos'` | Weighted Euclidean in sRGB — no colour-space conversion. Weights R and B by the mean red value for quick perceptual improvement over plain RGB. | lowest |
-| `'deltaE76'` | CIE 1976: plain Euclidean distance in CIELab. Classic standard, decent uniformity. | medium |
-| `'deltaE94'` | CIE 1994: adds chroma and hue weighting on top of ΔE76. Better than ΔE76, cheaper than ΔE2000. | medium |
-| `'deltaE2000'` | CIEDE2000: weighted colour difference with per-channel corrections for hue, chroma, and lightness. Most accurate, most expensive. | high |
-| `'rgb'` | Plain Euclidean in sRGB. Not perceptually uniform. Useful as a baseline. | lowest |
+| `'deltaE76'`        | CIE 1976: plain Euclidean distance in CIELab. Classic standard, decent uniformity.                                                              | medium |
+| `'deltaE94'`        | CIE 1994: adds chroma and hue weighting on top of ΔE76. Better than ΔE76, cheaper than ΔE2000.                                                  | medium |
+| `'deltaE2000'`      | CIEDE2000: weighted colour difference with per-channel corrections for hue, chroma, and lightness. Most accurate, most expensive.               | high   |
+| `'rgb'`             | Plain Euclidean in sRGB. Not perceptually uniform. Useful as a baseline.                                                                        | lowest |
 
 ---
 
@@ -211,7 +211,9 @@ const views = [
 ];
 
 document.querySelector('#slider').addEventListener('input', (e) => {
-  views.forEach((v) => { v.position = +e.target.value; });
+  views.forEach((v) => {
+    v.position = +e.target.value;
+  });
 });
 ```
 

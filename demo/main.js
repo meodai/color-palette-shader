@@ -1,32 +1,32 @@
-import './style.css'
+import './style.css';
 import { PaletteViz } from 'palette-shader';
 
-const $palette = document.querySelector("[data-palette]");
-const $tools = document.querySelector("[data-tools]");
-const $app = document.querySelector("#app");
-const $palettePaste = document.querySelector("[data-palette-paste]");
+const $palette = document.querySelector('[data-palette]');
+const $tools = document.querySelector('[data-tools]');
+const $app = document.querySelector('#app');
+const $palettePaste = document.querySelector('[data-palette-paste]');
 
 if (!$palette || !$tools || !$app || !$palettePaste) {
-  throw new Error("Required DOM elements not found");
+  throw new Error('Required DOM elements not found');
 }
 
 const palette = [
-'#d1b187',
-'#c77b58',
-'#ae5d40',
-'#79444a',
-'#4b3d44',
-'#ba9158',
-'#927441',
-'#4d4539',
-'#77743b',
-'#b3a555',
-'#d2c9a5',
-'#8caba1',
-'#4b726e',
-'#574852',
-'#847875',
-'#ab9b8e',
+  '#d1b187',
+  '#c77b58',
+  '#ae5d40',
+  '#79444a',
+  '#4b3d44',
+  '#ba9158',
+  '#927441',
+  '#4d4539',
+  '#77743b',
+  '#b3a555',
+  '#d2c9a5',
+  '#8caba1',
+  '#4b726e',
+  '#574852',
+  '#847875',
+  '#ab9b8e',
 ];
 
 function vizSize() {
@@ -60,7 +60,7 @@ const vizzes = [
 
 // ── Controls ────────────────────────────────────────────────────────────────
 
-window.addEventListener("resize", () => {
+window.addEventListener('resize', () => {
   const s = vizSize();
   vizzes.forEach((v) => v.resize(s));
 });
@@ -91,11 +91,15 @@ $colorModel.innerHTML = `
   <option value="rgb">RGB</option>
 `;
 $colorModel.addEventListener('change', (e) => {
-  vizzes.forEach((v) => { v.colorModel = e.target.value; });
+  vizzes.forEach((v) => {
+    v.colorModel = e.target.value;
+  });
 });
 $tools.appendChild(labeled('Color model', $colorModel));
 // Set initial color model
-vizzes.forEach((v) => { v.colorModel = $colorModel.value; });
+vizzes.forEach((v) => {
+  v.colorModel = $colorModel.value;
+});
 
 // Distance metric
 const $distanceMetric = document.createElement('select');
@@ -108,11 +112,15 @@ $distanceMetric.innerHTML = `
   <option value="rgb">RGB</option>
 `;
 $distanceMetric.addEventListener('change', (e) => {
-  vizzes.forEach((v) => { v.distanceMetric = e.target.value; });
+  vizzes.forEach((v) => {
+    v.distanceMetric = e.target.value;
+  });
 });
 $tools.appendChild(labeled('Distance metric', $distanceMetric));
 // Set initial distance metric
-vizzes.forEach((v) => { v.distanceMetric = $distanceMetric.value; });
+vizzes.forEach((v) => {
+  v.distanceMetric = $distanceMetric.value;
+});
 
 // Position slider (t=1 → faces at 0 and 1; t=0.5 → faces at 0.25 and 0.75)
 const $positionSlider = document.createElement('input');
@@ -123,8 +131,12 @@ $positionSlider.step = '0.0001';
 $positionSlider.value = '0';
 
 function applyPosition(t) {
-  vizzes.slice(0, 3).forEach(v => { v.position = t; });
-  vizzes.slice(3, 6).forEach(v => { v.position = 1 - t; });
+  vizzes.slice(0, 3).forEach((v) => {
+    v.position = t;
+  });
+  vizzes.slice(3, 6).forEach((v) => {
+    v.position = 1 - t;
+  });
 }
 
 $positionSlider.addEventListener('input', (e) => {
@@ -137,8 +149,10 @@ $tools.appendChild(labeled('Position', $positionSlider));
 const $invertLightnessCheckbox = document.createElement('input');
 $invertLightnessCheckbox.type = 'checkbox';
 $invertLightnessCheckbox.checked = false;
-$invertLightnessCheckbox.addEventListener("change", (e) => {
-  vizzes.forEach((v) => { v.invertLightness = e.target.checked; });
+$invertLightnessCheckbox.addEventListener('change', (e) => {
+  vizzes.forEach((v) => {
+    v.invertLightness = e.target.checked;
+  });
 });
 $tools.appendChild(labeled('Invert lightness', $invertLightnessCheckbox));
 
@@ -146,30 +160,32 @@ $tools.appendChild(labeled('Invert lightness', $invertLightnessCheckbox));
 const $showRawCheckbox = document.createElement('input');
 $showRawCheckbox.type = 'checkbox';
 $showRawCheckbox.checked = false;
-$showRawCheckbox.addEventListener("change", (e) => {
-  vizzes.forEach((v) => { v.showRaw = e.target.checked; });
+$showRawCheckbox.addEventListener('change', (e) => {
+  vizzes.forEach((v) => {
+    v.showRaw = e.target.checked;
+  });
 });
 $tools.appendChild(labeled('Show raw colors', $showRawCheckbox));
 
 // ── Palette editor ──────────────────────────────────────────────────────────
 
 function createDomFromPalette(palette) {
-  $palette.innerHTML = "";
+  $palette.innerHTML = '';
   palette.forEach((color, index) => {
-    const $picker = document.createElement("div");
-    $picker.style.setProperty("--color", color);
-    $picker.classList.add("color-picker", "palette__color");
+    const $picker = document.createElement('div');
+    $picker.style.setProperty('--color', color);
+    $picker.classList.add('color-picker', 'palette__color');
     $picker.dataset.color = color;
     $picker.dataset.index = index;
 
-    const $pickerInput = document.createElement("input");
-    $pickerInput.type = "color";
+    const $pickerInput = document.createElement('input');
+    $pickerInput.type = 'color';
     $pickerInput.value = color;
-    $pickerInput.classList.add("color-picker-input");
+    $pickerInput.classList.add('color-picker-input');
 
-    const $removeButton = document.createElement("button");
-    $removeButton.textContent = "x";
-    $removeButton.classList.add("color-picker__remove");
+    const $removeButton = document.createElement('button');
+    $removeButton.textContent = 'x';
+    $removeButton.classList.add('color-picker__remove');
 
     $picker.appendChild($pickerInput);
     $picker.appendChild($removeButton);
@@ -177,21 +193,29 @@ function createDomFromPalette(palette) {
   });
 }
 
-$palette.addEventListener("input", (e) => {
-  if (e.target.parentElement.dataset.index !== undefined) {
-    const $target = e.target;
-    const index = parseInt($target.parentElement.dataset.index);
-    $target.parentElement.style.setProperty("--color", $target.value);
-    $target.parentElement.dataset.color = $target.value;
-    vizzes.forEach((v) => { v.setColor($target.value, index); });
-  }
-}, true);
+$palette.addEventListener(
+  'input',
+  (e) => {
+    if (e.target.parentElement.dataset.index !== undefined) {
+      const $target = e.target;
+      const index = parseInt($target.parentElement.dataset.index);
+      $target.parentElement.style.setProperty('--color', $target.value);
+      $target.parentElement.dataset.color = $target.value;
+      vizzes.forEach((v) => {
+        v.setColor($target.value, index);
+      });
+    }
+  },
+  true,
+);
 
-$palette.addEventListener("click", (e) => {
-  if (e.target.classList.contains("color-picker__remove")) {
+$palette.addEventListener('click', (e) => {
+  if (e.target.classList.contains('color-picker__remove')) {
     viz.removeColor(e.target.parentElement.dataset.color);
     createDomFromPalette(viz.palette);
-    vizzes.forEach((v) => { v.palette = viz.palette; });
+    vizzes.forEach((v) => {
+      v.palette = viz.palette;
+    });
   }
 });
 
@@ -199,9 +223,14 @@ $palette.addEventListener("click", (e) => {
 
 $palettePaste.addEventListener('input', () => {
   const raw = $palettePaste.value;
-  const colors = raw.split(/[\s,]+/).map(s => s.trim().replace(/^#?/, '#')).filter(s => /^#([0-9a-f]{3}){1,2}$/i.test(s));
+  const colors = raw
+    .split(/[\s,]+/)
+    .map((s) => s.trim().replace(/^#?/, '#'))
+    .filter((s) => /^#([0-9a-f]{3}){1,2}$/i.test(s));
   if (colors.length < 2) return;
-  vizzes.forEach((v) => { v.palette = colors; });
+  vizzes.forEach((v) => {
+    v.palette = colors;
+  });
   createDomFromPalette(colors);
 });
 
@@ -210,13 +239,13 @@ createDomFromPalette(palette);
 // ── URL hash state ───────────────────────────────────────────────────────────
 
 function encodeHash(colors, settings) {
-  const colorStr = colors.map(c => c.replace('#', '')).join('-');
+  const colorStr = colors.map((c) => c.replace('#', '')).join('-');
   const params = new URLSearchParams({
-    model:  settings.colorModel,
+    model: settings.colorModel,
     metric: settings.distanceMetric,
-    pos:    settings.pos.toFixed(4),
+    pos: settings.pos.toFixed(4),
     ...(settings.invertLightness && { invert: '1' }),
-    ...(settings.showRaw         && { raw: '1' }),
+    ...(settings.showRaw && { raw: '1' }),
   });
   return `#colors/${colorStr}?${params}`;
 }
@@ -228,35 +257,37 @@ function decodeHash(hash) {
 
   const colors = colorPart
     .split('-')
-    .map(h => `#${h}`)
-    .filter(c => /^#([0-9a-f]{3}){1,2}$/i.test(c));
+    .map((h) => `#${h}`)
+    .filter((c) => /^#([0-9a-f]{3}){1,2}$/i.test(c));
 
   if (colors.length < 2) return null;
 
   const params = new URLSearchParams(queryPart || '');
   return {
     colors,
-    colorModel:      params.get('model')  || 'okhsl',
-    distanceMetric:  params.get('metric') || 'oklab',
-    pos:             parseFloat(params.get('pos') ?? '0'),
+    colorModel: params.get('model') || 'okhsl',
+    distanceMetric: params.get('metric') || 'oklab',
+    pos: parseFloat(params.get('pos') ?? '0'),
     invertLightness: params.get('invert') === '1',
-    showRaw:         params.get('raw')    === '1',
+    showRaw: params.get('raw') === '1',
   };
 }
 
 function getSettings() {
   return {
-    colorModel:      $colorModel.value,
-    distanceMetric:  $distanceMetric.value,
-    pos:             parseFloat($positionSlider.value),
+    colorModel: $colorModel.value,
+    distanceMetric: $distanceMetric.value,
+    pos: parseFloat($positionSlider.value),
     invertLightness: $invertLightnessCheckbox.checked,
-    showRaw:         $showRawCheckbox.checked,
+    showRaw: $showRawCheckbox.checked,
   };
 }
 
 function applyState(state) {
   // palette
-  vizzes.forEach((v) => { v.palette = state.colors; });
+  vizzes.forEach((v) => {
+    v.palette = state.colors;
+  });
   createDomFromPalette(state.colors);
 
   // controls
@@ -267,10 +298,10 @@ function applyState(state) {
   $showRawCheckbox.checked = state.showRaw;
 
   vizzes.forEach((v) => {
-    v.colorModel      = state.colorModel;
-    v.distanceMetric  = state.distanceMetric;
+    v.colorModel = state.colorModel;
+    v.distanceMetric = state.distanceMetric;
     v.invertLightness = state.invertLightness;
-    v.showRaw         = state.showRaw;
+    v.showRaw = state.showRaw;
   });
   applyPosition(state.pos);
 }
@@ -286,12 +317,12 @@ function scheduleHashUpdate() {
 }
 
 // hook all control changes to also update hash
-$colorModel.addEventListener('change',           scheduleHashUpdate);
-$distanceMetric.addEventListener('change',       scheduleHashUpdate);
-$positionSlider.addEventListener('input',        scheduleHashUpdate);
+$colorModel.addEventListener('change', scheduleHashUpdate);
+$distanceMetric.addEventListener('change', scheduleHashUpdate);
+$positionSlider.addEventListener('input', scheduleHashUpdate);
 $invertLightnessCheckbox.addEventListener('change', scheduleHashUpdate);
-$showRawCheckbox.addEventListener('change',      scheduleHashUpdate);
-$palette.addEventListener('input',               scheduleHashUpdate, true);
+$showRawCheckbox.addEventListener('change', scheduleHashUpdate);
+$palette.addEventListener('input', scheduleHashUpdate, true);
 $palette.addEventListener('click', (e) => {
   if (e.target.classList.contains('color-picker__remove')) scheduleHashUpdate();
 });

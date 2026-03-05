@@ -5,13 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>palette-shader demo</title>
 
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Iosevka/6.0.0/iosevka/iosevka.min.css">
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/Iosevka/6.0.0/iosevka/iosevka.min.css"
+    />
   </head>
   <body>
     <!--h1>Palette Viz</h1-->
     <div class="app">
       <div class="sidebar">
-        <textarea class="palette-paste" data-palette-paste placeholder="Paste hex colors (comma or space separated)…"></textarea>
+        <textarea
+          class="palette-paste"
+          data-palette-paste
+          placeholder="Paste hex colors (comma or space separated)…"
+        ></textarea>
         <div class="sidebar__palette palette" data-palette></div>
         <div class="sidebar__tools" data-tools></div>
       </div>
@@ -25,25 +32,33 @@
         <a href="https://github.com/meodai/color-palette-shader">GitHub</a>
       </div>
       <p>
-        A dependency-free WebGL2 shader that visualizes a color palette by mapping a color space onto a plane or polar wheel,
-        then snapping each pixel to the nearest palette color via a configurable distance metric.
-        The six views above show the same palette across the X, Y and Z axes — the top row at one end, the bottom row at the other.
+        A dependency-free WebGL2 shader that visualizes a color palette by mapping a color space
+        onto a plane or polar wheel, then snapping each pixel to the nearest palette color via a
+        configurable distance metric. The six views above show the same palette across the X, Y and
+        Z axes — the top row at one end, the bottom row at the other.
       </p>
 
       <aside>
         <h2>What is this for?</h2>
         <p>
-          It shows you how a color palette distributes across "all possible colors." Each region of the wheel or grid
-          represents a color — and whichever palette color is closest to it claims that region.
+          It shows you how a color palette distributes across "all possible colors." Each region of
+          the wheel or grid represents a color — and whichever palette color is closest to it claims
+          that region.
         </p>
         <p>
-          So if one of your palette colors only claims a tiny sliver, it lives very close to another color already in
-          your palette — it's almost redundant. If it claims a large region, it's doing a lot of unique work.
+          So if one of your palette colors only claims a tiny sliver, it lives very close to another
+          color already in your palette — it's almost redundant. If it claims a large region, it's
+          doing a lot of unique work.
         </p>
         <ul>
           <li>How <strong>distinct</strong> each color is from the others</li>
-          <li>How <strong>balanced</strong> the palette is overall — even regions mean even coverage</li>
-          <li>Whether a <strong>new color is worth adding</strong> — if it doesn't carve out its own space, it's probably not pulling its weight</li>
+          <li>
+            How <strong>balanced</strong> the palette is overall — even regions mean even coverage
+          </li>
+          <li>
+            Whether a <strong>new color is worth adding</strong> — if it doesn't carve out its own
+            space, it's probably not pulling its weight
+          </li>
         </ul>
       </aside>
 
@@ -85,12 +100,15 @@ viz.destroy();</code></pre>
         <h2>Notes</h2>
         <p>
           No runtime dependencies — uses raw WebGL 2 and the browser's native CSS color parser.
-          Color models and distance metrics are orthogonal — the model controls how the color space is rendered,
-          the metric controls which palette color each pixel snaps to.
+          Color models and distance metrics are orthogonal — the model controls how the color space
+          is rendered, the metric controls which palette color each pixel snaps to.
         </p>
         <p>
-          The typeface is the open-source <a href="https://be5invis.github.io/Iosevka/" target="_blank" rel="noopener noreferrer">Iosevka</a>.
-          Created by <a href="https://elastiq.ch" target="_blank" rel="noopener noreferrer">David Aerne</a>.
+          The typeface is the open-source
+          <a href="https://be5invis.github.io/Iosevka/" target="_blank" rel="noopener noreferrer"
+            >Iosevka</a
+          >. Created by
+          <a href="https://elastiq.ch" target="_blank" rel="noopener noreferrer">David Aerne</a>.
         </p>
       </aside>
     </article>

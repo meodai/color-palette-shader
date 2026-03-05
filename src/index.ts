@@ -5,22 +5,22 @@ import {
   SupportedColorModels,
   Axis,
   DistanceMetric,
-} from "./types.ts";
+} from './types.ts';
 
 // @ts-ignore
-import shaderSRGB2RGB from "./shaders/srgb2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderSRGB2RGB from './shaders/srgb2rgb.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
-import shaderOKLab from "./shaders/oklab.frag.glsl?raw" assert { type: "raw" };
+import shaderOKLab from './shaders/oklab.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
-import shaderHSL2RGB from "./shaders/hsl2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderHSL2RGB from './shaders/hsl2rgb.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
-import shaderHSV2RGB from "./shaders/hsv2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderHSV2RGB from './shaders/hsv2rgb.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
-import shaderLCH2RGB from "./shaders/lch2rgb.frag.glsl?raw" assert { type: "raw" };
+import shaderLCH2RGB from './shaders/lch2rgb.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
-import shaderDeltaE from "./shaders/deltaE.frag.glsl?raw" assert { type: "raw" };
+import shaderDeltaE from './shaders/deltaE.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
-import shaderClosestColor from "./shaders/closestColor.frag.glsl?raw" assert { type: "raw" };
+import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { type: 'raw' };
 
 // Include order matters:
 //   srgb2rgb     – srgb2rgb()
@@ -134,14 +134,14 @@ let _colorCtx: CanvasRenderingContext2D | null = null;
 
 function cssToSRGB(color: string): [number, number, number] {
   if (!_colorCtx) {
-    const c = document.createElement("canvas");
+    const c = document.createElement('canvas');
     c.width = c.height = 1;
-    _colorCtx = c.getContext("2d")!;
+    _colorCtx = c.getContext('2d')!;
   }
-  _colorCtx.fillStyle = "#000000"; // reset before setting
+  _colorCtx.fillStyle = '#000000'; // reset before setting
   _colorCtx.fillStyle = color;
   const v = _colorCtx.fillStyle; // browser normalises to '#rrggbb' or 'rgba(...)'
-  if (v[0] === "#") {
+  if (v[0] === '#') {
     return [
       parseInt(v.slice(1, 3), 16) / 255,
       parseInt(v.slice(3, 5), 16) / 255,
@@ -177,8 +177,10 @@ export const paletteToRGBA = (palette: ColorList): Uint8Array => {
 export const paletteToTexture = paletteToRGBA;
 
 export const randomPalette = (size = 20): ColorList =>
-  Array.from({ length: size }, () =>
-    `rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)})`
+  Array.from(
+    { length: size },
+    () =>
+      `rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)})`,
   );
 
 // ── WebGL helpers ──────────────────────────────────────────────────────────────
@@ -197,13 +199,19 @@ function compileShader(gl: WebGL2RenderingContext, type: number, src: string): W
   return shader;
 }
 
-function buildProgram(gl: WebGL2RenderingContext, defines: Defines, fragSrc: string, vertSrc: string): WebGLProgram {
+function buildProgram(
+  gl: WebGL2RenderingContext,
+  defines: Defines,
+  fragSrc: string,
+  vertSrc: string,
+): WebGLProgram {
   // #version 300 es must be the very first line — prepend it before defines.
-  const defineStr = Object.entries(defines)
-    .filter(([, v]) => v !== false)
-    .map(([k, v]) => `#define ${k} ${v}`)
-    .join("\n") + "\n";
-  const prefix = "#version 300 es\n" + defineStr;
+  const defineStr =
+    Object.entries(defines)
+      .filter(([, v]) => v !== false)
+      .map(([k, v]) => `#define ${k} ${v}`)
+      .join('\n') + '\n';
+  const prefix = '#version 300 es\n' + defineStr;
 
   const vert = compileShader(gl, gl.VERTEX_SHADER, prefix + vertSrc);
   const frag = compileShader(gl, gl.FRAGMENT_SHADER, prefix + fragSrc);
@@ -223,10 +231,24 @@ function buildProgram(gl: WebGL2RenderingContext, defines: Defines, fragSrc: str
   return prog;
 }
 
-function uploadPaletteTexture(gl: WebGL2RenderingContext, tex: WebGLTexture, palette: ColorList): void {
+function uploadPaletteTexture(
+  gl: WebGL2RenderingContext,
+  tex: WebGLTexture,
+  palette: ColorList,
+): void {
   gl.bindTexture(gl.TEXTURE_2D, tex);
   // RGBA8: sized internal format required by WebGL2 spec
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, palette.length, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, paletteToRGBA(palette));
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA8,
+    palette.length,
+    1,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    paletteToRGBA(palette),
+  );
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -243,23 +265,36 @@ export class PaletteViz {
 
   // shader state
   #position = 0.0;
-  #axis: Axis = "y";
-  #colorModel: SupportedColorModels = "okhsv";
-  #distanceMetric: DistanceMetric = "oklab";
+  #axis: Axis = 'y';
+  #colorModel: SupportedColorModels = 'okhsv';
+  #distanceMetric: DistanceMetric = 'oklab';
   #invertLightness = false;
   #showRaw = false;
 
   // uniform value maps
-  readonly #axisMap           = { x: 0, y: 1, z: 2 } as const;
-  readonly #colorModelMap     = {
-    rgb: 0, oklab: 1,
-    okhsv: 2, okhsvPolar: 3,
-    okhsl: 4, okhslPolar: 5,
-    oklch: 6, oklchPolar: 7,
-    hsv: 8,  hsvPolar: 9,
-    hsl: 10, hslPolar: 11,
+  readonly #axisMap = { x: 0, y: 1, z: 2 } as const;
+  readonly #colorModelMap = {
+    rgb: 0,
+    oklab: 1,
+    okhsv: 2,
+    okhsvPolar: 3,
+    okhsl: 4,
+    okhslPolar: 5,
+    oklch: 6,
+    oklchPolar: 7,
+    hsv: 8,
+    hsvPolar: 9,
+    hsl: 10,
+    hslPolar: 11,
   } as const;
-  readonly #distanceMetricMap = { rgb: 0, oklab: 1, deltaE76: 2, deltaE2000: 3, kotsarenkoRamos: 4, deltaE94: 5 } as const;
+  readonly #distanceMetricMap = {
+    rgb: 0,
+    oklab: 1,
+    deltaE76: 2,
+    deltaE2000: 3,
+    kotsarenkoRamos: 4,
+    deltaE94: 5,
+  } as const;
 
   // WebGL
   #canvas: HTMLCanvasElement;
@@ -283,9 +318,9 @@ export class PaletteViz {
     height = 512,
     pixelRatio = window.devicePixelRatio,
     container,
-    colorModel = "okhsv",
-    distanceMetric = "oklab",
-    axis = "y",
+    colorModel = 'okhsv',
+    distanceMetric = 'oklab',
+    axis = 'y',
     position = 0.0,
     invertLightness = false,
     showRaw = false,
@@ -302,10 +337,10 @@ export class PaletteViz {
     this.#showRaw = showRaw;
     this.#container = container;
 
-    this.#canvas = document.createElement("canvas");
-    this.#canvas.classList.add("palette-viz");
-    const gl = this.#canvas.getContext("webgl2");
-    if (!gl) throw new Error("WebGL2 not supported");
+    this.#canvas = document.createElement('canvas');
+    this.#canvas.classList.add('palette-viz');
+    const gl = this.#canvas.getContext('webgl2');
+    if (!gl) throw new Error('WebGL2 not supported');
     this.#gl = gl;
 
     // Quad buffer + VAO — set up once, reused every frame.
@@ -333,10 +368,10 @@ export class PaletteViz {
   #defines(): Defines {
     return {
       DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
-      COLOR_MODEL:     this.#colorModelMap[this.#colorModel],
-      PROGRESS_AXIS:   this.#axisMap[this.#axis],
-      INVERT_Z:        this.#invertLightness ? 1 : false,
-      SHOW_RAW:        this.#showRaw ? 1 : false,
+      COLOR_MODEL: this.#colorModelMap[this.#colorModel],
+      PROGRESS_AXIS: this.#axisMap[this.#axis],
+      INVERT_Z: this.#invertLightness ? 1 : false,
+      SHOW_RAW: this.#showRaw ? 1 : false,
     };
   }
 
@@ -344,8 +379,8 @@ export class PaletteViz {
     const gl = this.#gl;
     if (this.#program) gl.deleteProgram(this.#program);
     this.#program = buildProgram(gl, this.#defines(), fragmentShader, vertexShaderSrc);
-    this.#uProgress       = gl.getUniformLocation(this.#program, "progress");
-    this.#uPaletteTexture = gl.getUniformLocation(this.#program, "paletteTexture");
+    this.#uProgress = gl.getUniformLocation(this.#program, 'progress');
+    this.#uPaletteTexture = gl.getUniformLocation(this.#program, 'paletteTexture');
   }
 
   #setSize(w: number, h: number): void {
@@ -378,12 +413,18 @@ export class PaletteViz {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
-  get canvas(): HTMLCanvasElement { return this.#canvas; }
-  get width()  { return this.#width; }
-  get height() { return this.#height; }
+  get canvas(): HTMLCanvasElement {
+    return this.#canvas;
+  }
+  get width() {
+    return this.#width;
+  }
+  get height() {
+    return this.#height;
+  }
 
   resize(width: number, height: number | null = null): void {
-    this.#width  = width;
+    this.#width = width;
     this.#height = height ?? width;
     this.#setSize(this.#width, this.#height);
     this.#paint();
@@ -400,7 +441,7 @@ export class PaletteViz {
     gl.deleteBuffer(this.#quadBuffer);
     gl.deleteVertexArray(this.#vao);
     this.#canvas.remove();
-    gl.getExtension("WEBGL_lose_context")?.loseContext();
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
   }
 
   // ── Palette ─────────────────────────────────────────────────────────────────
@@ -410,7 +451,9 @@ export class PaletteViz {
     uploadPaletteTexture(this.#gl, this.#texture!, palette);
     this.#paint();
   }
-  get palette() { return this.#palette; }
+  get palette() {
+    return this.#palette;
+  }
 
   setColor(color: ColorString, index: number): void {
     if (index < 0 || index >= this.#palette.length) throw new Error(`Index ${index} out of range`);
@@ -428,10 +471,9 @@ export class PaletteViz {
   removeColor(index: number): void;
   removeColor(color: ColorString): void;
   removeColor(indexOrColor: number | ColorString): void {
-    const index = typeof indexOrColor === "number"
-      ? indexOrColor
-      : this.#palette.indexOf(indexOrColor);
-    if (index === -1) throw new Error("Color not found in palette");
+    const index =
+      typeof indexOrColor === 'number' ? indexOrColor : this.#palette.indexOf(indexOrColor);
+    if (index === -1) throw new Error('Color not found in palette');
     if (index < 0 || index >= this.#palette.length) throw new Error(`Index ${index} out of range`);
     this.#palette.splice(index, 1);
     uploadPaletteTexture(this.#gl, this.#texture!, this.#palette);
@@ -440,8 +482,13 @@ export class PaletteViz {
 
   // ── Shader properties ────────────────────────────────────────────────────────
 
-  set position(value: number) { this.#position = value; this.#paint(); }
-  get position() { return this.#position; }
+  set position(value: number) {
+    this.#position = value;
+    this.#paint();
+  }
+  get position() {
+    return this.#position;
+  }
 
   set axis(axis: Axis) {
     if (!(axis in this.#axisMap)) throw new Error("axis must be 'x', 'y', or 'z'");
@@ -449,7 +496,9 @@ export class PaletteViz {
     this.#buildProgram();
     this.#paint();
   }
-  get axis() { return this.#axis; }
+  get axis() {
+    return this.#axis;
+  }
 
   set colorModel(model: SupportedColorModels) {
     if (!(model in this.#colorModelMap)) throw new Error(`colorModel '${model}' is not supported`);
@@ -457,29 +506,40 @@ export class PaletteViz {
     this.#buildProgram();
     this.#paint();
   }
-  get colorModel() { return this.#colorModel; }
+  get colorModel() {
+    return this.#colorModel;
+  }
 
   set distanceMetric(metric: DistanceMetric) {
-    if (!(metric in this.#distanceMetricMap)) throw new Error("distanceMetric must be 'rgb', 'oklab', 'deltaE76', 'deltaE94', 'deltaE2000', or 'kotsarenkoRamos'");
+    if (!(metric in this.#distanceMetricMap))
+      throw new Error(
+        "distanceMetric must be 'rgb', 'oklab', 'deltaE76', 'deltaE94', 'deltaE2000', or 'kotsarenkoRamos'",
+      );
     this.#distanceMetric = metric;
     this.#buildProgram();
     this.#paint();
   }
-  get distanceMetric() { return this.#distanceMetric; }
+  get distanceMetric() {
+    return this.#distanceMetric;
+  }
 
   set invertLightness(value: boolean) {
     this.#invertLightness = value;
     this.#buildProgram();
     this.#paint();
   }
-  get invertLightness() { return this.#invertLightness; }
+  get invertLightness() {
+    return this.#invertLightness;
+  }
 
   set showRaw(value: boolean) {
     this.#showRaw = value;
     this.#buildProgram();
     this.#paint();
   }
-  get showRaw() { return this.#showRaw; }
+  get showRaw() {
+    return this.#showRaw;
+  }
 
   static paletteToRGBA = paletteToRGBA;
   /** @deprecated use PaletteViz.paletteToRGBA */
