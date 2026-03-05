@@ -440,6 +440,30 @@ a:hover {
   text-decoration-thickness: 2px;
 }
 
+.kofi {
+  width: 2.5em;
+  height: 2.5em;
+  margin-top: 1em;
+  margin-left: -0.4em;
+  margin-right: 1em;
+  display: block;
+}
+
+.kofi:hover img {
+  animation: 0.5s shakeup;
+}
+
+.kofi img {
+  transform-origin: 50%;
+  width: 100%;
+}
+
+@keyframes shakeup {
+  0%, to { transform: translateY(0) rotate(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateY(-10px) rotate(-6deg); }
+  20%, 40%, 60%, 80% { transform: translateY(-8px) rotate(10deg); }
+}
+
 .about a[href^='http']:not(:has(img))::after {
   content: ' ↗';
   font-size: 0.75em;
