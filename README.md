@@ -6,6 +6,18 @@ A dependency-free WebGL2 shader that maps any colour palette across a 3-D percep
 
 ---
 
+## What is this for?
+
+It shows you how a color palette distributes across "all possible colors." Each region of the wheel or grid represents a color — and whichever palette color is closest to it claims that region.
+
+So if one of your palette colors only claims a tiny sliver, it lives very close to another color already in your palette — it's almost redundant. If it claims a large region, it's doing a lot of unique work. At a glance you can tell:
+
+- **How distinct** each color is from the others
+- **How balanced** the palette is overall — even regions mean even coverage
+- **Whether a new color is worth adding** — if it doesn't carve out its own space, it's probably not pulling its weight
+
+---
+
 ## Install
 
 ```bash
