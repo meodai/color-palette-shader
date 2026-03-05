@@ -36,4 +36,5 @@ export type PaletteVizOptions = {
   position?: number;
   invertZ?: boolean;
   showRaw?: boolean;
+  outlineWidth?: number;
 };

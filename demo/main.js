@@ -305,6 +305,20 @@ $positionSlider.addEventListener('input', (e) => {
 applyPosition(0);
 $tools.appendChild(labeled('Position', $positionSlider));
 
+// Outline width
+const $outlineSlider = document.createElement('input');
+$outlineSlider.type = 'range';
+$outlineSlider.min = '0';
+$outlineSlider.max = '10';
+$outlineSlider.step = '0.5';
+$outlineSlider.value = '0';
+$outlineSlider.addEventListener('input', (e) => {
+  vizzes.forEach((v) => {
+    v.outlineWidth = parseFloat(e.target.value);
+  });
+});
+$tools.appendChild(labeled('Outline width', $outlineSlider));
+
 // Invert lightness
 const $invertZCheckbox = document.createElement('input');
 $invertZCheckbox.type = 'checkbox';
@@ -420,6 +434,7 @@ function encodeHash(colors, settings) {
     pos: settings.pos.toFixed(4),
     ...(settings.invertZ && { invert: '1' }),
     ...(settings.showRaw && { raw: '1' }),
+    ...(settings.outlineWidth > 0 && { outline: settings.outlineWidth.toString() }),
   });
   return `#colors/${colorStr}?${params}`;
 }
@@ -444,6 +459,7 @@ function decodeHash(hash) {
     pos: parseFloat(params.get('pos') ?? '0'),
     invertZ: params.get('invert') === '1',
     showRaw: params.get('raw') === '1',
+    outlineWidth: parseFloat(params.get('outline') ?? '0'),
   };
 }
 
@@ -454,6 +470,7 @@ function getSettings() {
     pos: parseFloat($positionSlider.value),
     invertZ: $invertZCheckbox.checked,
     showRaw: $showRawCheckbox.checked,
+    outlineWidth: parseFloat($outlineSlider.value),
   };
 }
 
@@ -470,12 +487,14 @@ function applyState(state) {
   $positionSlider.value = String(state.pos);
   $invertZCheckbox.checked = state.invertZ;
   $showRawCheckbox.checked = state.showRaw;
+  $outlineSlider.value = String(state.outlineWidth);
 
   vizzes.forEach((v) => {
     v.colorModel = state.colorModel;
     v.distanceMetric = state.distanceMetric;
     v.invertZ = state.invertZ;
     v.showRaw = state.showRaw;
+    v.outlineWidth = state.outlineWidth;
   });
   applyPosition(state.pos);
 }
@@ -494,6 +513,7 @@ function scheduleHashUpdate() {
 $colorModel.addEventListener('change', scheduleHashUpdate);
 $distanceMetric.addEventListener('change', scheduleHashUpdate);
 $positionSlider.addEventListener('input', scheduleHashUpdate);
+$outlineSlider.addEventListener('input', scheduleHashUpdate);
 $invertZCheckbox.addEventListener('change', scheduleHashUpdate);
 $showRawCheckbox.addEventListener('change', scheduleHashUpdate);
 $palette.addEventListener('input', scheduleHashUpdate, true);

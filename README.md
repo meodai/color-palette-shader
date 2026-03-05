@@ -69,6 +69,7 @@ All options are optional. The palette defaults to a random 20-colour set.
 | `position`       | `number`            | `0`                | 0–1 position along the chosen axis                                                        |
 | `invertZ`        | `boolean`           | `false`            | Flip the lightness/value axis                                                             |
 | `showRaw`        | `boolean`           | `false`            | Bypass nearest-colour matching (shows the raw colour space)                               |
+| `outlineWidth`   | `number`            | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead). |
 
 ---
 
@@ -83,6 +84,7 @@ viz.colorModel = 'okhslPolar';
 viz.distanceMetric = 'deltaE2000';
 viz.invertZ = true;
 viz.showRaw = true;
+viz.outlineWidth = 2; // transparent border between regions, in physical pixels
 ```
 
 Additional read-only properties:
@@ -133,7 +135,7 @@ viz.removeColor('#a8dadc');
 
 ### `destroy()`
 
-Cancel the animation frame, release all WebGL resources (program, texture, buffer, VAO), and remove the canvas from the DOM.
+Cancel the animation frame, release all WebGL resources (programs, textures, framebuffer, buffer, VAO), and remove the canvas from the DOM.
 
 ---
 
@@ -216,6 +218,28 @@ document.querySelector('#slider').addEventListener('input', (e) => {
   });
 });
 ```
+
+### Transparent outlines between regions
+
+`outlineWidth` draws a transparent gap where one palette colour's region meets another, revealing whatever is behind the canvas. Width is in physical pixels (i.e. it already accounts for `pixelRatio`).
+
+```js
+const viz = new PaletteViz({
+  palette,
+  outlineWidth: 2,
+  container: document.querySelector('#app'),
+});
+
+// change at runtime — no shader recompile while the value stays > 0
+viz.outlineWidth = 4;
+
+// set back to 0 to disable entirely (zero GPU overhead)
+viz.outlineWidth = 0;
+```
+
+Implemented as a two-pass render: pass 1 draws the colour regions into an offscreen framebuffer at the same cost as without outlines; pass 2 runs a tiny edge-detection shader that checks four neighbours via texture reads (no colour-space math). The result is that enabling outlines adds negligible overhead compared to the single-pass approach.
+
+When `outlineWidth` is `0` (the default) the framebuffer and outline program are never allocated.
 
 ### Utility exports
 

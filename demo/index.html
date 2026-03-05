@@ -82,6 +82,7 @@ const viz = new PaletteViz({
   axis: 'y',                // which axis the position slider controls
   position: 0,              // 0–1 slice position (0 = one extreme, 1 = other side)
   invertZ: false,           // flip the Z axis
+  outlineWidth: 0,          // transparent outline between regions (physical px). 0 = off
 });
 
 // option B: no container — place the canvas yourself
@@ -91,6 +92,7 @@ document.querySelector('#app').appendChild(viz.canvas);
 // update live
 viz.palette = ['#ff0000', '#00ff00', '#0000ff'];
 viz.position = 0.3;
+viz.outlineWidth = 2; // change at any time — no recompile while value stays > 0
 
 // clean up
 viz.destroy();</code></pre>
@@ -103,6 +105,12 @@ viz.destroy();</code></pre>
           No runtime dependencies — uses raw WebGL 2 and the browser's native CSS color parser.
           Color models and distance metrics are orthogonal — the model controls how the color space
           is rendered, the metric controls which palette color each pixel snaps to.
+        </p>
+        <p>
+          The <strong>outline width</strong> slider draws a transparent gap where regions meet,
+          revealing whatever is behind the canvas. It uses a two-pass render: the first pass is
+          identical in cost to no outline; the second pass is a tiny edge-detection shader with
+          four texture reads per pixel — no extra color-space math.
         </p>
         <p>
           The typeface is the open-source
