@@ -9,7 +9,7 @@ vec3 closestColor(vec3 color, sampler2D paletteTexture) {
     vec3 colorConverted = linear_srgb_to_oklab(srgb2rgb(color));
   #elif DISTANCE_METRIC == 6
     vec3 _lab6 = linear_srgb_to_oklab(srgb2rgb(color));
-    vec3 colorConverted = vec3(oklrab_toe(_lab6.x), _lab6.y, _lab6.z);
+    vec3 colorConverted = vec3(toe(_lab6.x), _lab6.y, _lab6.z);
   #elif DISTANCE_METRIC == 7
     vec3 colorConverted = srgb_to_cielab_d50(color);
   #elif DISTANCE_METRIC == 2 || DISTANCE_METRIC == 3 || DISTANCE_METRIC == 5
@@ -26,7 +26,7 @@ vec3 closestColor(vec3 color, sampler2D paletteTexture) {
       dist = distance(colorConverted, linear_srgb_to_oklab(srgb2rgb(paletteColor)));
     #elif DISTANCE_METRIC == 6
       vec3 _plab = linear_srgb_to_oklab(srgb2rgb(paletteColor));
-      dist = distance(colorConverted, vec3(oklrab_toe(_plab.x), _plab.y, _plab.z));
+      dist = distance(colorConverted, vec3(toe(_plab.x), _plab.y, _plab.z));
     #elif DISTANCE_METRIC == 2
       dist = deltaE76(colorConverted, srgb_to_cielab(paletteColor));
     #elif DISTANCE_METRIC == 3

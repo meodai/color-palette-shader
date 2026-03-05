@@ -154,42 +154,42 @@ Controls the 3-D colour space the visualisation is rendered in. Polar variants (
 
 **OK — Lab / LCH**
 
-| Value            | Shape | Description                                                                                     |
-| ---------------- | ----- | ----------------------------------------------------------------------------------------------- |
-| `'oklab'`        | cube  | Raw OKLab: x→a, y→b, z→L.                                                                      |
-| `'oklch'`        | cube  | OKLab in cylindrical LCH coordinates. Ideal for chroma or lightness slices.                    |
-| `'oklchPolar'`   | wheel | Polar form of OKLch.                                                                            |
-| `'oklrab'`       | cube  | OKLab with toe-corrected lightness (Lr). Better perceptual uniformity in dark tones.            |
-| `'oklrch'`       | cube  | OKLrab in cylindrical LCH coordinates.                                                          |
-| `'oklrchPolar'`  | wheel | Polar form of OKLrch.                                                                           |
+| Value           | Shape | Description                                                                          |
+| --------------- | ----- | ------------------------------------------------------------------------------------ |
+| `'oklab'`       | cube  | Raw OKLab: x→a, y→b, z→L.                                                            |
+| `'oklch'`       | cube  | OKLab in cylindrical LCH coordinates. Ideal for chroma or lightness slices.          |
+| `'oklchPolar'`  | wheel | Polar form of OKLch.                                                                 |
+| `'oklrab'`      | cube  | OKLab with toe-corrected lightness (Lr). Better perceptual uniformity in dark tones. |
+| `'oklrch'`      | cube  | OKLrab in cylindrical LCH coordinates.                                               |
+| `'oklrchPolar'` | wheel | Polar form of OKLrch.                                                                |
 
 **CIE Lab / LCH — D65**
 
-| Value            | Shape | Description                                                                                     |
-| ---------------- | ----- | ----------------------------------------------------------------------------------------------- |
-| `'cielab'`       | cube  | CIELab D65: x→a, y→b, z→L. The classic perceptual colour space.                                |
-| `'cielch'`       | cube  | CIELab D65 in cylindrical LCH coordinates.                                                     |
-| `'cielchPolar'`  | wheel | Polar form of CIELch D65.                                                                       |
+| Value           | Shape | Description                                                     |
+| --------------- | ----- | --------------------------------------------------------------- |
+| `'cielab'`      | cube  | CIELab D65: x→a, y→b, z→L. The classic perceptual colour space. |
+| `'cielch'`      | cube  | CIELab D65 in cylindrical LCH coordinates.                      |
+| `'cielchPolar'` | wheel | Polar form of CIELch D65.                                       |
 
 **CIE Lab / LCH — D50**
 
-| Value               | Shape | Description                                                                                  |
-| ------------------- | ----- | -------------------------------------------------------------------------------------------- |
-| `'cielabD50'`       | cube  | CIELab adapted to D50 illuminant (ICC / print standard).                                     |
-| `'cielchD50'`       | cube  | CIELab D50 in cylindrical LCH coordinates.                                                   |
-| `'cielchD50Polar'`  | wheel | Polar form of CIELch D50.                                                                    |
+| Value              | Shape | Description                                              |
+| ------------------ | ----- | -------------------------------------------------------- |
+| `'cielabD50'`      | cube  | CIELab adapted to D50 illuminant (ICC / print standard). |
+| `'cielchD50'`      | cube  | CIELab D50 in cylindrical LCH coordinates.               |
+| `'cielchD50Polar'` | wheel | Polar form of CIELch D50.                                |
 
 **Classic**
 
-| Value        | Shape | Description                                            |
-| ------------ | ----- | ------------------------------------------------------ |
-| `'hsv'`      | cube  | Classic HSV. Not perceptually uniform, but familiar.   |
-| `'hsvPolar'` | wheel | Polar form of HSV.                                     |
-| `'hsl'`      | cube  | Classic HSL.                                           |
-| `'hslPolar'` | wheel | Polar form of HSL.                                     |
-| `'hwb'`      | cube  | HWB (Hue–Whiteness–Blackness). CSS Color 4 model.      |
-| `'hwbPolar'` | wheel | Polar form of HWB.                                     |
-| `'rgb'`      | cube  | Raw sRGB cube. Useful as a baseline.                   |
+| Value        | Shape | Description                                          |
+| ------------ | ----- | ---------------------------------------------------- |
+| `'hsv'`      | cube  | Classic HSV. Not perceptually uniform, but familiar. |
+| `'hsvPolar'` | wheel | Polar form of HSV.                                   |
+| `'hsl'`      | cube  | Classic HSL.                                         |
+| `'hslPolar'` | wheel | Polar form of HSL.                                   |
+| `'hwb'`      | cube  | HWB (Hue–Whiteness–Blackness). CSS Color 4 model.    |
+| `'hwbPolar'` | wheel | Polar form of HWB.                                   |
+| `'rgb'`      | cube  | Raw sRGB cube. Useful as a baseline.                 |
 
 The OK-variants rely on Björn Ottosson's gamut-aware implementation and produce significantly more even hue distributions than the classic variants at the same GPU cost.
 
@@ -226,16 +226,16 @@ Controls how "nearest palette colour" is determined per pixel.
 
 **CIE — D50**
 
-| Value         | Description                                                                      | Cost   |
-| ------------- | -------------------------------------------------------------------------------- | ------ |
-| `'cielabD50'` | Euclidean distance in CIELab D50. Useful when working in print / ICC workflows.  | medium |
+| Value         | Description                                                                     | Cost   |
+| ------------- | ------------------------------------------------------------------------------- | ------ |
+| `'cielabD50'` | Euclidean distance in CIELab D50. Useful when working in print / ICC workflows. | medium |
 
 **Heuristic / simple**
 
-| Value               | Description                                                                                                | Cost   |
-| ------------------- | ---------------------------------------------------------------------------------------------------------- | ------ |
-| `'kotsarenkoRamos'` | Weighted Euclidean in sRGB. Weights R and B by mean red for quick perceptual improvement over plain RGB.   | lowest |
-| `'rgb'`             | Plain Euclidean in sRGB. Not perceptually uniform. Useful as a baseline.                                   | lowest |
+| Value               | Description                                                                                              | Cost   |
+| ------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
+| `'kotsarenkoRamos'` | Weighted Euclidean in sRGB. Weights R and B by mean red for quick perceptual improvement over plain RGB. | lowest |
+| `'rgb'`             | Plain Euclidean in sRGB. Not perceptually uniform. Useful as a baseline.                                 | lowest |
 
 ---
 

@@ -20,8 +20,6 @@ import shaderLCH2RGB from './shaders/lch2rgb.frag.glsl?raw' assert { type: 'raw'
 // @ts-ignore
 import shaderHWB2RGB from './shaders/hwb2rgb.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
-import shaderOKLrab from './shaders/oklrab.frag.glsl?raw' assert { type: 'raw' };
-// @ts-ignore
 import shaderCIELab2RGB from './shaders/cielab2rgb.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
 import shaderDeltaE from './shaders/deltaE.frag.glsl?raw' assert { type: 'raw' };
@@ -73,7 +71,6 @@ ${shaderHSL2RGB}
 ${shaderHSV2RGB}
 ${shaderLCH2RGB}
 ${shaderHWB2RGB}
-${shaderOKLrab}
 ${shaderCIELab2RGB}
 ${shaderDeltaE}
 ${shaderClosestColor}
@@ -102,10 +99,10 @@ vec3 modelToRGB(vec3 colorCoords) {
   #elif COLOR_MODEL == 12 || COLOR_MODEL == 13
     return hwb2rgb(colorCoords);
   #elif COLOR_MODEL == 14
-    vec3 linear14 = oklab_to_linear_srgb(vec3(oklrab_toe_inv(colorCoords.z), colorCoords.x - 0.5, colorCoords.y - 0.5));
+    vec3 linear14 = oklab_to_linear_srgb(vec3(toe_inv(colorCoords.z), colorCoords.x - 0.5, colorCoords.y - 0.5));
     return clamp(vec3(srgb_transfer_function(linear14.r), srgb_transfer_function(linear14.g), srgb_transfer_function(linear14.b)), 0.0, 1.0);
   #elif COLOR_MODEL == 15 || COLOR_MODEL == 16
-    return lch2rgb(vec3(oklrab_toe_inv(colorCoords.z), colorCoords.y, colorCoords.x));
+    return lch2rgb(vec3(toe_inv(colorCoords.z), colorCoords.y, colorCoords.x));
   #elif COLOR_MODEL == 17
     return cielab_d65_to_rgb(vec3(colorCoords.z * 100.0, (colorCoords.x - 0.5) * 256.0, (colorCoords.y - 0.5) * 256.0));
   #elif COLOR_MODEL == 18 || COLOR_MODEL == 19
@@ -691,9 +688,7 @@ export class PaletteViz {
 
   set distanceMetric(metric: DistanceMetric) {
     if (!(metric in this.#distanceMetricMap))
-      throw new Error(
-        "distanceMetric must be 'rgb', 'oklab', 'deltaE76', 'deltaE94', 'deltaE2000', or 'kotsarenkoRamos'",
-      );
+      throw new Error(`distanceMetric '${metric}' is not supported`);
     this.#distanceMetric = metric;
     this.#buildProgram();
     this.#paint();

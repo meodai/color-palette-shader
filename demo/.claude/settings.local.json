@@ -1,8 +1,5 @@
 {
   "permissions": {
-    "allow": [
-      "WebFetch(domain:meodai.github.io)",
-      "Bash(curl:*)"
-    ]
+    "allow": ["WebFetch(domain:meodai.github.io)", "Bash(curl:*)"]
   }
 }

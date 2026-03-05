@@ -8,61 +8,7 @@ float kotsarenkoRamos(vec3 c1, vec3 c2) {
     return sqrt((2.0 + rMean) * d.r*d.r + 4.0 * d.g*d.g + (3.0 - rMean) * d.b*d.b);
 }
 
-// ── CIELab ────────────────────────────────────────────────────────────────────
-// sRGB -> XYZ (D65) -> CIELab
-// Depends on: srgb2rgb() from srgb2rgb.frag.glsl, cbrt() from oklab.frag.glsl
-
-float _lab_f(float t) {
-    float delta = 6.0 / 29.0;
-    return t > delta * delta * delta
-        ? cbrt(t)
-        : t / (3.0 * delta * delta) + 4.0 / 29.0;
-}
-
-vec3 srgb_to_cielab(vec3 srgb) {
-    vec3 lin = srgb2rgb(srgb);
-
-    // Linear sRGB -> XYZ (D65 illuminant)
-    vec3 xyz = vec3(
-        0.4124564 * lin.r + 0.3575761 * lin.g + 0.1804375 * lin.b,
-        0.2126729 * lin.r + 0.7151522 * lin.g + 0.0721750 * lin.b,
-        0.0193339 * lin.r + 0.1191920 * lin.g + 0.9503041 * lin.b
-    );
-
-    // XYZ -> Lab (D65 white point: 0.95047, 1.00000, 1.08883)
-    float fx = _lab_f(xyz.x / 0.95047);
-    float fy = _lab_f(xyz.y);
-    float fz = _lab_f(xyz.z / 1.08883);
-
-    return vec3(
-        116.0 * fy - 16.0,   // L*
-        500.0 * (fx - fy),   // a*
-        200.0 * (fy - fz)    // b*
-    );
-}
-
-// sRGB → CIELab (D50 illuminant, Bradford-adapted)
-vec3 srgb_to_cielab_d50(vec3 srgb) {
-    vec3 lin = srgb2rgb(srgb);
-
-    // Linear sRGB → XYZ (D50, Bradford-adapted)
-    vec3 xyz = vec3(
-        0.4360747 * lin.r + 0.3850649 * lin.g + 0.1430804 * lin.b,
-        0.2225045 * lin.r + 0.7168786 * lin.g + 0.0606169 * lin.b,
-        0.0139322 * lin.r + 0.0971045 * lin.g + 0.7141733 * lin.b
-    );
-
-    // XYZ → Lab (D50 white point: 0.96422, 1.00000, 0.82521)
-    float fx = _lab_f(xyz.x / 0.96422);
-    float fy = _lab_f(xyz.y);
-    float fz = _lab_f(xyz.z / 0.82521);
-
-    return vec3(
-        116.0 * fy - 16.0,
-        500.0 * (fx - fy),
-        200.0 * (fy - fz)
-    );
-}
+// srgb_to_cielab / srgb_to_cielab_d50 live in cielab2rgb.frag.glsl (included before this file)
 
 // CIE76: plain Euclidean distance in CIELab
 float deltaE76(vec3 lab1, vec3 lab2) {
