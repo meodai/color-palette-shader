@@ -105,9 +105,9 @@ vizzes.forEach((v) => {
 const $distanceMetric = document.createElement('select');
 $distanceMetric.innerHTML = `
   <option value="oklab">OKLab</option>
-  <option value="deltaE2000">ΔE2000</option>
-  <option value="deltaE94">ΔE94</option>
-  <option value="deltaE76">ΔE76</option>
+  <option value="deltaE2000">ΔE2000 (slow)</option>
+  <option value="deltaE94">ΔE94 (slow)</option>
+  <option value="deltaE76">ΔE76 (slow)</option>
   <option value="kotsarenkoRamos">Kotsarenko/Ramos</option>
   <option value="rgb">RGB</option>
 `;
