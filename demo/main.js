@@ -146,15 +146,15 @@ applyPosition(0);
 $tools.appendChild(labeled('Position', $positionSlider));
 
 // Invert lightness
-const $invertLightnessCheckbox = document.createElement('input');
-$invertLightnessCheckbox.type = 'checkbox';
-$invertLightnessCheckbox.checked = false;
-$invertLightnessCheckbox.addEventListener('change', (e) => {
+const $invertZCheckbox = document.createElement('input');
+$invertZCheckbox.type = 'checkbox';
+$invertZCheckbox.checked = false;
+$invertZCheckbox.addEventListener('change', (e) => {
   vizzes.forEach((v) => {
-    v.invertLightness = e.target.checked;
+    v.invertZ = e.target.checked;
   });
 });
-$tools.appendChild(labeled('Invert lightness', $invertLightnessCheckbox));
+$tools.appendChild(labeled('Invert Z', $invertZCheckbox));
 
 // Show raw (debug)
 const $showRawCheckbox = document.createElement('input');
@@ -244,7 +244,7 @@ function encodeHash(colors, settings) {
     model: settings.colorModel,
     metric: settings.distanceMetric,
     pos: settings.pos.toFixed(4),
-    ...(settings.invertLightness && { invert: '1' }),
+    ...(settings.invertZ && { invert: '1' }),
     ...(settings.showRaw && { raw: '1' }),
   });
   return `#colors/${colorStr}?${params}`;
@@ -268,7 +268,7 @@ function decodeHash(hash) {
     colorModel: params.get('model') || 'okhsl',
     distanceMetric: params.get('metric') || 'oklab',
     pos: parseFloat(params.get('pos') ?? '0'),
-    invertLightness: params.get('invert') === '1',
+    invertZ: params.get('invert') === '1',
     showRaw: params.get('raw') === '1',
   };
 }
@@ -278,7 +278,7 @@ function getSettings() {
     colorModel: $colorModel.value,
     distanceMetric: $distanceMetric.value,
     pos: parseFloat($positionSlider.value),
-    invertLightness: $invertLightnessCheckbox.checked,
+    invertZ: $invertZCheckbox.checked,
     showRaw: $showRawCheckbox.checked,
   };
 }
@@ -294,13 +294,13 @@ function applyState(state) {
   $colorModel.value = state.colorModel;
   $distanceMetric.value = state.distanceMetric;
   $positionSlider.value = String(state.pos);
-  $invertLightnessCheckbox.checked = state.invertLightness;
+  $invertZCheckbox.checked = state.invertZ;
   $showRawCheckbox.checked = state.showRaw;
 
   vizzes.forEach((v) => {
     v.colorModel = state.colorModel;
     v.distanceMetric = state.distanceMetric;
-    v.invertLightness = state.invertLightness;
+    v.invertZ = state.invertZ;
     v.showRaw = state.showRaw;
   });
   applyPosition(state.pos);
@@ -320,7 +320,7 @@ function scheduleHashUpdate() {
 $colorModel.addEventListener('change', scheduleHashUpdate);
 $distanceMetric.addEventListener('change', scheduleHashUpdate);
 $positionSlider.addEventListener('input', scheduleHashUpdate);
-$invertLightnessCheckbox.addEventListener('change', scheduleHashUpdate);
+$invertZCheckbox.addEventListener('change', scheduleHashUpdate);
 $showRawCheckbox.addEventListener('change', scheduleHashUpdate);
 $palette.addEventListener('input', scheduleHashUpdate, true);
 $palette.addEventListener('click', (e) => {

@@ -34,6 +34,6 @@ export type PaletteVizOptions = {
   distanceMetric?: DistanceMetric;
   axis?: Axis;
   position?: number;
-  invertLightness?: boolean;
+  invertZ?: boolean;
   showRaw?: boolean;
 };

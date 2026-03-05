@@ -268,7 +268,7 @@ export class PaletteViz {
   #axis: Axis = 'y';
   #colorModel: SupportedColorModels = 'okhsv';
   #distanceMetric: DistanceMetric = 'oklab';
-  #invertLightness = false;
+  #invertZ = false;
   #showRaw = false;
 
   // uniform value maps
@@ -322,7 +322,7 @@ export class PaletteViz {
     distanceMetric = 'oklab',
     axis = 'y',
     position = 0.0,
-    invertLightness = false,
+    invertZ = false,
     showRaw = false,
   }: PaletteVizOptions = {}) {
     this.#palette = palette;
@@ -333,7 +333,7 @@ export class PaletteViz {
     this.#distanceMetric = distanceMetric;
     this.#axis = axis;
     this.#position = position;
-    this.#invertLightness = invertLightness;
+    this.#invertZ = invertZ;
     this.#showRaw = showRaw;
     this.#container = container;
 
@@ -370,7 +370,7 @@ export class PaletteViz {
       DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
       COLOR_MODEL: this.#colorModelMap[this.#colorModel],
       PROGRESS_AXIS: this.#axisMap[this.#axis],
-      INVERT_Z: this.#invertLightness ? 1 : false,
+      INVERT_Z: this.#invertZ ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
     };
   }
@@ -523,13 +523,13 @@ export class PaletteViz {
     return this.#distanceMetric;
   }
 
-  set invertLightness(value: boolean) {
-    this.#invertLightness = value;
+  set invertZ(value: boolean) {
+    this.#invertZ = value;
     this.#buildProgram();
     this.#paint();
   }
-  get invertLightness() {
-    return this.#invertLightness;
+  get invertZ() {
+    return this.#invertZ;
   }
 
   set showRaw(value: boolean) {
