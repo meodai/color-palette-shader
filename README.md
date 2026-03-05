@@ -56,19 +56,19 @@ new PaletteViz(options?: PaletteVizOptions)
 
 All options are optional. The palette defaults to a random 20-colour set.
 
-| Option           | Type                | Default            | Description                                                                               |
-| ---------------- | ------------------- | ------------------ | ----------------------------------------------------------------------------------------- |
-| `palette`        | `string[]`          | random             | CSS colour strings (`#hex`, `rgb()`, `hsl()`, …)                                          |
-| `container`      | `HTMLElement`       | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself         |
-| `width`          | `number`            | `512`              | Canvas width in CSS pixels                                                                |
-| `height`         | `number`            | `512`              | Canvas height in CSS pixels                                                               |
-| `pixelRatio`     | `number`            | `devicePixelRatio` | Renderer pixel ratio                                                                      |
-| `colorModel`     | `string`            | `'okhsv'`          | Colour space for the visualisation (see [Colour models](#colour-models))                  |
-| `distanceMetric` | `string`            | `'oklab'`          | Distance function for nearest-colour matching (see [Distance metrics](#distance-metrics)) |
-| `axis`           | `'x' \| 'y' \| 'z'` | `'y'`              | Which axis the `position` value controls                                                  |
-| `position`       | `number`            | `0`                | 0–1 position along the chosen axis                                                        |
-| `invertZ`        | `boolean`           | `false`            | Flip the lightness/value axis                                                             |
-| `showRaw`        | `boolean`           | `false`            | Bypass nearest-colour matching (shows the raw colour space)                               |
+| Option           | Type                | Default            | Description                                                                                                  |
+| ---------------- | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `palette`        | `string[]`          | random             | CSS colour strings (`#hex`, `rgb()`, `hsl()`, …)                                                             |
+| `container`      | `HTMLElement`       | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself                            |
+| `width`          | `number`            | `512`              | Canvas width in CSS pixels                                                                                   |
+| `height`         | `number`            | `512`              | Canvas height in CSS pixels                                                                                  |
+| `pixelRatio`     | `number`            | `devicePixelRatio` | Renderer pixel ratio                                                                                         |
+| `colorModel`     | `string`            | `'okhsv'`          | Colour space for the visualisation (see [Colour models](#colour-models))                                     |
+| `distanceMetric` | `string`            | `'oklab'`          | Distance function for nearest-colour matching (see [Distance metrics](#distance-metrics))                    |
+| `axis`           | `'x' \| 'y' \| 'z'` | `'y'`              | Which axis the `position` value controls                                                                     |
+| `position`       | `number`            | `0`                | 0–1 position along the chosen axis                                                                           |
+| `invertZ`        | `boolean`           | `false`            | Flip the lightness/value axis                                                                                |
+| `showRaw`        | `boolean`           | `false`            | Bypass nearest-colour matching (shows the raw colour space)                                                  |
 | `outlineWidth`   | `number`            | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead). |
 
 ---

@@ -28,10 +28,8 @@
             spellcheck="false"
             autocomplete="off"
           />
-          <div class="beam__bar">
-            <span class="beam__status" data-beam-status></span>
-            <button class="beam__connect" data-beam-connect disabled>Connect</button>
-          </div>
+          <button class="beam__connect" data-beam-connect disabled>Connect</button>
+          <span class="beam__status" data-beam-status></span>
         </div>
         <div class="sidebar__palette palette" data-palette></div>
         <div class="sidebar__tools" data-tools></div>
@@ -123,8 +121,8 @@ viz.destroy();</code></pre>
         <p>
           The <strong>outline width</strong> slider draws a transparent gap where regions meet,
           revealing whatever is behind the canvas. It uses a two-pass render: the first pass is
-          identical in cost to no outline; the second pass is a tiny edge-detection shader with
-          four texture reads per pixel — no extra color-space math.
+          identical in cost to no outline; the second pass is a tiny edge-detection shader with four
+          texture reads per pixel — no extra color-space math.
         </p>
         <p>
           The typeface is the open-source
@@ -137,11 +135,13 @@ viz.destroy();</code></pre>
       <aside class="support">
         <h2>Support</h2>
         <p>
-          If you find this project useful, please consider <a href="https://ko-fi.com/colorparrot"
-            rel="noopener" target="_blank">buying me a coffee</a>. It keeps my caffeine levels high enough to distinguish between #fafafa and #fbfbfb.
+          If you find this project useful, please consider
+          <a href="https://ko-fi.com/colorparrot" rel="noopener" target="_blank"
+            >buying me a coffee</a
+          >. It keeps my caffeine levels high enough to distinguish between #fafafa and #fbfbfb.
         </p>
         <a href="https://ko-fi.com/colorparrot" rel="noopener" target="_blank" class="kofi">
-          <img src="https://storage.ko-fi.com/cdn/brandasset/kofi_s_logo_nolabel.png" alt="Ko-fi">
+          <img src="https://storage.ko-fi.com/cdn/brandasset/kofi_s_logo_nolabel.png" alt="Ko-fi" />
         </a>
       </aside>
     </article>

@@ -256,21 +256,22 @@ input[type='checkbox']:focus {
 /* ── Token Beam receiver ────────────────────────────────────────────────── */
 
 .sidebar__beam {
+  display: flex;
+  flex-wrap: wrap;
   flex: 0 0 auto;
   border-bottom: var(--s-line) solid var(--c-surface-on);
 }
 
 .beam__token {
-  display: block;
-  width: 100%;
+  flex: 1 1 auto;
   padding: 0.6rem 0.75rem;
   border: none;
-  border-bottom: var(--s-line) solid var(--c-border);
   background: var(--c-surface);
   color: var(--c-surface-on);
   font-family: inherit;
   font-size: 0.8em;
   outline: none;
+  min-width: 0;
 }
 
 .beam__token::placeholder {
@@ -285,65 +286,13 @@ input[type='checkbox']:focus {
   opacity: 0.5;
 }
 
-.beam__bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0.3rem 0.5rem 0.3rem 0.75rem;
-  gap: 0.5rem;
-}
-
-.beam__status {
-  font-size: 0.75em;
-  color: var(--c-surface-on-alt);
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.beam__status::before {
-  content: '';
-  display: inline-block;
-  width: 0.45em;
-  height: 0.45em;
-  border-radius: 50%;
-  margin-right: 0.35em;
-  background: currentColor;
-  vertical-align: 0.05em;
-  opacity: 0;
-  transition: opacity 0.2s, background 0.2s;
-}
-
-.beam__status[data-state]::before {
-  opacity: 1;
-}
-
-.beam__status[data-state='connecting']::before {
-  background: color-mix(in lab, orange 70%, var(--c-surface-on));
-  animation: beam-blink 1s infinite;
-}
-
-.beam__status[data-state='connected']::before {
-  background: color-mix(in lab, limegreen 60%, var(--c-surface-on));
-}
-
-.beam__status[data-state='error']::before {
-  background: color-mix(in lab, tomato 60%, var(--c-surface-on));
-}
-
-@keyframes beam-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.2; }
-}
-
 .beam__connect {
   flex: 0 0 auto;
-  padding: 0.2rem 0.6rem;
-  border: var(--s-line) solid var(--c-surface-on);
+  padding: 0 0.75rem;
+  border: none;
+  border-left: var(--s-line) solid var(--c-surface-on);
   background: var(--c-surface);
-  color: var(--c-surface-on);
+  color: var(--c-surface-on-alt);
   font-family: inherit;
   font-size: 0.75em;
   cursor: pointer;
@@ -360,6 +309,19 @@ input[type='checkbox']:focus {
 .beam__connect:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+.beam__status {
+  display: none;
+  width: 100%;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75em;
+  color: color-mix(in lab, tomato 60%, var(--c-surface-on));
+  border-top: var(--s-line) solid var(--c-border);
+}
+
+.beam__status[data-state='error'] {
+  display: block;
 }
 
 /* ── Color palette list ─────────────────────────────────────────────────── */
@@ -568,9 +530,23 @@ a:hover {
 }
 
 @keyframes shakeup {
-  0%, to { transform: translateY(0) rotate(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateY(-10px) rotate(-6deg); }
-  20%, 40%, 60%, 80% { transform: translateY(-8px) rotate(10deg); }
+  0%,
+  to {
+    transform: translateY(0) rotate(0);
+  }
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateY(-10px) rotate(-6deg);
+  }
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateY(-8px) rotate(10deg);
+  }
 }
 
 .about a[href^='http']:not(:has(img))::after {

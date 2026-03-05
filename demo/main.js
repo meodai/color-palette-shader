@@ -530,10 +530,13 @@ const $beamConnect = document.querySelector('[data-beam-connect]');
 const $beamStatus = document.querySelector('[data-beam-status]');
 let beamSession = null;
 
-function beamSetStatus(text, state = null) {
-  $beamStatus.textContent = text;
-  if (state) $beamStatus.dataset.state = state;
-  else delete $beamStatus.dataset.state;
+function beamShowError(msg) {
+  $beamStatus.textContent = msg;
+  $beamStatus.dataset.state = 'error';
+}
+
+function beamClearError() {
+  delete $beamStatus.dataset.state;
 }
 
 function beamResetUI() {
@@ -544,6 +547,7 @@ function beamResetUI() {
 }
 
 $beamToken.addEventListener('input', () => {
+  beamClearError();
   $beamConnect.disabled = !$beamToken.value.trim();
 });
 
@@ -551,14 +555,14 @@ $beamConnect.addEventListener('click', () => {
   if (beamSession) {
     beamSession.disconnect();
     beamResetUI();
-    beamSetStatus('');
+    beamClearError();
     return;
   }
 
   const token = $beamToken.value.trim();
   if (!token) return;
 
-  beamSetStatus('Connecting…', 'connecting');
+  beamClearError();
   $beamToken.disabled = true;
   $beamConnect.disabled = true;
 
@@ -568,8 +572,7 @@ $beamConnect.addEventListener('click', () => {
     sessionToken: token,
   });
 
-  beamSession.on('paired', ({ origin }) => {
-    beamSetStatus(`Paired with ${origin ?? 'unknown source'}`, 'connected');
+  beamSession.on('paired', () => {
     $beamConnect.textContent = 'Disconnect';
     $beamConnect.disabled = false;
   });
@@ -584,17 +587,17 @@ $beamConnect.addEventListener('click', () => {
   });
 
   beamSession.on('error', ({ message }) => {
-    beamSetStatus(message, 'error');
+    beamShowError(message);
     beamResetUI();
   });
 
   beamSession.on('disconnected', () => {
-    beamSetStatus('Disconnected', 'error');
     beamResetUI();
+    beamClearError();
   });
 
   beamSession.connect().catch((err) => {
-    beamSetStatus(err instanceof Error ? err.message : 'Could not connect', 'error');
+    beamShowError(err instanceof Error ? err.message : 'Could not connect');
     beamResetUI();
   });
 });

@@ -438,9 +438,18 @@ export class PaletteViz {
 
   #destroyOutlineResources(): void {
     const gl = this.#gl;
-    if (this.#outlineProgram) { gl.deleteProgram(this.#outlineProgram); this.#outlineProgram = null; }
-    if (this.#fboTexture) { gl.deleteTexture(this.#fboTexture); this.#fboTexture = null; }
-    if (this.#fbo) { gl.deleteFramebuffer(this.#fbo); this.#fbo = null; }
+    if (this.#outlineProgram) {
+      gl.deleteProgram(this.#outlineProgram);
+      this.#outlineProgram = null;
+    }
+    if (this.#fboTexture) {
+      gl.deleteTexture(this.#fboTexture);
+      this.#fboTexture = null;
+    }
+    if (this.#fbo) {
+      gl.deleteFramebuffer(this.#fbo);
+      this.#fbo = null;
+    }
   }
 
   #resizeFBO(pw: number, ph: number): void {
@@ -453,7 +462,13 @@ export class PaletteViz {
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.bindTexture(gl.TEXTURE_2D, null);
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.#fboTexture, 0);
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      this.#fboTexture,
+      0,
+    );
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
@@ -489,7 +504,10 @@ export class PaletteViz {
       gl.bindVertexArray(this.#vao);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-      if (!useOutline) { gl.bindVertexArray(null); return; }
+      if (!useOutline) {
+        gl.bindVertexArray(null);
+        return;
+      }
 
       // ── Pass 2: edge-detection using FBO texture ─────────────────────────────
       gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -641,7 +659,7 @@ export class PaletteViz {
   set outlineWidth(value: number) {
     const wasEnabled = this.#outlineWidth > 0;
     this.#outlineWidth = value;
-    if ((value > 0) !== wasEnabled) {
+    if (value > 0 !== wasEnabled) {
       if (value > 0) this.#buildOutlineResources();
       else this.#destroyOutlineResources();
     }
