@@ -9,12 +9,7 @@ export default defineConfig({
       formats: ['es', 'umd'],
       fileName: (format) => (format === 'es' ? 'palette-shader.js' : 'palette-shader.umd.cjs'),
     },
-    rollupOptions: {
-      external: ['three'],
-      output: {
-        globals: { three: 'THREE' },
-      },
-    },
+    rollupOptions: {},
     sourcemap: true,
   },
   plugins: [
