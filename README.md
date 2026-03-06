@@ -1,6 +1,6 @@
 # palette-shader
 
-A dependency-free WebGL2 shader that maps any colour palette across a 3-D perceptual colour space and snaps each pixel to the nearest palette colour. Visualise how a palette distributes across more than twenty colour models — OKHsl, OKHsv, OKLab, OKLrab, OKLch, CIELab, CIELch, HSL, HSV, HWB, RGB and their D50 / polar variants — and compare results across eight distance metrics from plain RGB to CIEDE2000, all on the GPU.
+A dependency-free WebGL2 shader that maps any colour palette across a 3-D perceptual colour space and snaps each pixel to the nearest palette colour. Visualise how a palette distributes across more than twenty colour models — OKHsl, OKHsv, OKLab, OKLrab, OKLch, CIELab, CIELch, HSL, HSV, HWB, RGB and their D50 / polar variants — and compare results across eight distance metrics from plain RGB to CIEDE2000, all on the GPU. Includes both 2-D cross-section views (`PaletteViz`) and an interactive 3-D cube/cylinder view (`PaletteViz3D`) with trackball rotation.
 
 [**Live demo →**](https://meodai.github.io/color-palette-shader/)
 
@@ -321,6 +321,105 @@ const palette = randomPalette(16);
 // Access the raw GLSL fragment shader string
 console.log(fragmentShader);
 ```
+
+---
+
+## PaletteViz3D
+
+Renders the full 3-D colour space as an interactive cube (or cylinder for polar models) that you can rotate with trackball-style controls. Each surface voxel runs the same `modelToRGB` pipeline as `PaletteViz` and is snapped to the nearest palette colour.
+
+### Quick start (3D)
+
+```js
+import { PaletteViz3D } from 'palette-shader';
+
+const viz3d = new PaletteViz3D({
+  palette: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'].map(toRGB),
+  container: document.querySelector('#app'),
+  colorModel: 'okhsv',
+  position: 1.0,        // 1 = full volume, 0 = fully sliced
+  outlineWidth: 2,
+});
+```
+
+### Constructor (3D)
+
+```ts
+new PaletteViz3D(options?: PaletteViz3DOptions)
+```
+
+| Option           | Type                         | Default               | Description                                                                  |
+| ---------------- | ---------------------------- | --------------------- | ---------------------------------------------------------------------------- |
+| `palette`        | `[number, number, number][]` | random                | sRGB colours as `[r, g, b]`, each in `0–1`                                  |
+| `container`      | `HTMLElement`                | `undefined`           | Element the canvas is appended to                                            |
+| `width`          | `number`                     | `512`                 | Canvas width in CSS pixels                                                   |
+| `height`         | `number`                     | `512`                 | Canvas height in CSS pixels                                                  |
+| `pixelRatio`     | `number`                     | `devicePixelRatio`    | Renderer pixel ratio                                                         |
+| `colorModel`     | `string`                     | `'okhsv'`             | Colour model (see [Colour models](#colour-models)). Polar → cylinder mesh    |
+| `distanceMetric` | `string`                     | `'oklab'`             | Distance metric (see [Distance metrics](#distance-metrics))                  |
+| `position`       | `number`                     | `1`                   | 0–1 slice position. `1` shows the full volume; `0` slices it completely away |
+| `invertZ`        | `boolean`                    | `false`               | Flip the lightness/value axis                                                |
+| `showRaw`        | `boolean`                    | `false`               | Bypass nearest-colour matching                                               |
+| `outlineWidth`   | `number`                     | `0`                   | Transparent outline width (physical px). `0` disables                        |
+| `modelMatrix`    | `Float32Array`               | slight tilt (default) | Initial 4×4 column-major model rotation matrix                              |
+
+### Properties (3D)
+
+All constructor options except `modelMatrix` are live setter/getters (re-render on assignment), identical to `PaletteViz`.
+
+Additional properties:
+
+| Property      | Type           | Description                                                     |
+| ------------- | -------------- | --------------------------------------------------------------- |
+| `canvas`      | `HTMLCanvasElement` | The canvas (read-only)                                     |
+| `modelMatrix` | `Float32Array` | Get/set the 4×4 model rotation matrix (copies on read & write) |
+
+### Methods (3D)
+
+#### `rotate(dx, dy)`
+
+Apply an incremental trackball rotation. `dx` and `dy` are in radians (screen-space). Left-multiplies incremental X/Y rotations onto the accumulated model matrix.
+
+```js
+// wire up pointer events
+canvas.addEventListener('pointermove', (e) => {
+  if (e.buttons) viz3d.rotate(e.movementX * 0.01, e.movementY * 0.01);
+});
+```
+
+#### `resize(width, height?)`
+
+Same as `PaletteViz`.
+
+#### `destroy()`
+
+Release all WebGL resources and remove the canvas.
+
+### Matrix helpers
+
+The library exports lightweight 4×4 column-major matrix functions so you can build custom orbit / trackball controls without a math library:
+
+```js
+import {
+  mat4Perspective,
+  mat4Multiply,
+  mat4RotateX,
+  mat4RotateY,
+  mat4Translate,
+} from 'palette-shader';
+
+// compose a custom model matrix and apply it
+const model = mat4Multiply(mat4RotateX(0.4), mat4RotateY(0.6));
+viz3d.modelMatrix = model;
+```
+
+| Function         | Signature                                              | Description                           |
+| ---------------- | ------------------------------------------------------ | ------------------------------------- |
+| `mat4Perspective`| `(fov, aspect, near, far) → Float32Array`              | Perspective projection matrix         |
+| `mat4Multiply`   | `(a, b) → Float32Array`                                | Matrix multiplication `a × b`         |
+| `mat4RotateX`    | `(angle) → Float32Array`                               | Rotation around X axis (radians)      |
+| `mat4RotateY`    | `(angle) → Float32Array`                               | Rotation around Y axis (radians)      |
+| `mat4Translate`  | `(x, y, z) → Float32Array`                             | Translation matrix                    |
 
 ---
 
