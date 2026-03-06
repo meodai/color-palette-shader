@@ -690,6 +690,7 @@ $beamConnect.addEventListener('click', () => {
     if (hexColors.length >= 1) {
       palette = hexColors;
       vizzes.forEach((v) => (v.palette = toVizPalette(palette)));
+      sync3DPalette();
       createDomFromPalette(palette);
       scheduleHashUpdate();
     }
