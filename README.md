@@ -1,6 +1,6 @@
 # palette-shader
 
-A dependency-free WebGL2 shader that maps any colour palette across a 3-D perceptual colour space and snaps each pixel to the nearest palette colour. Visualise how a palette distributes across more than twenty colour models — OKHsl, OKHsv, OKLab, OKLrab, OKLch, CIELab, CIELch, HSL, HSV, HWB, RGB and their D50 / polar variants — and compare results across eight distance metrics from plain RGB to CIEDE2000, all on the GPU. Includes both 2-D cross-section views (`PaletteViz`) and an interactive 3-D cube/cylinder view (`PaletteViz3D`) with trackball rotation.
+A dependency-free WebGL2 shader that maps any color palette across a 3-D perceptual color space and snaps each pixel to the nearest palette color. Visualize how a palette distributes across 20+ color models and eight distance metrics, all on the GPU. Includes 2-D cross-section views (`PaletteViz`) and an interactive 3-D cube/cylinder view (`PaletteViz3D`) with trackball rotation.
 
 [**Live demo →**](https://meodai.github.io/color-palette-shader/)
 
@@ -58,21 +58,21 @@ document.querySelector('#app').appendChild(viz.canvas);
 new PaletteViz(options?: PaletteVizOptions)
 ```
 
-All options are optional. The palette defaults to a random 20-colour set.
+All options are optional. The palette defaults to a random 20-color set.
 
 | Option           | Type                | Default            | Description                                                                                                  |
 | ---------------- | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `palette`        | `[number, number, number][]` | random   | sRGB colours as `[r, g, b]` arrays, each component in the `0–1` range                                       |
+| `palette`        | `[number, number, number][]` | random   | sRGB colors as `[r, g, b]` arrays, each component in the `0–1` range                                        |
 | `container`      | `HTMLElement`       | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself                            |
 | `width`          | `number`            | `512`              | Canvas width in CSS pixels                                                                                   |
 | `height`         | `number`            | `512`              | Canvas height in CSS pixels                                                                                  |
 | `pixelRatio`     | `number`            | `devicePixelRatio` | Renderer pixel ratio                                                                                         |
-| `colorModel`     | `string`            | `'okhsv'`          | Colour space for the visualisation (see [Colour models](#colour-models))                                     |
-| `distanceMetric` | `string`            | `'oklab'`          | Distance function for nearest-colour matching (see [Distance metrics](#distance-metrics))                    |
+| `colorModel`     | `string`            | `'okhsv'`          | Color space for the visualization (see [Color models](#color-models))                                        |
+| `distanceMetric` | `string`            | `'oklab'`          | Distance function for nearest-color matching (see [Distance metrics](#distance-metrics))                     |
 | `axis`           | `'x' \| 'y' \| 'z'` | `'y'`              | Which axis the `position` value controls                                                                     |
 | `position`       | `number`            | `0`                | 0–1 position along the chosen axis                                                                           |
 | `invertZ`        | `boolean`           | `false`            | Flip the lightness/value axis                                                                                |
-| `showRaw`        | `boolean`           | `false`            | Bypass nearest-colour matching (shows the raw colour space)                                                  |
+| `showRaw`        | `boolean`           | `false`            | Bypass nearest-color matching (shows the raw color space)                                                    |
 | `outlineWidth`   | `number`            | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead). |
 
 ---
@@ -122,7 +122,7 @@ viz.setColor([0.902, 0.224, 0.275], 2);
 
 ### `addColor(color, index?)`
 
-Insert a colour at `index` (appends if omitted).
+Insert a color at `index` (appends if omitted).
 
 ```js
 viz.addColor([0.659, 0.855, 0.863]); // append
@@ -131,7 +131,7 @@ viz.addColor([0.271, 0.482, 0.616], 0); // prepend
 
 ### `removeColor(index | color)`
 
-Remove a palette entry by index or by colour value.
+Remove a palette entry by index or by color value.
 
 ```js
 viz.removeColor(0);
@@ -152,9 +152,9 @@ const color = viz.getColorAtUV(0.5, 0.5); // center
 
 ---
 
-## Colour models
+## Color models
 
-Controls the 3-D colour space the visualisation is rendered in. Polar variants (`*Polar`) map hue to angle and show a circular wheel; non-polar variants show a rectangular slice.
+Controls the 3-D color space the visualization is rendered in. Polar variants (`*Polar`) map hue to angle and show a circular wheel; non-polar variants show a rectangular slice.
 
 **OK — hue-based**
 
@@ -180,7 +180,7 @@ Controls the 3-D colour space the visualisation is rendered in. Polar variants (
 
 | Value           | Shape | Description                                                     |
 | --------------- | ----- | --------------------------------------------------------------- |
-| `'cielab'`      | cube  | CIELab D65: x→a, y→b, z→L. The classic perceptual colour space. |
+| `'cielab'`      | cube  | CIELab D65: x→a, y→b, z→L. The classic perceptual color space.  |
 | `'cielch'`      | cube  | CIELab D65 in cylindrical LCH coordinates.                      |
 | `'cielchPolar'` | wheel | Polar form of CIELch D65.                                       |
 
@@ -208,11 +208,11 @@ The OK-variants rely on Björn Ottosson's gamut-aware implementation and produce
 
 ### Cube vs. polar — which to use?
 
-Both shapes render the same underlying colour space; they just arrange it differently on screen.
+Both shapes render the same underlying color space; they just arrange it differently on screen.
 
-**Cube (rectangular slice)** lays the three axes out as a flat grid. One axis is fixed by the `position` slider, the other two fill the canvas. This makes it easy to read absolute values — you can see exactly where on the hue, saturation and lightness axes each palette colour falls, and compare palettes side-by-side without any projection distortion.
+**Cube (rectangular slice)** lays the three axes out as a flat grid. One axis is fixed by the `position` slider, the other two fill the canvas. This makes it easy to read absolute values — you can see exactly where on the hue, saturation and lightness axes each palette color falls, and compare palettes side-by-side without any projection distortion.
 
-**Polar (wheel)** wraps the hue axis around a circle. Hue runs around the circumference, saturation (or chroma) runs outward from the centre, and the third axis is controlled by `position`. This matches the intuition most designers have for colour — it's immediately obvious whether two colours are complementary, analogous or triadic. Voronoi regions that are nearly circular indicate a well-balanced palette; lopsided regions reveal hue bias.
+**Polar (wheel)** wraps the hue axis around a circle. Hue runs around the circumference, saturation (or chroma) runs outward from the center, and the third axis is controlled by `position`. This matches the intuition most designers have for color — it's immediately obvious whether two colors are complementary, analogous or triadic. Voronoi regions that are nearly circular indicate a well-balanced palette; lopsided regions reveal hue bias.
 
 A practical starting point: use a **polar** model to get an intuitive read on hue distribution and harmony, then switch to a **cube** slice to inspect individual lightness or saturation bands in detail. `rgb` and `oklab` have no polar variant because they aren't hue-based cylindrical spaces.
 
@@ -326,7 +326,7 @@ console.log(fragmentShader);
 
 ## PaletteViz3D
 
-Renders the full 3-D colour space as an interactive cube (or cylinder for polar models) that you can rotate with trackball-style controls. Each surface voxel runs the same `modelToRGB` pipeline as `PaletteViz` and is snapped to the nearest palette colour.
+Renders the full 3-D color space as an interactive cube (or cylinder for polar models) that you can rotate with trackball-style controls. Each surface voxel runs the same `modelToRGB` pipeline as `PaletteViz` and is snapped to the nearest palette color.
 
 ### Quick start (3D)
 
@@ -350,16 +350,16 @@ new PaletteViz3D(options?: PaletteViz3DOptions)
 
 | Option           | Type                         | Default               | Description                                                                  |
 | ---------------- | ---------------------------- | --------------------- | ---------------------------------------------------------------------------- |
-| `palette`        | `[number, number, number][]` | random                | sRGB colours as `[r, g, b]`, each in `0–1`                                  |
+| `palette`        | `[number, number, number][]` | random                | sRGB colors as `[r, g, b]`, each in `0–1`                                   |
 | `container`      | `HTMLElement`                | `undefined`           | Element the canvas is appended to                                            |
 | `width`          | `number`                     | `512`                 | Canvas width in CSS pixels                                                   |
 | `height`         | `number`                     | `512`                 | Canvas height in CSS pixels                                                  |
 | `pixelRatio`     | `number`                     | `devicePixelRatio`    | Renderer pixel ratio                                                         |
-| `colorModel`     | `string`                     | `'okhsv'`             | Colour model (see [Colour models](#colour-models)). Polar → cylinder mesh    |
+| `colorModel`     | `string`                     | `'okhsv'`             | Color model (see [Color models](#color-models)). Polar → cylinder mesh       |
 | `distanceMetric` | `string`                     | `'oklab'`             | Distance metric (see [Distance metrics](#distance-metrics))                  |
 | `position`       | `number`                     | `1`                   | 0–1 slice position. `1` shows the full volume; `0` slices it completely away |
 | `invertZ`        | `boolean`                    | `false`               | Flip the lightness/value axis                                                |
-| `showRaw`        | `boolean`                    | `false`               | Bypass nearest-colour matching                                               |
+| `showRaw`        | `boolean`                    | `false`               | Bypass nearest-color matching                                                |
 | `outlineWidth`   | `number`                     | `0`                   | Transparent outline width (physical px). `0` disables                        |
 | `modelMatrix`    | `Float32Array`               | slight tilt (default) | Initial 4×4 column-major model rotation matrix                              |
 

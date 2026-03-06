@@ -283,7 +283,7 @@ uniform float uPosition;
 
 void main() {
   vec3 cc = a_colorCoord;
-  cc.z = max(cc.z, 1.0 - uPosition);
+  cc.z = min(cc.z, uPosition);
   vec3 pos = a_position;
   pos.y = cc.z - 0.5;
   vColorCoord = cc;
