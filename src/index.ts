@@ -366,6 +366,7 @@ function uploadPaletteTexture(
   tex: WebGLTexture,
   palette: ColorList,
 ): void {
+  if (palette.length === 0) throw new Error('Palette must contain at least one color');
   gl.bindTexture(gl.TEXTURE_2D, tex);
   gl.texImage2D(
     gl.TEXTURE_2D,
@@ -682,6 +683,7 @@ export class PaletteViz {
   // ── Palette ─────────────────────────────────────────────────────────────────
 
   set palette(palette: ColorList) {
+    if (palette.length === 0) throw new Error('Palette must contain at least one color');
     this.#palette = palette;
     uploadPaletteTexture(this.#gl, this.#texture!, palette);
     this.#paint();
@@ -715,6 +717,7 @@ export class PaletteViz {
           );
     if (index === -1) throw new Error('Color not found in palette');
     if (index < 0 || index >= this.#palette.length) throw new Error(`Index ${index} out of range`);
+    if (this.#palette.length === 1) throw new Error('Palette must contain at least one color');
     this.#palette.splice(index, 1);
     uploadPaletteTexture(this.#gl, this.#texture!, this.#palette);
     this.#paint();
