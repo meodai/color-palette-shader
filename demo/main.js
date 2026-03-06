@@ -1,6 +1,14 @@
 import './style.css';
 import { PaletteViz } from 'palette-shader';
 import { TargetSession, extractColorTokens } from 'token-beam';
+import { converter } from 'culori';
+
+const toSRGB = converter('rgb');
+const hexToRGB = (hex) => {
+  const c = toSRGB(hex);
+  return [c.r, c.g, c.b];
+};
+const toVizPalette = (p) => p.map(hexToRGB);
 
 const randomColor = () =>
   `#${Math.floor(Math.random() * 0xffffff)
@@ -188,7 +196,7 @@ const palettes = [
   ],
 ];
 
-const palette = palettes[Math.floor(Math.random() * palettes.length)];
+let palette = palettes[Math.floor(Math.random() * palettes.length)];
 
 function vizSize() {
   const portrait = window.matchMedia('(orientation: portrait)').matches;
@@ -200,7 +208,7 @@ function vizSize() {
 }
 
 const sharedOptions = {
-  palette,
+  palette: toVizPalette(palette),
   width: vizSize(),
   height: vizSize(),
   container: $app,
@@ -405,11 +413,11 @@ function createDomFromPalette(palette) {
   $addButton.classList.add('palette__add');
   $addButton.addEventListener('click', () => {
     const color = randomColor();
-    viz.addColor(color);
+    palette.push(color);
     vizzes.forEach((v) => {
-      v.palette = viz.palette;
+      v.palette = toVizPalette(palette);
     });
-    createDomFromPalette(viz.palette);
+    createDomFromPalette(palette);
     scheduleHashUpdate();
   });
   $palette.appendChild($addButton);
@@ -423,8 +431,9 @@ $palette.addEventListener(
       const index = parseInt($target.parentElement.dataset.index);
       $target.parentElement.style.setProperty('--color', $target.value);
       $target.parentElement.dataset.color = $target.value;
+      palette[index] = $target.value;
       vizzes.forEach((v) => {
-        v.setColor($target.value, index);
+        v.setColor(hexToRGB($target.value), index);
       });
     }
   },
@@ -433,11 +442,12 @@ $palette.addEventListener(
 
 $palette.addEventListener('click', (e) => {
   if (e.target.classList.contains('color-picker__remove')) {
-    viz.removeColor(e.target.parentElement.dataset.color);
-    createDomFromPalette(viz.palette);
+    const index = parseInt(e.target.parentElement.dataset.index);
+    palette.splice(index, 1);
     vizzes.forEach((v) => {
-      v.palette = viz.palette;
+      v.palette = toVizPalette(palette);
     });
+    createDomFromPalette(palette);
   }
 });
 
@@ -450,10 +460,11 @@ $palettePaste.addEventListener('input', () => {
     .map((s) => s.trim().replace(/^#?/, '#'))
     .filter((s) => /^#([0-9a-f]{3}){1,2}$/i.test(s));
   if (colors.length < 2) return;
+  palette = colors;
   vizzes.forEach((v) => {
-    v.palette = colors;
+    v.palette = toVizPalette(palette);
   });
-  createDomFromPalette(colors);
+  createDomFromPalette(palette);
 });
 
 createDomFromPalette(palette);
@@ -510,10 +521,11 @@ function getSettings() {
 
 function applyState(state) {
   // palette
+  palette = state.colors;
   vizzes.forEach((v) => {
-    v.palette = state.colors;
+    v.palette = toVizPalette(palette);
   });
-  createDomFromPalette(state.colors);
+  createDomFromPalette(palette);
 
   // controls
   $colorModel.value = state.colorModel;
@@ -538,7 +550,7 @@ let _hashTimer = null;
 function scheduleHashUpdate() {
   clearTimeout(_hashTimer);
   _hashTimer = setTimeout(() => {
-    const hash = encodeHash(viz.palette, getSettings());
+    const hash = encodeHash(palette, getSettings());
     history.replaceState(null, '', hash);
   }, 400);
 }
@@ -613,8 +625,9 @@ $beamConnect.addEventListener('click', () => {
   beamSession.on('sync', ({ payload }) => {
     const hexColors = [...new Set(extractColorTokens(payload).map((e) => e.hex))];
     if (hexColors.length >= 1) {
-      vizzes.forEach((v) => (v.palette = hexColors));
-      createDomFromPalette(hexColors);
+      palette = hexColors;
+      vizzes.forEach((v) => (v.palette = toVizPalette(palette)));
+      createDomFromPalette(palette);
       scheduleHashUpdate();
     }
   });

@@ -12,6 +12,7 @@
     "vite": "^7.0.0"
   },
   "dependencies": {
+    "culori": "^4.0.2",
     "token-beam": "^1.9.0"
   }
 }

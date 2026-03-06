@@ -1,5 +1,5 @@
 import {
-  ColorString,
+  ColorRGB,
   ColorList,
   PaletteVizOptions,
   SupportedColorModels,
@@ -203,33 +203,6 @@ void main() {
   fragColor = center;
 }`;
 
-// ── Color parsing ──────────────────────────────────────────────────────────────
-// Use a canvas 2D context as a free CSS color parser — handles hex, rgb(),
-// hsl(), named colors, etc. Lazy-initialised to avoid issues at module load time.
-
-let _colorCtx: CanvasRenderingContext2D | null = null;
-
-function cssToSRGB(color: string): [number, number, number] {
-  if (!_colorCtx) {
-    const c = document.createElement('canvas');
-    c.width = c.height = 1;
-    _colorCtx = c.getContext('2d')!;
-  }
-  _colorCtx.fillStyle = '#000000'; // reset before setting
-  _colorCtx.fillStyle = color;
-  const v = _colorCtx.fillStyle; // browser normalises to '#rrggbb' or 'rgba(...)'
-  if (v[0] === '#') {
-    return [
-      parseInt(v.slice(1, 3), 16) / 255,
-      parseInt(v.slice(3, 5), 16) / 255,
-      parseInt(v.slice(5, 7), 16) / 255,
-    ];
-  }
-  // rgba(r, g, b, a) fallback
-  const m = v.match(/[\d.]+/g)!;
-  return [+m[0] / 255, +m[1] / 255, +m[2] / 255];
-}
-
 // ── Palette helpers ────────────────────────────────────────────────────────────
 
 // Returns the palette as a flat RGBA Uint8Array (sRGB, 1×N texture row).
@@ -237,15 +210,10 @@ function cssToSRGB(color: string): [number, number, number] {
 export const paletteToRGBA = (palette: ColorList): Uint8Array => {
   const data = new Uint8Array(palette.length * 4);
   palette.forEach((color, i) => {
-    try {
-      const [r, g, b] = cssToSRGB(color);
-      data[i * 4 + 0] = Math.round(r * 255);
-      data[i * 4 + 1] = Math.round(g * 255);
-      data[i * 4 + 2] = Math.round(b * 255);
-      data[i * 4 + 3] = 255;
-    } catch {
-      console.error(`Invalid color: ${color}`);
-    }
+    data[i * 4 + 0] = Math.round(color[0] * 255);
+    data[i * 4 + 1] = Math.round(color[1] * 255);
+    data[i * 4 + 2] = Math.round(color[2] * 255);
+    data[i * 4 + 3] = 255;
   });
   return data;
 };
@@ -254,11 +222,7 @@ export const paletteToRGBA = (palette: ColorList): Uint8Array => {
 export const paletteToTexture = paletteToRGBA;
 
 export const randomPalette = (size = 20): ColorList =>
-  Array.from(
-    { length: size },
-    () =>
-      `rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)})`,
-  );
+  Array.from({ length: size }, () => [Math.random(), Math.random(), Math.random()] as ColorRGB);
 
 // ── WebGL helpers ──────────────────────────────────────────────────────────────
 
@@ -631,24 +595,29 @@ export class PaletteViz {
     return this.#palette;
   }
 
-  setColor(color: ColorString, index: number): void {
+  setColor(color: ColorRGB, index: number): void {
     if (index < 0 || index >= this.#palette.length) throw new Error(`Index ${index} out of range`);
     this.#palette[index] = color;
     uploadPaletteTexture(this.#gl, this.#texture!, this.#palette);
     this.#paint();
   }
 
-  addColor(color: ColorString, index?: number): void {
+  addColor(color: ColorRGB, index?: number): void {
     this.#palette.splice(index ?? this.#palette.length, 0, color);
     uploadPaletteTexture(this.#gl, this.#texture!, this.#palette);
     this.#paint();
   }
 
   removeColor(index: number): void;
-  removeColor(color: ColorString): void;
-  removeColor(indexOrColor: number | ColorString): void {
+  removeColor(color: ColorRGB): void;
+  removeColor(indexOrColor: number | ColorRGB): void {
     const index =
-      typeof indexOrColor === 'number' ? indexOrColor : this.#palette.indexOf(indexOrColor);
+      typeof indexOrColor === 'number'
+        ? indexOrColor
+        : this.#palette.findIndex(
+            (c) =>
+              c[0] === indexOrColor[0] && c[1] === indexOrColor[1] && c[2] === indexOrColor[2],
+          );
     if (index === -1) throw new Error('Color not found in palette');
     if (index < 0 || index >= this.#palette.length) throw new Error(`Index ${index} out of range`);
     this.#palette.splice(index, 1);

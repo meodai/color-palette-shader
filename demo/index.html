@@ -86,10 +86,15 @@
         <figure>
           <figcaption>Minimal example — pass a container or append the canvas yourself.</figcaption>
           <pre class="code"><code>import { PaletteViz } from 'palette-shader';
+import { converter } from 'culori';
+
+// colors must be [r, g, b] arrays with values in 0–1 (sRGB)
+const toRGB = converter('rgb');
+const c = (hex) => { const { r, g, b } = toRGB(hex); return [r, g, b]; };
 
 // option A: pass a container, canvas is appended automatically
 const viz = new PaletteViz({
-  palette: ['#f2f0e5', '#4b80ca', '#b45252', '#a2dcc7'],
+  palette: ['#f2f0e5', '#4b80ca', '#b45252', '#a2dcc7'].map(c),
   container: document.querySelector('#app'),
   colorModel: 'okhslPolar', // 'okhslPolar' | 'oklchPolar' | 'cielchPolar' | 'okhsl' | …
   distanceMetric: 'oklab',  // 'oklab' | 'oklrab' | 'deltaE2000' | 'cielabD50' | …
@@ -104,7 +109,7 @@ const viz = new PaletteViz({ palette });
 document.querySelector('#app').appendChild(viz.canvas);
 
 // update live
-viz.palette = ['#ff0000', '#00ff00', '#0000ff'];
+viz.palette = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 viz.position = 0.3;
 viz.outlineWidth = 2; // change at any time — no recompile while value stays > 0
 
@@ -116,7 +121,7 @@ viz.destroy();</code></pre>
       <aside>
         <h2>Notes</h2>
         <p>
-          No runtime dependencies — uses raw WebGL 2 and the browser's native CSS color parser.
+          No runtime dependencies — uses raw WebGL 2. Colors are passed as <code>[r, g, b]</code> arrays (0–1 sRGB); use <a href="https://culorijs.org/" target="_blank" rel="noopener noreferrer">culori</a> or any color library to convert from CSS strings.
           Color models and distance metrics are orthogonal — the model controls how the color space
           is rendered, the metric controls which palette color each pixel snaps to.
         </p>

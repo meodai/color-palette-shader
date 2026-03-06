@@ -1,5 +1,5 @@
-export type ColorString = string;
-export type ColorList = ColorString[];
+export type ColorRGB = [number, number, number];
+export type ColorList = ColorRGB[];
 
 export type SupportedColorModels =
   | 'rgb'

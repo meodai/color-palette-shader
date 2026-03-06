@@ -24,7 +24,7 @@ So if one of your palette colors only claims a tiny sliver, it lives very close 
 npm install palette-shader
 ```
 
-No dependencies — only a browser with WebGL support is required.
+No runtime dependencies — only a browser with WebGL2 support is required. Colors must be passed as `[r, g, b]` arrays with values in the `0–1` range (linear sRGB). Use a library such as [culori](https://culorijs.org/) to convert from CSS strings if needed.
 
 ---
 
@@ -32,17 +32,21 @@ No dependencies — only a browser with WebGL support is required.
 
 ```js
 import { PaletteViz } from 'palette-shader';
+import { converter } from 'culori';
+
+const toSRGB = converter('srgb');
+const toRGB = (hex) => { const c = toSRGB(hex); return [c.r, c.g, c.b]; };
 
 // option A — pass a container, canvas is appended automatically
 const viz = new PaletteViz({
-  palette: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'],
+  palette: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'].map(toRGB),
   container: document.querySelector('#app'),
   width: 512,
   height: 512,
 });
 
 // option B — no container, place the canvas yourself
-const viz = new PaletteViz({ palette: ['#264653', '#2a9d8f', '#e9c46a'] });
+const viz = new PaletteViz({ palette: ['#264653', '#2a9d8f', '#e9c46a'].map(toRGB) });
 document.querySelector('#app').appendChild(viz.canvas);
 ```
 
@@ -58,7 +62,7 @@ All options are optional. The palette defaults to a random 20-colour set.
 
 | Option           | Type                | Default            | Description                                                                                                  |
 | ---------------- | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `palette`        | `string[]`          | random             | CSS colour strings (`#hex`, `rgb()`, `hsl()`, …)                                                             |
+| `palette`        | `[number, number, number][]` | random   | sRGB colours as `[r, g, b]` arrays, each component in the `0–1` range                                       |
 | `container`      | `HTMLElement`       | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself                            |
 | `width`          | `number`            | `512`              | Canvas width in CSS pixels                                                                                   |
 | `height`         | `number`            | `512`              | Canvas height in CSS pixels                                                                                  |
@@ -78,7 +82,7 @@ All options are optional. The palette defaults to a random 20-colour set.
 Every constructor option is also a live setter/getter. Assigning any of them re-renders immediately via `requestAnimationFrame`.
 
 ```js
-viz.palette = ['#ff0000', '#00ff00', '#0000ff'];
+viz.palette = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 viz.position = 0.5;
 viz.colorModel = 'okhslPolar';
 viz.distanceMetric = 'deltaE2000';
@@ -112,7 +116,7 @@ window.addEventListener('resize', () => viz.resize(window.innerWidth * 0.5));
 Update a single palette entry without rebuilding the whole texture.
 
 ```js
-viz.setColor('#e63946', 2);
+viz.setColor([0.902, 0.224, 0.275], 2);
 ```
 
 ### `addColor(color, index?)`
@@ -120,17 +124,17 @@ viz.setColor('#e63946', 2);
 Insert a colour at `index` (appends if omitted).
 
 ```js
-viz.addColor('#a8dadc'); // append
-viz.addColor('#457b9d', 0); // prepend
+viz.addColor([0.659, 0.855, 0.863]); // append
+viz.addColor([0.271, 0.482, 0.616], 0); // prepend
 ```
 
 ### `removeColor(index | color)`
 
-Remove a palette entry by index or by colour string.
+Remove a palette entry by index or by colour value.
 
 ```js
 viz.removeColor(0);
-viz.removeColor('#a8dadc');
+viz.removeColor([0.659, 0.855, 0.863]);
 ```
 
 ### `destroy()`
@@ -255,7 +259,7 @@ viz.canvas.style.borderRadius = '50%';
 ### Multiple synchronised views
 
 ```js
-const palette = ['#264653', '#2a9d8f', '#e9c46a'];
+const palette = ['#264653', '#2a9d8f', '#e9c46a'].map(toRGB);
 const shared = { palette, width: 256, height: 256, container: document.querySelector('#views') };
 
 const views = [
@@ -277,7 +281,7 @@ document.querySelector('#slider').addEventListener('input', (e) => {
 
 ```js
 const viz = new PaletteViz({
-  palette,
+  palette: ['#264653', '#2a9d8f', '#e9c46a'].map(toRGB),
   outlineWidth: 2,
   container: document.querySelector('#app'),
 });
@@ -300,7 +304,7 @@ import { paletteToRGBA, randomPalette, fragmentShader } from 'palette-shader';
 
 // Get raw RGBA bytes (Uint8Array, sRGB, 4 bytes per color)
 // Useful for building your own WebGL texture or processing palette data
-const rgba = paletteToRGBA(['#ff0000', '#00ff00', '#0000ff']);
+const rgba = paletteToRGBA([[1, 0, 0], [0, 1, 0], [0, 0, 1]]);
 
 // Quick random palette for prototyping
 const palette = randomPalette(16);
