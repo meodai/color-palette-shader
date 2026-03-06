@@ -89,6 +89,7 @@ viz.distanceMetric = 'deltaE2000';
 viz.invertZ = true;
 viz.showRaw = true;
 viz.outlineWidth = 2; // transparent border between regions, in physical pixels
+viz.pixelRatio = window.devicePixelRatio; // update after display changes
 ```
 
 Additional read-only properties:
@@ -317,7 +318,7 @@ console.log(fragmentShader);
 
 ## Dependencies
 
-None. The library uses raw WebGL 2 and the browser's native CSS color parser. No runtime dependencies.
+None. The library uses raw WebGL 2 with no runtime dependencies. Colors are accepted as `[r, g, b]` arrays (0–1 sRGB) — no CSS parsing happens at runtime.
 
 ## Browser support
 

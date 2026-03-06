@@ -27,8 +27,8 @@ import shaderDeltaE from './shaders/deltaE.frag.glsl?raw' assert { type: 'raw' }
 import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { type: 'raw' };
 
 // Include order matters:
-//   srgb2rgb     – srgb2rgb()
-//   oklab        – M_PI, cbrt(), srgb_transfer_function(), okhsv/okhsl_to_srgb(), …
+//   oklab        – M_PI, cbrt(), srgb_transfer_function(), srgb_transfer_function_inv(), okhsv/okhsl_to_srgb(), …
+//   srgb2rgb     – srgb2rgb() wraps srgb_transfer_function_inv from oklab
 //   hsl2rgb, hsv2rgb, lch2rgb – color model conversions (lch2rgb uses M_PI + srgb_transfer_function)
 //   deltaE       – srgb_to_cielab(), deltaE76/94/2000() (uses srgb2rgb, cbrt, M_PI, TWO_PI)
 //   closestColor – branches on DISTANCE_METRIC define; uses everything above
@@ -53,33 +53,8 @@ void main() {
   gl_Position = vec4(a_position, 0.0, 1.0);
 }`;
 
-// fragmentShader is exported so users can inspect or reuse the GLSL source.
-// Defines are NOT embedded here — they are prepended at compile time via buildProgram().
-// Note: #version 300 es is prepended by buildProgram() (must be first line,
-// before defines). Do not add it here.
-export const fragmentShader = `
-precision highp float;
-#define TWO_PI 6.28318530718
-in vec2 vUv;
-out vec4 fragColor;
-uniform float progress;
-uniform sampler2D paletteTexture;
-
-${shaderSRGB2RGB}
-${shaderOKLab}
-${shaderHSL2RGB}
-${shaderHSV2RGB}
-${shaderLCH2RGB}
-${shaderHWB2RGB}
-${shaderCIELab2RGB}
-${shaderDeltaE}
-${shaderClosestColor}
-
-// COLOR_MODEL: 0=rgb, 1=oklab, 2=okhsv, 3=okhsvPolar, 4=okhsl, 5=okhslPolar,
-//              6=oklch, 7=oklchPolar, 8=hsv, 9=hsvPolar, 10=hsl, 11=hslPolar,
-//              12=hwb, 13=hwbPolar, 14=oklrab, 15=oklrch, 16=oklrchPolar,
-//              17=cielab, 18=cielch, 19=cielchPolar,
-//              20=cielabD50, 21=cielchD50, 22=cielchD50Polar
+// modelToRGB and main are separated so the selective assembler can reuse them.
+const modelToRGBSrc = `
 vec3 modelToRGB(vec3 colorCoords) {
   #if COLOR_MODEL == 0
     return colorCoords;
@@ -115,7 +90,9 @@ vec3 modelToRGB(vec3 colorCoords) {
     return colorCoords;
   #endif
 }
+`;
 
+const mainSrc = `
 void main(){
   #if PROGRESS_AXIS == 1
     vec3 colorCoords = vec3(vUv.x, progress, vUv.y);
@@ -141,20 +118,16 @@ void main(){
       colorCoords = vec3(hue, abs(0.5 - vUv.x) * 2.0, vUv.y);
     #endif
   #elif COLOR_MODEL == 13
-    // hwbPolar: hue = angle, slider = blackness (0=vivid, 1=dark)
     vec2 toCenter = vUv - 0.5;
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
 
     #if PROGRESS_AXIS == 2
-      // top/bottom cap: full square, white at centre, hue at edge
       colorCoords = vec3(angle / TWO_PI, 1.0 - radius, progress);
     #elif PROGRESS_AXIS == 1
-      // disc: clip to circle, hue at centre, white at edge
       if (radius > 1.0) { discard; }
       colorCoords = vec3(angle / TWO_PI, radius, progress);
     #else
-      // side view: cylinder unrolled — white at centre column, hues at edges
       float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
       if (vUv.x > 0.5) { hue += 0.5; }
       colorCoords = vec3(hue, 1.0 - abs(0.5 - vUv.x) * 2.0, vUv.y);
@@ -173,6 +146,114 @@ void main(){
     fragColor = vec4(closestColor(rgb, paletteTexture), 1.);
   #endif
 }`;
+
+// Full fragment shader source with all includes — exported for users who want
+// to inspect or reuse the complete GLSL source.
+export const fragmentShader = `
+precision highp float;
+#define TWO_PI 6.28318530718
+in vec2 vUv;
+out vec4 fragColor;
+uniform float progress;
+uniform sampler2D paletteTexture;
+
+${shaderOKLab}
+${shaderSRGB2RGB}
+${shaderHSL2RGB}
+${shaderHSV2RGB}
+${shaderLCH2RGB}
+${shaderHWB2RGB}
+${shaderCIELab2RGB}
+${shaderDeltaE}
+${shaderClosestColor}
+` + modelToRGBSrc + mainSrc;
+
+// ── Selective shader assembly ────────────────────────────────────────────────
+// Instead of compiling ALL shader includes every time, pick only the chunks
+// needed for the current colorModel + distanceMetric. This dramatically
+// reduces compiled shader size and speeds up recompiles.
+
+type ShaderNeeds = {
+  oklab: boolean;
+  srgb2rgb: boolean;
+  hsl2rgb: boolean;
+  hsv2rgb: boolean;
+  lch2rgb: boolean;
+  hwb2rgb: boolean;
+  cielab2rgb: boolean;
+  deltaE: boolean;
+  closestColor: boolean;
+};
+
+function shaderNeedsForModel(model: number): Partial<ShaderNeeds> {
+  switch (model) {
+    case 0: return {};                                             // rgb
+    case 1: case 14: return { oklab: true };                       // oklab, oklrab
+    case 2: case 3: return { oklab: true };                        // okhsv, okhsvPolar
+    case 4: case 5: return { oklab: true };                        // okhsl, okhslPolar
+    case 6: case 7: case 15: case 16: return { oklab: true, lch2rgb: true }; // oklch/oklrch + polar
+    case 8: case 9: return { hsv2rgb: true };                      // hsv, hsvPolar
+    case 10: case 11: return { hsl2rgb: true };                    // hsl, hslPolar
+    case 12: case 13: return { hwb2rgb: true };                    // hwb, hwbPolar
+    case 17: case 18: case 19:                                     // cielab, cielch, cielchPolar
+      return { oklab: true, srgb2rgb: true, cielab2rgb: true };
+    case 20: case 21: case 22:                                     // cielabD50, cielchD50, cielchD50Polar
+      return { oklab: true, srgb2rgb: true, cielab2rgb: true };
+    default: return {};
+  }
+}
+
+function shaderNeedsForMetric(metric: number): Partial<ShaderNeeds> {
+  switch (metric) {
+    case 0: return {};                                                           // rgb
+    case 1: case 6: return { oklab: true, srgb2rgb: true };                      // oklab, oklrab
+    case 2: case 3: case 5:                                                      // deltaE76, deltaE2000, deltaE94
+      return { oklab: true, srgb2rgb: true, cielab2rgb: true, deltaE: true };
+    case 4: return { deltaE: true };                                             // kotsarenkoRamos
+    case 7: return { oklab: true, srgb2rgb: true, cielab2rgb: true };            // cielabD50
+    default: return {};
+  }
+}
+
+function assembleFragShader(colorModel: number, distanceMetric: number, showRaw: boolean): string {
+  const modelNeeds = shaderNeedsForModel(colorModel);
+  const metricNeeds = showRaw ? {} : shaderNeedsForMetric(distanceMetric);
+
+  const needs: ShaderNeeds = {
+    oklab: !!(modelNeeds.oklab || metricNeeds.oklab),
+    srgb2rgb: !!(modelNeeds.srgb2rgb || metricNeeds.srgb2rgb),
+    hsl2rgb: !!modelNeeds.hsl2rgb,
+    hsv2rgb: !!modelNeeds.hsv2rgb,
+    lch2rgb: !!modelNeeds.lch2rgb,
+    hwb2rgb: !!modelNeeds.hwb2rgb,
+    cielab2rgb: !!(modelNeeds.cielab2rgb || metricNeeds.cielab2rgb),
+    deltaE: !!metricNeeds.deltaE && !showRaw,
+    closestColor: !showRaw,
+  };
+
+  let src = `
+precision highp float;
+#define TWO_PI 6.28318530718
+in vec2 vUv;
+out vec4 fragColor;
+uniform float progress;
+uniform sampler2D paletteTexture;
+`;
+
+  // oklab must come before srgb2rgb (srgb2rgb wraps srgb_transfer_function_inv)
+  if (needs.oklab) src += shaderOKLab + '\n';
+  if (needs.srgb2rgb) src += shaderSRGB2RGB + '\n';
+  if (needs.hsl2rgb) src += shaderHSL2RGB + '\n';
+  if (needs.hsv2rgb) src += shaderHSV2RGB + '\n';
+  if (needs.lch2rgb) src += shaderLCH2RGB + '\n';
+  if (needs.hwb2rgb) src += shaderHWB2RGB + '\n';
+  if (needs.cielab2rgb) src += shaderCIELab2RGB + '\n';
+  if (needs.deltaE) src += shaderDeltaE + '\n';
+  if (needs.closestColor) src += shaderClosestColor + '\n';
+
+  src += modelToRGBSrc + mainSrc;
+  return src;
+}
 
 // Pass-2 shader: reads from the FBO color texture, detects edges by comparing
 // N/S/E/W neighbors. Only opaque neighbors (a>0) participate in the comparison
@@ -272,13 +353,20 @@ function buildProgram(
   return prog;
 }
 
+function initTexture(gl: WebGL2RenderingContext, tex: WebGLTexture): void {
+  gl.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+}
+
 function uploadPaletteTexture(
   gl: WebGL2RenderingContext,
   tex: WebGLTexture,
   palette: ColorList,
 ): void {
   gl.bindTexture(gl.TEXTURE_2D, tex);
-  // RGBA8: sized internal format required by WebGL2 spec
   gl.texImage2D(
     gl.TEXTURE_2D,
     0,
@@ -290,10 +378,6 @@ function uploadPaletteTexture(
     gl.UNSIGNED_BYTE,
     paletteToRGBA(palette),
   );
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 }
 
 // ── PaletteViz ─────────────────────────────────────────────────────────────────
@@ -359,6 +443,7 @@ export class PaletteViz {
   #quadBuffer: WebGLBuffer | null = null;
   #vao: WebGLVertexArrayObject | null = null;
   #animationFrame: number | null = null;
+  #programDirty = false;
 
   // cached uniform locations (re-queried after each program rebuild)
   #uProgress: WebGLUniformLocation | null = null;
@@ -422,9 +507,10 @@ export class PaletteViz {
     gl.bindVertexArray(null);
 
     this.#texture = gl.createTexture()!;
+    initTexture(gl, this.#texture);
     uploadPaletteTexture(gl, this.#texture, this.#palette);
 
-    this.#buildProgram();
+    this.#rebuildProgram();
     this.#setSize(this.#width, this.#height);
     if (this.#outlineWidth > 0) this.#buildOutlineResources();
     this.#container?.appendChild(this.#canvas);
@@ -441,10 +527,15 @@ export class PaletteViz {
     };
   }
 
-  #buildProgram(): void {
+  #rebuildProgram(): void {
     const gl = this.#gl;
     if (this.#program) gl.deleteProgram(this.#program);
-    this.#program = buildProgram(gl, this.#defines(), fragmentShader, vertexShaderSrc);
+    const fragSrc = assembleFragShader(
+      this.#colorModelMap[this.#colorModel],
+      this.#distanceMetricMap[this.#distanceMetric],
+      this.#showRaw,
+    );
+    this.#program = buildProgram(gl, this.#defines(), fragSrc, vertexShaderSrc);
     this.#uProgress = gl.getUniformLocation(this.#program, 'progress');
     this.#uPaletteTexture = gl.getUniformLocation(this.#program, 'paletteTexture');
   }
@@ -511,6 +602,10 @@ export class PaletteViz {
   #paint(): void {
     if (this.#animationFrame !== null) cancelAnimationFrame(this.#animationFrame);
     this.#animationFrame = requestAnimationFrame(() => {
+      if (this.#programDirty) {
+        this.#rebuildProgram();
+        this.#programDirty = false;
+      }
       const gl = this.#gl;
 
       // ── Pass 1: closest-color render ────────────────────────────────────────
@@ -591,8 +686,8 @@ export class PaletteViz {
     uploadPaletteTexture(this.#gl, this.#texture!, palette);
     this.#paint();
   }
-  get palette() {
-    return this.#palette;
+  get palette(): ColorList {
+    return this.#palette.slice();
   }
 
   setColor(color: ColorRGB, index: number): void {
@@ -638,7 +733,7 @@ export class PaletteViz {
   set axis(axis: Axis) {
     if (!(axis in this.#axisMap)) throw new Error("axis must be 'x', 'y', or 'z'");
     this.#axis = axis;
-    this.#buildProgram();
+    this.#programDirty = true;
     this.#paint();
   }
   get axis() {
@@ -648,7 +743,7 @@ export class PaletteViz {
   set colorModel(model: SupportedColorModels) {
     if (!(model in this.#colorModelMap)) throw new Error(`colorModel '${model}' is not supported`);
     this.#colorModel = model;
-    this.#buildProgram();
+    this.#programDirty = true;
     this.#paint();
   }
   get colorModel() {
@@ -659,7 +754,7 @@ export class PaletteViz {
     if (!(metric in this.#distanceMetricMap))
       throw new Error(`distanceMetric '${metric}' is not supported`);
     this.#distanceMetric = metric;
-    this.#buildProgram();
+    this.#programDirty = true;
     this.#paint();
   }
   get distanceMetric() {
@@ -668,7 +763,7 @@ export class PaletteViz {
 
   set invertZ(value: boolean) {
     this.#invertZ = value;
-    this.#buildProgram();
+    this.#programDirty = true;
     this.#paint();
   }
   get invertZ() {
@@ -677,11 +772,20 @@ export class PaletteViz {
 
   set showRaw(value: boolean) {
     this.#showRaw = value;
-    this.#buildProgram();
+    this.#programDirty = true;
     this.#paint();
   }
   get showRaw() {
     return this.#showRaw;
+  }
+
+  set pixelRatio(value: number) {
+    this.#pixelRatio = value;
+    this.#setSize(this.#width, this.#height);
+    this.#paint();
+  }
+  get pixelRatio() {
+    return this.#pixelRatio;
   }
 
   set outlineWidth(value: number) {

@@ -20,7 +20,7 @@
 
 float cbrt( float x )
 {
-    return sign(x)*pow(abs(x),1.0f/3.0f);
+    return sign(x) * pow(abs(x), 0.33333333f);
 }
 
 float srgb_transfer_function(float a)
