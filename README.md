@@ -220,7 +220,7 @@ A practical starting point: use a **polar** model to get an intuitive read on hu
 
 ## Distance metrics
 
-Controls how "nearest palette colour" is determined per pixel.
+Controls how "nearest palette color" is determined per pixel.
 
 **OK**
 
@@ -286,7 +286,7 @@ document.querySelector('#slider').addEventListener('input', (e) => {
 
 ### Transparent outlines between regions
 
-`outlineWidth` draws a transparent gap where one palette colour's region meets another, revealing whatever is behind the canvas. Width is in physical pixels (i.e. it already accounts for `pixelRatio`).
+`outlineWidth` draws a transparent gap where one palette color's region meets another, revealing whatever is behind the canvas. Width is in physical pixels (i.e. it already accounts for `pixelRatio`).
 
 ```js
 const viz = new PaletteViz({
@@ -302,7 +302,7 @@ viz.outlineWidth = 4;
 viz.outlineWidth = 0;
 ```
 
-Implemented as a two-pass render: pass 1 draws the colour regions into an offscreen framebuffer at the same cost as without outlines; pass 2 runs a tiny edge-detection shader that checks four neighbours via texture reads (no colour-space math). The result is that enabling outlines adds negligible overhead compared to the single-pass approach.
+Implemented as a two-pass render: pass 1 draws the color regions into an offscreen framebuffer at the same cost as without outlines; pass 2 runs a tiny edge-detection shader that checks four neighbors via texture reads (no color-space math). The result is that enabling outlines adds negligible overhead compared to the single-pass approach.
 
 When `outlineWidth` is `0` (the default) the framebuffer and outline program are never allocated.
 
