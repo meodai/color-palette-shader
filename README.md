@@ -142,6 +142,14 @@ viz.removeColor([0.659, 0.855, 0.863]);
 
 Cancel the animation frame, release all WebGL resources (programs, textures, framebuffer, buffer, VAO), and remove the canvas from the DOM.
 
+### `getColorAtUV(x, y)`
+
+Returns the current shader result at normalized UV coordinates (`0–1` on both axes) as `[r, g, b]` in `0–1` sRGB. This reads directly from the WebGL render target (or outline source buffer), not from DOM canvas sampling.
+
+```js
+const color = viz.getColorAtUV(0.5, 0.5); // center
+```
+
 ---
 
 ## Colour models

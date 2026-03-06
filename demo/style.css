@@ -62,6 +62,39 @@ label {
   image-rendering: pixelated;
 }
 
+.cursor-probe {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border: var(--s-line) solid var(--c-surface-on);
+  background: color-mix(in lab, var(--c-surface) 85%, transparent);
+  color: var(--c-surface-on);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.cursor-probe.is-visible {
+  display: inline-flex;
+}
+
+.cursor-probe__dot {
+  width: 0.8rem;
+  height: 0.8rem;
+  border-radius: 50%;
+  border: var(--s-line) solid var(--c-surface-on);
+  flex: 0 0 auto;
+}
+
+.cursor-probe__label {
+  font-size: 0.7em;
+}
+
 /* ── Layout ─────────────────────────────────────────────────────────────── */
 
 .app {
@@ -466,13 +499,13 @@ input[type='checkbox']:focus {
   margin-bottom: 0;
 }
 
-.about h2 + p,
-.about h2 + figure,
-.about h2 + pre {
+.about h2+p,
+.about h2+figure,
+.about h2+pre {
   margin-top: 0.75em;
 }
 
-.about p + p {
+.about p+p {
   margin-top: 0.75em;
 }
 
@@ -530,10 +563,12 @@ a:hover {
 }
 
 @keyframes shakeup {
+
   0%,
   to {
     transform: translateY(0) rotate(0);
   }
+
   10%,
   30%,
   50%,
@@ -541,6 +576,7 @@ a:hover {
   90% {
     transform: translateY(-10px) rotate(-6deg);
   }
+
   20%,
   40%,
   60%,

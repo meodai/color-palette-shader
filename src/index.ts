@@ -600,49 +600,54 @@ export class PaletteViz {
     if (this.#fboTexture) this.#resizeFBO(pw, ph);
   }
 
+  #render(): void {
+    if (this.#programDirty) {
+      this.#rebuildProgram();
+      this.#programDirty = false;
+    }
+    const gl = this.#gl;
+
+    // ── Pass 1: closest-color render ────────────────────────────────────────
+    // Target: FBO when outline is active (and not showing raw), canvas otherwise.
+    const useOutline = this.#fbo && !this.#showRaw;
+    if (useOutline) gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
+
+    gl.useProgram(this.#program);
+    gl.uniform1f(this.#uProgress, this.#position);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.#texture);
+    gl.uniform1i(this.#uPaletteTexture, 0);
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindVertexArray(this.#vao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    if (!useOutline) {
+      gl.bindVertexArray(null);
+      return;
+    }
+
+    // ── Pass 2: edge-detection using FBO texture ─────────────────────────────
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.useProgram(this.#outlineProgram);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.#fboTexture);
+    gl.uniform1i(this.#uColorMap, 0);
+    gl.uniform1f(this.#uOutlineWidth, this.#outlineWidth);
+    gl.uniform2f(this.#uOutlineResolution, this.#canvas.width, this.#canvas.height);
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindVertexArray(null);
+  }
+
   #paint(): void {
     if (this.#animationFrame !== null) cancelAnimationFrame(this.#animationFrame);
     this.#animationFrame = requestAnimationFrame(() => {
-      if (this.#programDirty) {
-        this.#rebuildProgram();
-        this.#programDirty = false;
-      }
-      const gl = this.#gl;
-
-      // ── Pass 1: closest-color render ────────────────────────────────────────
-      // Target: FBO when outline is active (and not showing raw), canvas otherwise.
-      const useOutline = this.#fbo && !this.#showRaw;
-      if (useOutline) gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
-
-      gl.useProgram(this.#program);
-      gl.uniform1f(this.#uProgress, this.#position);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, this.#texture);
-      gl.uniform1i(this.#uPaletteTexture, 0);
-
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.bindVertexArray(this.#vao);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-      if (!useOutline) {
-        gl.bindVertexArray(null);
-        return;
-      }
-
-      // ── Pass 2: edge-detection using FBO texture ─────────────────────────────
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.useProgram(this.#outlineProgram);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, this.#fboTexture);
-      gl.uniform1i(this.#uColorMap, 0);
-      gl.uniform1f(this.#uOutlineWidth, this.#outlineWidth);
-      gl.uniform2f(this.#uOutlineResolution, this.#canvas.width, this.#canvas.height);
-
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.bindVertexArray(null);
+      this.#animationFrame = null;
+      this.#render();
     });
   }
 
@@ -721,6 +726,27 @@ export class PaletteViz {
     this.#palette.splice(index, 1);
     uploadPaletteTexture(this.#gl, this.#texture!, this.#palette);
     this.#paint();
+  }
+
+  getColorAtUV(x: number, y: number): ColorRGB {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error('x and y must be finite numbers');
+    if (x < 0 || x > 1 || y < 0 || y > 1) throw new Error('x and y must be in the range [0, 1]');
+    if (this.#animationFrame !== null) {
+      cancelAnimationFrame(this.#animationFrame);
+      this.#animationFrame = null;
+    }
+
+    this.#render();
+
+    const gl = this.#gl;
+    const px = Math.min(this.#canvas.width - 1, Math.max(0, Math.round(x * (this.#canvas.width - 1))));
+    const py = Math.min(this.#canvas.height - 1, Math.max(0, Math.round(y * (this.#canvas.height - 1))));
+    const previousFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo && !this.#showRaw ? this.#fbo : null);
+    const out = new Uint8Array(4);
+    gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, previousFramebuffer);
+    return [out[0] / 255, out[1] / 255, out[2] / 255];
   }
 
   // ── Shader properties ────────────────────────────────────────────────────────

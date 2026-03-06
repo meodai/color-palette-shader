@@ -227,6 +227,57 @@ const vizzes = [
 ];
 // t=0 default: first row at 0 (one extreme), second row at 1 (other side)
 
+const $cursorProbe = document.createElement('div');
+$cursorProbe.className = 'cursor-probe';
+$cursorProbe.innerHTML =
+  '<span class="cursor-probe__dot"></span><span class="cursor-probe__label"></span>';
+const $cursorProbeDot = $cursorProbe.querySelector('.cursor-probe__dot');
+const $cursorProbeLabel = $cursorProbe.querySelector('.cursor-probe__label');
+document.body.appendChild($cursorProbe);
+
+const toHexByte = (v) =>
+  Math.min(255, Math.max(0, Math.round(v * 255)))
+    .toString(16)
+    .padStart(2, '0');
+const rgbToHex = (rgb) => `#${toHexByte(rgb[0])}${toHexByte(rgb[1])}${toHexByte(rgb[2])}`;
+
+let probeRAF = null;
+let probeEvent = null;
+
+const hideProbe = () => {
+  $cursorProbe.classList.remove('is-visible');
+};
+
+const updateProbe = () => {
+  probeRAF = null;
+  if (!probeEvent || !(probeEvent.target instanceof Element)) return;
+  const canvas = probeEvent.target.closest('canvas.palette-viz');
+  if (!canvas) return hideProbe();
+
+  const vizMatch = vizzes.find((v) => v.canvas === canvas);
+  if (!vizMatch) return hideProbe();
+
+  const rect = canvas.getBoundingClientRect();
+  const u = (probeEvent.clientX - rect.left) / rect.width;
+  const v = (probeEvent.clientY - rect.top) / rect.height;
+  if (u < 0 || u > 1 || v < 0 || v > 1) return hideProbe();
+
+  const color = vizMatch.getColorAtUV(u, 1 - v);
+  const hex = rgbToHex(color);
+  $cursorProbeDot.style.background = hex;
+  $cursorProbeLabel.textContent = `${hex}`;
+  $cursorProbe.style.left = `${probeEvent.clientX + 14}px`;
+  $cursorProbe.style.top = `${probeEvent.clientY + 14}px`;
+  $cursorProbe.classList.add('is-visible');
+};
+
+$app.addEventListener('pointermove', (e) => {
+  probeEvent = e;
+  if (probeRAF === null) probeRAF = requestAnimationFrame(updateProbe);
+});
+$app.addEventListener('pointerleave', hideProbe);
+window.addEventListener('scroll', hideProbe, { passive: true });
+
 // ── Controls ────────────────────────────────────────────────────────────────
 
 window.addEventListener('resize', () => {
