@@ -2,6 +2,7 @@ import {
   ColorRGB,
   ColorList,
   PaletteVizOptions,
+  PaletteViz3DOptions,
   SupportedColorModels,
   Axis,
   DistanceMetric,
@@ -833,4 +834,739 @@ export class PaletteViz {
   static paletteToRGBA = paletteToRGBA;
   /** @deprecated use PaletteViz.paletteToRGBA */
   static paletteToTexture = paletteToRGBA;
+}
+
+// ── PaletteViz3D ───────────────────────────────────────────────────────────────
+// Renders the full 3D colorspace as an isometric cube that the user can rotate
+// with yaw / pitch. Each visible voxel on the cube surface is converted to RGB
+// via the same modelToRGB pipeline used by PaletteViz.
+
+// Vertex shader: a unit cube [0,1]^3 projected with a simple model-view-proj
+// matrix built from yaw/pitch uniforms. Passes the 3D position as the color
+// coordinate to the fragment shader.
+const vertexShader3DCubeSrc = `
+precision highp float;
+layout(location = 0) in vec3 a_position;
+out vec3 vColorCoord;
+
+uniform mat4 uMVP;
+uniform float uPosition;
+
+void main() {
+  vec3 pos = a_position;
+  pos.x = min(pos.x, uPosition);
+  vColorCoord = pos;
+  gl_Position = uMVP * vec4(pos - 0.5, 1.0);
+}`;
+
+// Cylinder vertex shader: interleaved (pos.xyz, colorCoord.xyz) with stride=6
+const vertexShader3DCylSrc = `
+precision highp float;
+layout(location = 0) in vec3 a_position;
+layout(location = 1) in vec3 a_colorCoord;
+out vec3 vColorCoord;
+
+uniform mat4 uMVP;
+uniform float uPosition;
+
+void main() {
+  vec3 cc = a_colorCoord;
+  cc.z = min(cc.z, uPosition);
+  vec3 pos = a_position;
+  pos.y = cc.z - 0.5;
+  vColorCoord = cc;
+  gl_Position = uMVP * vec4(pos, 1.0);
+}`;
+
+// Fragment shader for the 3D view. Receives color coords from the vertex
+// shader and converts via modelToRGB + optional closest-color snapping.
+const mainSrc3D = `
+void main() {
+  vec3 colorCoords = vColorCoord;
+
+  #ifdef INVERT_Z
+    colorCoords.z = 1.0 - colorCoords.z;
+  #endif
+
+  vec3 rgb = modelToRGB(colorCoords);
+
+  #ifdef SHOW_RAW
+    fragColor = vec4(rgb, 1.0);
+  #else
+    fragColor = vec4(closestColor(rgb, paletteTexture), 1.0);
+  #endif
+}`;
+
+function assembleFragShader3D(colorModel: number, distanceMetric: number, showRaw: boolean): string {
+  const modelNeeds = shaderNeedsForModel(colorModel);
+  const metricNeeds = showRaw ? {} : shaderNeedsForMetric(distanceMetric);
+
+  const needs: ShaderNeeds = {
+    oklab: !!(modelNeeds.oklab || metricNeeds.oklab),
+    srgb2rgb: !!(modelNeeds.srgb2rgb || metricNeeds.srgb2rgb),
+    hsl2rgb: !!modelNeeds.hsl2rgb,
+    hsv2rgb: !!modelNeeds.hsv2rgb,
+    lch2rgb: !!modelNeeds.lch2rgb,
+    hwb2rgb: !!modelNeeds.hwb2rgb,
+    cielab2rgb: !!(modelNeeds.cielab2rgb || metricNeeds.cielab2rgb),
+    deltaE: !!metricNeeds.deltaE && !showRaw,
+    closestColor: !showRaw,
+  };
+
+  let src = `
+precision highp float;
+#define TWO_PI 6.28318530718
+in vec3 vColorCoord;
+out vec4 fragColor;
+uniform sampler2D paletteTexture;
+`;
+
+  if (needs.oklab) src += shaderOKLab + '\n';
+  if (needs.srgb2rgb) src += shaderSRGB2RGB + '\n';
+  if (needs.hsl2rgb) src += shaderHSL2RGB + '\n';
+  if (needs.hsv2rgb) src += shaderHSV2RGB + '\n';
+  if (needs.lch2rgb) src += shaderLCH2RGB + '\n';
+  if (needs.hwb2rgb) src += shaderHWB2RGB + '\n';
+  if (needs.cielab2rgb) src += shaderCIELab2RGB + '\n';
+  if (needs.deltaE) src += shaderDeltaE + '\n';
+  if (needs.closestColor) src += shaderClosestColor + '\n';
+
+  src += modelToRGBSrc + mainSrc3D;
+  return src;
+}
+
+// Generate a unit cube mesh as indexed triangles. Returns interleaved positions.
+function createCubeMesh(resolution: number): { vertices: Float32Array; indices: Uint32Array } {
+  const verts: number[] = [];
+  const idx: number[] = [];
+  const n = resolution; // quads per face edge
+
+  // 6 faces: for each face we create an (n+1)×(n+1) grid of vertices and n×n×2 triangles
+  // Face mappings: [axis perpendicular, sign, u-axis, v-axis]
+  const faces: [number, number, number, number, number, number][] = [
+    // axisIndex, sign, uAxis, vAxis, uSign, vSign
+    // +X face
+    [0, 1,  2, 1, 1, 1],
+    // -X face
+    [0, 0,  2, 1, -1, 1],
+    // +Y face
+    [1, 1,  0, 2, 1, 1],
+    // -Y face
+    [1, 0,  0, 2, 1, -1],
+    // +Z face
+    [2, 1,  0, 1, 1, 1],
+    // -Z face
+    [2, 0,  0, 1, -1, 1],
+  ];
+
+  for (const [axIdx, sign, uIdx, vIdx, _uSign, _vSign] of faces) {
+    const base = verts.length / 3;
+    for (let j = 0; j <= n; j++) {
+      for (let i = 0; i <= n; i++) {
+        const u = i / n;
+        const v = j / n;
+        const pos = [0, 0, 0];
+        pos[axIdx] = sign;
+        pos[uIdx] = u;
+        pos[vIdx] = v;
+        verts.push(pos[0], pos[1], pos[2]);
+      }
+    }
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        const a = base + j * (n + 1) + i;
+        const b = a + 1;
+        const c = a + (n + 1);
+        const d = c + 1;
+        idx.push(a, b, c, b, d, c);
+      }
+    }
+  }
+
+  return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
+}
+
+// Generate a cylinder mesh for polar color models.
+// The color coordinate is stored per-vertex as (angle/TWO_PI, radius, height)
+// where angle ∈ [0,1], radius ∈ [0,1], height ∈ [0,1].
+// The 3D position is centered: x = r*cos(θ), z = r*sin(θ), y = height-0.5
+function createCylinderMesh(radialSegments: number, heightSegments: number): { vertices: Float32Array; indices: Uint32Array } {
+  const verts: number[] = [];
+  const idx: number[] = [];
+  const TWO_PI = Math.PI * 2;
+
+  // ── Side wall ──────────────────────────────────────────────────────────────
+  const sideBase = 0;
+  for (let j = 0; j <= heightSegments; j++) {
+    const v = j / heightSegments;
+    for (let i = 0; i <= radialSegments; i++) {
+      const u = i / radialSegments;
+      const angle = u * TWO_PI;
+      const r = 0.5; // unit radius (maps to radius=1 in color space)
+      // position (centered around origin)
+      const px = r * Math.cos(angle);
+      const pz = r * Math.sin(angle);
+      const py = v - 0.5;
+      // color coord: (angle/TWO_PI, 1.0 (edge), height)
+      verts.push(px, py, pz, u, 1.0, v);
+    }
+  }
+  const sideStride = radialSegments + 1;
+  for (let j = 0; j < heightSegments; j++) {
+    for (let i = 0; i < radialSegments; i++) {
+      const a = sideBase + j * sideStride + i;
+      const b = a + 1;
+      const c = a + sideStride;
+      const d = c + 1;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+
+  // ── Cap discs (top and bottom) ─────────────────────────────────────────────
+  for (const capV of [0, 1]) {
+    const capBase = verts.length / 6;
+    const capY = capV - 0.5;
+    const capSegs = Math.max(1, Math.floor(radialSegments / 4)); // radial rings on cap
+    for (let ring = 0; ring <= capSegs; ring++) {
+      const r01 = ring / capSegs; // 0 = center, 1 = edge
+      const rPos = r01 * 0.5;
+      for (let i = 0; i <= radialSegments; i++) {
+        const u = i / radialSegments;
+        const angle = u * TWO_PI;
+        const px = rPos * Math.cos(angle);
+        const pz = rPos * Math.sin(angle);
+        verts.push(px, capY, pz, u, r01, capV);
+      }
+    }
+    const capStride = radialSegments + 1;
+    for (let ring = 0; ring < capSegs; ring++) {
+      for (let i = 0; i < radialSegments; i++) {
+        const a = capBase + ring * capStride + i;
+        const b = a + 1;
+        const c = a + capStride;
+        const d = c + 1;
+        idx.push(a, b, c, b, d, c);
+      }
+    }
+  }
+
+  // Interleave: 6 floats per vertex (px, py, pz, colorU, colorV, colorW)
+  return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
+}
+
+// Polar model IDs that should use a cylinder
+const POLAR_MODEL_IDS = new Set([3, 5, 7, 9, 11, 13, 16, 19, 22]);
+
+// Simple 4×4 matrix helpers (column-major)
+function mat4Perspective(fov: number, aspect: number, near: number, far: number): Float32Array {
+  const f = 1.0 / Math.tan(fov / 2);
+  const nf = 1 / (near - far);
+  // prettier-ignore
+  return new Float32Array([
+    f / aspect, 0, 0, 0,
+    0, f, 0, 0,
+    0, 0, (far + near) * nf, -1,
+    0, 0, 2 * far * near * nf, 0,
+  ]);
+}
+
+function mat4Multiply(a: Float32Array, b: Float32Array): Float32Array {
+  const out = new Float32Array(16);
+  for (let i = 0; i < 4; i++) {
+    for (let j = 0; j < 4; j++) {
+      out[j * 4 + i] =
+        a[0 * 4 + i] * b[j * 4 + 0] +
+        a[1 * 4 + i] * b[j * 4 + 1] +
+        a[2 * 4 + i] * b[j * 4 + 2] +
+        a[3 * 4 + i] * b[j * 4 + 3];
+    }
+  }
+  return out;
+}
+
+function mat4RotateY(angle: number): Float32Array {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  // prettier-ignore
+  return new Float32Array([
+    c, 0, s, 0,
+    0, 1, 0, 0,
+    -s, 0, c, 0,
+    0, 0, 0, 1,
+  ]);
+}
+
+function mat4RotateX(angle: number): Float32Array {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  // prettier-ignore
+  return new Float32Array([
+    1, 0, 0, 0,
+    0, c, -s, 0,
+    0, s, c, 0,
+    0, 0, 0, 1,
+  ]);
+}
+
+function mat4Translate(x: number, y: number, z: number): Float32Array {
+  // prettier-ignore
+  return new Float32Array([
+    1, 0, 0, 0,
+    0, 1, 0, 0,
+    0, 0, 1, 0,
+    x, y, z, 1,
+  ]);
+}
+
+export class PaletteViz3D {
+  #palette: ColorList = [];
+  #width = 512;
+  #height = 512;
+  #pixelRatio = 1;
+  #yaw = 0.65;
+  #pitch = 0.45;
+  #position = 1.0;
+
+  #colorModel: SupportedColorModels = 'okhsv';
+  #distanceMetric: DistanceMetric = 'oklab';
+  #invertZ = false;
+  #showRaw = false;
+  #outlineWidth = 0;
+
+  readonly #colorModelMap = {
+    rgb: 0, oklab: 1, okhsv: 2, okhsvPolar: 3, okhsl: 4, okhslPolar: 5,
+    oklch: 6, oklchPolar: 7, hsv: 8, hsvPolar: 9, hsl: 10, hslPolar: 11,
+    hwb: 12, hwbPolar: 13, oklrab: 14, oklrch: 15, oklrchPolar: 16,
+    cielab: 17, cielch: 18, cielchPolar: 19,
+    cielabD50: 20, cielchD50: 21, cielchD50Polar: 22,
+  } as const;
+  readonly #distanceMetricMap = {
+    rgb: 0, oklab: 1, deltaE76: 2, deltaE2000: 3, kotsarenkoRamos: 4,
+    deltaE94: 5, oklrab: 6, cielabD50: 7,
+  } as const;
+
+  #canvas: HTMLCanvasElement;
+  #gl: WebGL2RenderingContext;
+  #program: WebGLProgram | null = null;
+  #texture: WebGLTexture | null = null;
+  #vao: WebGLVertexArrayObject | null = null;
+  #vbo: WebGLBuffer | null = null;
+  #ibo: WebGLBuffer | null = null;
+  #indexCount = 0;
+  #animationFrame: number | null = null;
+  #programDirty = false;
+  #meshDirty = false;
+  #isPolar = false;
+
+  #uMVP: WebGLUniformLocation | null = null;
+  #uPosition: WebGLUniformLocation | null = null;
+  #uPaletteTexture: WebGLUniformLocation | null = null;
+
+  // outline FBO resources
+  #fbo: WebGLFramebuffer | null = null;
+  #fboTexture: WebGLTexture | null = null;
+  #fboDepth: WebGLRenderbuffer | null = null;
+  #outlineProgram: WebGLProgram | null = null;
+  #outlineVao: WebGLVertexArrayObject | null = null;
+  #outlineQuadBuf: WebGLBuffer | null = null;
+  #uColorMap: WebGLUniformLocation | null = null;
+  #uOutlineWidth: WebGLUniformLocation | null = null;
+  #uOutlineResolution: WebGLUniformLocation | null = null;
+
+  #container: HTMLElement | undefined;
+
+  // mouse drag state
+  #dragging = false;
+  #lastX = 0;
+  #lastY = 0;
+
+  constructor({
+    palette = randomPalette(),
+    width = 512,
+    height = 512,
+    pixelRatio = window.devicePixelRatio,
+    container,
+    colorModel = 'okhsv',
+    distanceMetric = 'oklab',
+    invertZ = false,
+    showRaw = false,
+    outlineWidth = 0,
+    position = 1.0,
+    yaw = 0.65,
+    pitch = 0.45,
+  }: PaletteViz3DOptions = {}) {
+    this.#palette = palette;
+    this.#width = width;
+    this.#height = height;
+    this.#pixelRatio = pixelRatio;
+    this.#colorModel = colorModel;
+    this.#distanceMetric = distanceMetric;
+    this.#invertZ = invertZ;
+    this.#showRaw = showRaw;
+    this.#outlineWidth = outlineWidth;
+    this.#position = position;
+    this.#yaw = yaw;
+    this.#pitch = pitch;
+    this.#container = container;
+    this.#isPolar = POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
+
+    this.#canvas = document.createElement('canvas');
+    this.#canvas.classList.add('palette-viz-3d');
+    const gl = this.#canvas.getContext('webgl2');
+    if (!gl) throw new Error('WebGL2 not supported');
+    this.#gl = gl;
+
+    this.#buildMesh();
+
+    this.#texture = gl.createTexture()!;
+    initTexture(gl, this.#texture);
+    uploadPaletteTexture(gl, this.#texture, this.#palette);
+
+    this.#rebuildProgram();
+    this.#setSize(this.#width, this.#height);
+    gl.enable(gl.DEPTH_TEST);
+
+    if (this.#outlineWidth > 0) this.#buildOutlineResources();
+    this.#container?.appendChild(this.#canvas);
+    this.#setupMouseControls();
+    this.#paint();
+  }
+
+  #buildMesh(): void {
+    const gl = this.#gl;
+    // Clean up old buffers
+    if (this.#vbo) gl.deleteBuffer(this.#vbo);
+    if (this.#ibo) gl.deleteBuffer(this.#ibo);
+    if (this.#vao) gl.deleteVertexArray(this.#vao);
+
+    if (this.#isPolar) {
+      const { vertices, indices } = createCylinderMesh(128, 64);
+      this.#indexCount = indices.length;
+
+      this.#vbo = gl.createBuffer()!;
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.#vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+      this.#ibo = gl.createBuffer()!;
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#ibo);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+      this.#vao = gl.createVertexArray()!;
+      gl.bindVertexArray(this.#vao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.#vbo);
+      // stride = 6 floats (pos.xyz + color.xyz)
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 24, 0);
+      gl.enableVertexAttribArray(1);
+      gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 24, 12);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#ibo);
+      gl.bindVertexArray(null);
+    } else {
+      const { vertices, indices } = createCubeMesh(64);
+      this.#indexCount = indices.length;
+
+      this.#vbo = gl.createBuffer()!;
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.#vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+      this.#ibo = gl.createBuffer()!;
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#ibo);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+
+      this.#vao = gl.createVertexArray()!;
+      gl.bindVertexArray(this.#vao);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.#vbo);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#ibo);
+      gl.bindVertexArray(null);
+    }
+  }
+
+  #defines(): Defines {
+    return {
+      COLOR_MODEL: this.#colorModelMap[this.#colorModel],
+      DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
+      INVERT_Z: this.#invertZ ? 1 : false,
+      SHOW_RAW: this.#showRaw ? 1 : false,
+    };
+  }
+
+  #rebuildProgram(): void {
+    const gl = this.#gl;
+    if (this.#program) gl.deleteProgram(this.#program);
+    const fragSrc = assembleFragShader3D(
+      this.#colorModelMap[this.#colorModel],
+      this.#distanceMetricMap[this.#distanceMetric],
+      this.#showRaw,
+    );
+    const vertSrc = this.#isPolar ? vertexShader3DCylSrc : vertexShader3DCubeSrc;
+    this.#program = buildProgram(gl, this.#defines(), fragSrc, vertSrc);
+    this.#uMVP = gl.getUniformLocation(this.#program, 'uMVP');
+    this.#uPosition = gl.getUniformLocation(this.#program, 'uPosition');
+    this.#uPaletteTexture = gl.getUniformLocation(this.#program, 'paletteTexture');
+  }
+
+  #setSize(w: number, h: number): void {
+    const pw = Math.round(w * this.#pixelRatio);
+    const ph = Math.round(h * this.#pixelRatio);
+    this.#canvas.width = pw;
+    this.#canvas.height = ph;
+    this.#canvas.style.width = `${w}px`;
+    this.#canvas.style.height = `${h}px`;
+    this.#gl.viewport(0, 0, pw, ph);
+    if (this.#fboTexture) this.#resizeFBO(pw, ph);
+  }
+
+  #buildOutlineResources(): void {
+    const gl = this.#gl;
+    // Fullscreen quad for the outline pass
+    this.#outlineQuadBuf = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.#outlineQuadBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+    this.#outlineVao = gl.createVertexArray()!;
+    gl.bindVertexArray(this.#outlineVao);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.bindVertexArray(null);
+
+    // Reuse the same outline fragment shader as PaletteViz (reads vUv from vertex shader)
+    this.#outlineProgram = buildProgram(gl, {}, outlineFragmentShaderSrc, vertexShaderSrc);
+    this.#uColorMap = gl.getUniformLocation(this.#outlineProgram, 'colorMap');
+    this.#uOutlineWidth = gl.getUniformLocation(this.#outlineProgram, 'outlineWidth');
+    this.#uOutlineResolution = gl.getUniformLocation(this.#outlineProgram, 'resolution');
+
+    this.#fboTexture = gl.createTexture()!;
+    this.#fboDepth = gl.createRenderbuffer()!;
+    this.#fbo = gl.createFramebuffer()!;
+    this.#resizeFBO(this.#canvas.width, this.#canvas.height);
+  }
+
+  #destroyOutlineResources(): void {
+    const gl = this.#gl;
+    if (this.#outlineProgram) { gl.deleteProgram(this.#outlineProgram); this.#outlineProgram = null; }
+    if (this.#fboTexture) { gl.deleteTexture(this.#fboTexture); this.#fboTexture = null; }
+    if (this.#fboDepth) { gl.deleteRenderbuffer(this.#fboDepth); this.#fboDepth = null; }
+    if (this.#fbo) { gl.deleteFramebuffer(this.#fbo); this.#fbo = null; }
+    if (this.#outlineVao) { gl.deleteVertexArray(this.#outlineVao); this.#outlineVao = null; }
+    if (this.#outlineQuadBuf) { gl.deleteBuffer(this.#outlineQuadBuf); this.#outlineQuadBuf = null; }
+  }
+
+  #resizeFBO(pw: number, ph: number): void {
+    const gl = this.#gl;
+    gl.bindTexture(gl.TEXTURE_2D, this.#fboTexture);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, pw, ph, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    gl.bindRenderbuffer(gl.RENDERBUFFER, this.#fboDepth);
+    gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, pw, ph);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.#fboTexture, 0);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.#fboDepth);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+
+  #buildMVP(): Float32Array {
+    const aspect = this.#canvas.width / this.#canvas.height;
+    const proj = mat4Perspective(Math.PI / 5, aspect, 0.1, 100);
+    const view = mat4Translate(0, 0, -3);
+    const rotY = mat4RotateY(this.#yaw);
+    const rotX = mat4RotateX(this.#pitch);
+    const model = mat4Multiply(rotY, rotX);
+    return mat4Multiply(proj, mat4Multiply(view, model));
+  }
+
+  #render(): void {
+    if (this.#meshDirty) {
+      const wasPolar = this.#isPolar;
+      this.#isPolar = POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
+      if (wasPolar !== this.#isPolar) this.#buildMesh();
+      this.#meshDirty = false;
+    }
+    if (this.#programDirty) {
+      this.#rebuildProgram();
+      this.#programDirty = false;
+    }
+    const gl = this.#gl;
+    const useOutline = this.#fbo && !this.#showRaw;
+
+    // ── Pass 1: render 3D scene ──────────────────────────────────────────────
+    if (useOutline) gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    gl.useProgram(this.#program);
+    gl.uniformMatrix4fv(this.#uMVP, false, this.#buildMVP());
+    gl.uniform1f(this.#uPosition, this.#position);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.#texture);
+    gl.uniform1i(this.#uPaletteTexture, 0);
+
+    gl.bindVertexArray(this.#vao);
+    gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
+    gl.bindVertexArray(null);
+
+    if (!useOutline) return;
+
+    // ── Pass 2: outline edge detection ───────────────────────────────────────
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.disable(gl.DEPTH_TEST);
+    gl.useProgram(this.#outlineProgram);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.#fboTexture);
+    gl.uniform1i(this.#uColorMap, 0);
+    gl.uniform1f(this.#uOutlineWidth, this.#outlineWidth);
+    gl.uniform2f(this.#uOutlineResolution, this.#canvas.width, this.#canvas.height);
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindVertexArray(this.#outlineVao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindVertexArray(null);
+    gl.enable(gl.DEPTH_TEST);
+  }
+
+  #paint(): void {
+    if (this.#animationFrame !== null) cancelAnimationFrame(this.#animationFrame);
+    this.#animationFrame = requestAnimationFrame(() => {
+      this.#animationFrame = null;
+      this.#render();
+    });
+  }
+
+  #setupMouseControls(): void {
+    const onPointerDown = (e: PointerEvent) => {
+      this.#dragging = true;
+      this.#lastX = e.clientX;
+      this.#lastY = e.clientY;
+      this.#canvas.setPointerCapture(e.pointerId);
+    };
+    const onPointerMove = (e: PointerEvent) => {
+      if (!this.#dragging) return;
+      const dx = e.clientX - this.#lastX;
+      const dy = e.clientY - this.#lastY;
+      this.#lastX = e.clientX;
+      this.#lastY = e.clientY;
+      this.#yaw -= dx * 0.008;
+      this.#pitch += dy * 0.008;
+      this.#pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.#pitch));
+      this.#paint();
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      this.#dragging = false;
+      this.#canvas.releasePointerCapture(e.pointerId);
+    };
+
+    this.#canvas.addEventListener('pointerdown', onPointerDown);
+    this.#canvas.addEventListener('pointermove', onPointerMove);
+    this.#canvas.addEventListener('pointerup', onPointerUp);
+    this.#canvas.addEventListener('pointercancel', onPointerUp);
+  }
+
+  // ── Public API ──────────────────────────────────────────────────────────────
+
+  get canvas(): HTMLCanvasElement { return this.#canvas; }
+  get width() { return this.#width; }
+  get height() { return this.#height; }
+
+  resize(width: number, height: number | null = null): void {
+    this.#width = width;
+    this.#height = height ?? width;
+    this.#setSize(this.#width, this.#height);
+    this.#paint();
+  }
+
+  destroy(): void {
+    if (this.#animationFrame !== null) {
+      cancelAnimationFrame(this.#animationFrame);
+      this.#animationFrame = null;
+    }
+    const gl = this.#gl;
+    this.#destroyOutlineResources();
+    gl.deleteProgram(this.#program);
+    gl.deleteTexture(this.#texture);
+    gl.deleteBuffer(this.#vbo);
+    gl.deleteBuffer(this.#ibo);
+    gl.deleteVertexArray(this.#vao);
+    this.#canvas.remove();
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+  }
+
+  set palette(palette: ColorList) {
+    if (palette.length === 0) throw new Error('Palette must contain at least one color');
+    this.#palette = palette;
+    uploadPaletteTexture(this.#gl, this.#texture!, palette);
+    this.#paint();
+  }
+  get palette(): ColorList { return this.#palette.slice(); }
+
+  set colorModel(model: SupportedColorModels) {
+    if (!(model in this.#colorModelMap)) throw new Error(`colorModel '${model}' is not supported`);
+    this.#colorModel = model;
+    this.#programDirty = true;
+    this.#meshDirty = true;
+    this.#paint();
+  }
+  get colorModel() { return this.#colorModel; }
+
+  set distanceMetric(metric: DistanceMetric) {
+    if (!(metric in this.#distanceMetricMap)) throw new Error(`distanceMetric '${metric}' is not supported`);
+    this.#distanceMetric = metric;
+    this.#programDirty = true;
+    this.#paint();
+  }
+  get distanceMetric() { return this.#distanceMetric; }
+
+  set invertZ(value: boolean) {
+    this.#invertZ = value;
+    this.#programDirty = true;
+    this.#paint();
+  }
+  get invertZ() { return this.#invertZ; }
+
+  set showRaw(value: boolean) {
+    this.#showRaw = value;
+    this.#programDirty = true;
+    this.#paint();
+  }
+  get showRaw() { return this.#showRaw; }
+
+  set position(value: number) {
+    this.#position = Math.max(0, Math.min(1, value));
+    this.#paint();
+  }
+  get position() { return this.#position; }
+
+  set yaw(value: number) { this.#yaw = value; this.#paint(); }
+  get yaw() { return this.#yaw; }
+
+  set pitch(value: number) {
+    this.#pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, value));
+    this.#paint();
+  }
+  get pitch() { return this.#pitch; }
+
+  set outlineWidth(value: number) {
+    const wasEnabled = this.#outlineWidth > 0;
+    this.#outlineWidth = value;
+    if (value > 0 !== wasEnabled) {
+      if (value > 0) this.#buildOutlineResources();
+      else this.#destroyOutlineResources();
+    }
+    this.#paint();
+  }
+  get outlineWidth() { return this.#outlineWidth; }
+
+  set pixelRatio(value: number) {
+    this.#pixelRatio = value;
+    this.#setSize(this.#width, this.#height);
+    this.#paint();
+  }
+  get pixelRatio() { return this.#pixelRatio; }
 }

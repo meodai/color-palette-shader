@@ -1,5 +1,5 @@
 import './style.css';
-import { PaletteViz } from 'palette-shader';
+import { PaletteViz, PaletteViz3D } from 'palette-shader';
 import { TargetSession, extractColorTokens } from 'token-beam';
 import { converter } from 'culori';
 
@@ -383,6 +383,8 @@ $positionSlider.max = '1';
 $positionSlider.step = '0.0001';
 $positionSlider.value = '0';
 
+let viz3d = null;
+
 function applyPosition(t) {
   vizzes.slice(0, 3).forEach((v) => {
     v.position = t;
@@ -390,6 +392,7 @@ function applyPosition(t) {
   vizzes.slice(3, 6).forEach((v) => {
     v.position = 1 - t;
   });
+  if (viz3d) viz3d.position = 1 - t;
 }
 
 $positionSlider.addEventListener('input', (e) => {
@@ -697,6 +700,89 @@ $beamConnect.addEventListener('click', () => {
     beamShowError(err instanceof Error ? err.message : 'Could not connect');
     beamResetUI();
   });
+});
+
+// ── 3D cube view ─────────────────────────────────────────────────────────────
+
+let is3D = false;
+
+const $toggle3D = document.createElement('input');
+$toggle3D.type = 'checkbox';
+$toggle3D.checked = false;
+
+function create3DViz() {
+  viz3d = new PaletteViz3D({
+    palette: toVizPalette(palette),
+    width: $app.clientWidth - (window.matchMedia('(orientation: portrait)').matches ? 0 : Math.min(320, Math.max(200, window.innerWidth * 0.35))),
+    height: $app.clientHeight || 512,
+    pixelRatio: devicePixelRatio * 2,
+    colorModel: $colorModel.value,
+    distanceMetric: $distanceMetric.value,
+    invertZ: $invertZCheckbox.checked,
+    showRaw: $showRawCheckbox.checked,
+    outlineWidth: parseFloat($outlineSlider.value),
+  });
+  viz3d.canvas.classList.add('palette-viz-3d');
+}
+
+// Keep palette in sync with 3D view — observe mutations via MutationObserver-free polling
+// Instead, patch into palette update flow:
+function sync3DPalette() {
+  if (viz3d) viz3d.palette = toVizPalette(palette);
+}
+$palette.addEventListener('input', () => sync3DPalette(), true);
+$palette.addEventListener('click', (e) => {
+  if (e.target.classList.contains('color-picker__remove')) sync3DPalette();
+});
+$palettePaste.addEventListener('input', () => sync3DPalette());
+
+function toggle3DView(enable) {
+  is3D = enable;
+  if (enable) {
+    // hide 2D canvases
+    vizzes.forEach((v) => { v.canvas.style.display = 'none'; });
+    create3DViz();
+    $app.appendChild(viz3d.canvas);
+  } else {
+    // restore 2D canvases
+    if (viz3d) {
+      viz3d.destroy();
+      viz3d = null;
+    }
+    vizzes.forEach((v) => { v.canvas.style.display = ''; });
+  }
+}
+
+$toggle3D.addEventListener('change', (e) => {
+  toggle3DView(e.target.checked);
+});
+$tools.appendChild(labeled('3D cube view', $toggle3D));
+
+// keep 3D viz in sync with control changes
+$colorModel.addEventListener('change', () => {
+  if (viz3d) viz3d.colorModel = $colorModel.value;
+});
+$distanceMetric.addEventListener('change', () => {
+  if (viz3d) viz3d.distanceMetric = $distanceMetric.value;
+});
+$invertZCheckbox.addEventListener('change', () => {
+  if (viz3d) viz3d.invertZ = $invertZCheckbox.checked;
+});
+$showRawCheckbox.addEventListener('change', () => {
+  if (viz3d) viz3d.showRaw = $showRawCheckbox.checked;
+});
+$outlineSlider.addEventListener('input', () => {
+  if (viz3d) viz3d.outlineWidth = parseFloat($outlineSlider.value);
+});
+
+// resize 3D viz
+window.addEventListener('resize', () => {
+  if (viz3d) {
+    const sidebarWidth = window.matchMedia('(orientation: portrait)').matches ? 0 : Math.min(320, Math.max(200, window.innerWidth * 0.35));
+    const w = $app.clientWidth - sidebarWidth;
+    const h = $app.clientHeight || 512;
+    viz3d.resize(w, h);
+  }
 });
 
 // async load from hash — after first paint so it never blocks rendering

@@ -465,6 +465,17 @@ input[type='checkbox']:focus {
     border-bottom: var(--s-line) solid var(--c-surface-on);
   }
 
+  .palette-viz-3d {
+    width: 100% !important;
+    height: 100% !important;
+    cursor: grab;
+    display: block;
+  }
+
+  .palette-viz-3d:active {
+    cursor: grabbing;
+  }
+
   .palette-viz:nth-child(3n) {
     border-right: none;
   }
