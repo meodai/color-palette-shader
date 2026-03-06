@@ -1,5 +1,5 @@
 import './style.css';
-import { PaletteViz, PaletteViz3D } from 'palette-shader';
+import { PaletteViz, PaletteViz3D, mat4RotateX, mat4RotateY, mat4Multiply } from 'palette-shader';
 import { TargetSession, extractColorTokens } from 'token-beam';
 import { converter } from 'culori';
 
@@ -534,6 +534,7 @@ function encodeHash(colors, settings) {
     ...(settings.invertZ && { invert: '1' }),
     ...(settings.showRaw && { raw: '1' }),
     ...(settings.outlineWidth > 0 && { outline: settings.outlineWidth.toString() }),
+    ...(settings.is3D && { view3d: '1' }),
   });
   return `#colors/${colorStr}?${params}`;
 }
@@ -559,6 +560,7 @@ function decodeHash(hash) {
     invertZ: params.get('invert') === '1',
     showRaw: params.get('raw') === '1',
     outlineWidth: parseFloat(params.get('outline') ?? '0'),
+    is3D: params.get('view3d') === '1',
   };
 }
 
@@ -570,6 +572,7 @@ function getSettings() {
     invertZ: $invertZCheckbox.checked,
     showRaw: $showRawCheckbox.checked,
     outlineWidth: parseFloat($outlineSlider.value),
+    is3D,
   };
 }
 
@@ -597,6 +600,12 @@ function applyState(state) {
     v.outlineWidth = state.outlineWidth;
   });
   applyPosition(state.pos);
+
+  // 3D toggle
+  if (state.is3D !== is3D) {
+    $toggle3D.checked = state.is3D;
+    toggle3DView(state.is3D);
+  }
 }
 
 // debounced hash writer
@@ -723,6 +732,40 @@ function create3DViz() {
     outlineWidth: parseFloat($outlineSlider.value),
   });
   viz3d.canvas.classList.add('palette-viz-3d');
+  setup3DMouseControls();
+}
+
+// ── Trackball / spherical orbit controls for the 3D view ─────────────────────
+let _dragging3D = false;
+let _lastX = 0;
+let _lastY = 0;
+
+function setup3DMouseControls() {
+  if (!viz3d) return;
+  const canvas = viz3d.canvas;
+  canvas.addEventListener('pointerdown', on3DPointerDown);
+  canvas.addEventListener('pointermove', on3DPointerMove);
+  canvas.addEventListener('pointerup', on3DPointerUp);
+  canvas.addEventListener('pointercancel', on3DPointerUp);
+}
+
+function on3DPointerDown(e) {
+  _dragging3D = true;
+  _lastX = e.clientX;
+  _lastY = e.clientY;
+  e.currentTarget.setPointerCapture(e.pointerId);
+}
+function on3DPointerMove(e) {
+  if (!_dragging3D || !viz3d) return;
+  const dx = (e.clientX - _lastX) * 0.008;
+  const dy = (e.clientY - _lastY) * 0.008;
+  _lastX = e.clientX;
+  _lastY = e.clientY;
+  viz3d.rotate(dx, dy);
+}
+function on3DPointerUp(e) {
+  _dragging3D = false;
+  e.currentTarget.releasePointerCapture(e.pointerId);
 }
 
 // Keep palette in sync with 3D view — observe mutations via MutationObserver-free polling
@@ -755,6 +798,7 @@ function toggle3DView(enable) {
 
 $toggle3D.addEventListener('change', (e) => {
   toggle3DView(e.target.checked);
+  scheduleHashUpdate();
 });
 $tools.appendChild(labeled('3D cube view', $toggle3D));
 

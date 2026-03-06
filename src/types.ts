@@ -64,6 +64,5 @@ export type PaletteViz3DOptions = {
   showRaw?: boolean;
   outlineWidth?: number;
   position?: number;
-  yaw?: number;
-  pitch?: number;
+  modelMatrix?: Float32Array;
 };

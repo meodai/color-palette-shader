@@ -1057,8 +1057,9 @@ function createCylinderMesh(radialSegments: number, heightSegments: number): { v
 // Polar model IDs that should use a cylinder
 const POLAR_MODEL_IDS = new Set([3, 5, 7, 9, 11, 13, 16, 19, 22]);
 
-// Simple 4×4 matrix helpers (column-major)
-function mat4Perspective(fov: number, aspect: number, near: number, far: number): Float32Array {
+// Simple 4×4 matrix helpers (column-major) — exported so consumers can build
+// their own orbit / trackball controls.
+export function mat4Perspective(fov: number, aspect: number, near: number, far: number): Float32Array {
   const f = 1.0 / Math.tan(fov / 2);
   const nf = 1 / (near - far);
   // prettier-ignore
@@ -1070,7 +1071,7 @@ function mat4Perspective(fov: number, aspect: number, near: number, far: number)
   ]);
 }
 
-function mat4Multiply(a: Float32Array, b: Float32Array): Float32Array {
+export function mat4Multiply(a: Float32Array, b: Float32Array): Float32Array {
   const out = new Float32Array(16);
   for (let i = 0; i < 4; i++) {
     for (let j = 0; j < 4; j++) {
@@ -1084,7 +1085,7 @@ function mat4Multiply(a: Float32Array, b: Float32Array): Float32Array {
   return out;
 }
 
-function mat4RotateY(angle: number): Float32Array {
+export function mat4RotateY(angle: number): Float32Array {
   const c = Math.cos(angle), s = Math.sin(angle);
   // prettier-ignore
   return new Float32Array([
@@ -1095,7 +1096,7 @@ function mat4RotateY(angle: number): Float32Array {
   ]);
 }
 
-function mat4RotateX(angle: number): Float32Array {
+export function mat4RotateX(angle: number): Float32Array {
   const c = Math.cos(angle), s = Math.sin(angle);
   // prettier-ignore
   return new Float32Array([
@@ -1106,7 +1107,7 @@ function mat4RotateX(angle: number): Float32Array {
   ]);
 }
 
-function mat4Translate(x: number, y: number, z: number): Float32Array {
+export function mat4Translate(x: number, y: number, z: number): Float32Array {
   // prettier-ignore
   return new Float32Array([
     1, 0, 0, 0,
@@ -1121,9 +1122,9 @@ export class PaletteViz3D {
   #width = 512;
   #height = 512;
   #pixelRatio = 1;
-  #yaw = 0.65;
-  #pitch = 0.45;
   #position = 1.0;
+  // accumulated model rotation matrix (spherical/trackball controls)
+  #modelMatrix = new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
 
   #colorModel: SupportedColorModels = 'okhsv';
   #distanceMetric: DistanceMetric = 'oklab';
@@ -1173,11 +1174,6 @@ export class PaletteViz3D {
 
   #container: HTMLElement | undefined;
 
-  // mouse drag state
-  #dragging = false;
-  #lastX = 0;
-  #lastY = 0;
-
   constructor({
     palette = randomPalette(),
     width = 512,
@@ -1190,8 +1186,7 @@ export class PaletteViz3D {
     showRaw = false,
     outlineWidth = 0,
     position = 1.0,
-    yaw = 0.65,
-    pitch = 0.45,
+    modelMatrix,
   }: PaletteViz3DOptions = {}) {
     this.#palette = palette;
     this.#width = width;
@@ -1203,8 +1198,6 @@ export class PaletteViz3D {
     this.#showRaw = showRaw;
     this.#outlineWidth = outlineWidth;
     this.#position = position;
-    this.#yaw = yaw;
-    this.#pitch = pitch;
     this.#container = container;
     this.#isPolar = POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
 
@@ -1213,6 +1206,13 @@ export class PaletteViz3D {
     const gl = this.#canvas.getContext('webgl2');
     if (!gl) throw new Error('WebGL2 not supported');
     this.#gl = gl;
+
+    // Initialise model rotation matrix (default: slight tilt)
+    if (modelMatrix) {
+      this.#modelMatrix = new Float32Array(modelMatrix);
+    } else {
+      this.#modelMatrix = mat4Multiply(mat4RotateX(0.45), mat4RotateY(0.65));
+    }
 
     this.#buildMesh();
 
@@ -1226,7 +1226,6 @@ export class PaletteViz3D {
 
     if (this.#outlineWidth > 0) this.#buildOutlineResources();
     this.#container?.appendChild(this.#canvas);
-    this.#setupMouseControls();
     this.#paint();
   }
 
@@ -1375,10 +1374,7 @@ export class PaletteViz3D {
     const aspect = this.#canvas.width / this.#canvas.height;
     const proj = mat4Perspective(Math.PI / 5, aspect, 0.1, 100);
     const view = mat4Translate(0, 0, -3);
-    const rotY = mat4RotateY(this.#yaw);
-    const rotX = mat4RotateX(this.#pitch);
-    const model = mat4Multiply(rotY, rotX);
-    return mat4Multiply(proj, mat4Multiply(view, model));
+    return mat4Multiply(proj, mat4Multiply(view, this.#modelMatrix));
   }
 
   #render(): void {
@@ -1438,35 +1434,6 @@ export class PaletteViz3D {
       this.#animationFrame = null;
       this.#render();
     });
-  }
-
-  #setupMouseControls(): void {
-    const onPointerDown = (e: PointerEvent) => {
-      this.#dragging = true;
-      this.#lastX = e.clientX;
-      this.#lastY = e.clientY;
-      this.#canvas.setPointerCapture(e.pointerId);
-    };
-    const onPointerMove = (e: PointerEvent) => {
-      if (!this.#dragging) return;
-      const dx = e.clientX - this.#lastX;
-      const dy = e.clientY - this.#lastY;
-      this.#lastX = e.clientX;
-      this.#lastY = e.clientY;
-      this.#yaw -= dx * 0.008;
-      this.#pitch += dy * 0.008;
-      this.#pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.#pitch));
-      this.#paint();
-    };
-    const onPointerUp = (e: PointerEvent) => {
-      this.#dragging = false;
-      this.#canvas.releasePointerCapture(e.pointerId);
-    };
-
-    this.#canvas.addEventListener('pointerdown', onPointerDown);
-    this.#canvas.addEventListener('pointermove', onPointerMove);
-    this.#canvas.addEventListener('pointerup', onPointerUp);
-    this.#canvas.addEventListener('pointercancel', onPointerUp);
   }
 
   // ── Public API ──────────────────────────────────────────────────────────────
@@ -1543,14 +1510,19 @@ export class PaletteViz3D {
   }
   get position() { return this.#position; }
 
-  set yaw(value: number) { this.#yaw = value; this.#paint(); }
-  get yaw() { return this.#yaw; }
-
-  set pitch(value: number) {
-    this.#pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, value));
+  /** Apply an incremental spherical rotation (screen-space dx/dy in radians). */
+  rotate(dx: number, dy: number): void {
+    const incY = mat4RotateY(-dx);
+    const incX = mat4RotateX(-dy);
+    this.#modelMatrix = mat4Multiply(incX, mat4Multiply(incY, this.#modelMatrix));
     this.#paint();
   }
-  get pitch() { return this.#pitch; }
+
+  set modelMatrix(m: Float32Array) {
+    this.#modelMatrix = new Float32Array(m);
+    this.#paint();
+  }
+  get modelMatrix(): Float32Array { return new Float32Array(this.#modelMatrix); }
 
   set outlineWidth(value: number) {
     const wasEnabled = this.#outlineWidth > 0;
