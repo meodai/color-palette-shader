@@ -117,38 +117,32 @@ export function createCylinderMesh(radialSegments: number, heightSegments: numbe
   return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
 }
 
-// Stacked slices filling the cube volume along two axes (X and Z).
-// Out-of-gamut fragments are discarded per-slice. Two axes ensure the body
-// looks solid from most viewing angles without z-fighting artifacts.
-export function createSlicedCubeMesh(resolution: number, slices: number): { vertices: Float32Array; indices: Uint32Array } {
+// Stacked X-axis slices filling the cube volume. Each slice is a YZ quad.
+// Used for gamut clipping — out-of-gamut fragments are discarded per-slice,
+// and the dense stack forms the visible gamut body.
+export function createSlicedCubeMesh(resolution: number, slices: number, padding = 0): { vertices: Float32Array; indices: Uint32Array } {
   const verts: number[] = [];
   const idx: number[] = [];
   const n = resolution;
+  const lo = -padding;
+  const hi = 1 + padding;
+  const span = hi - lo;
 
-  // axis 0 = X slices (YZ quads), axis 2 = Z slices (XY quads)
-  for (const axis of [0, 2]) {
-    for (let s = 0; s <= slices; s++) {
-      const t = s / slices;
-      const base = verts.length / 3;
-      for (let j = 0; j <= n; j++) {
-        for (let i = 0; i <= n; i++) {
-          const u = i / n;
-          const v = j / n;
-          const pos = [0, 0, 0];
-          pos[axis] = t;
-          pos[(axis + 1) % 3] = u;
-          pos[(axis + 2) % 3] = v;
-          verts.push(pos[0], pos[1], pos[2]);
-        }
+  for (let s = 0; s <= slices; s++) {
+    const x = lo + span * s / slices;
+    const base = verts.length / 3;
+    for (let j = 0; j <= n; j++) {
+      for (let i = 0; i <= n; i++) {
+        verts.push(x, lo + span * j / n, lo + span * i / n);
       }
-      for (let j = 0; j < n; j++) {
-        for (let i = 0; i < n; i++) {
-          const a = base + j * (n + 1) + i;
-          const b = a + 1;
-          const c = a + (n + 1);
-          const d = c + 1;
-          idx.push(a, b, c, b, d, c);
-        }
+    }
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        const a = base + j * (n + 1) + i;
+        const b = a + 1;
+        const c = a + (n + 1);
+        const d = c + 1;
+        idx.push(a, b, c, b, d, c);
       }
     }
   }
@@ -156,23 +150,23 @@ export function createSlicedCubeMesh(resolution: number, slices: number): { vert
   return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
 }
 
-// Stacked height slices (horizontal discs) + radial slices (vertical pie planes)
-// filling the cylinder volume. Two slice directions ensure the body looks solid
-// from any viewing angle.
-export function createSlicedCylinderMesh(radialSegments: number, slices: number): { vertices: Float32Array; indices: Uint32Array } {
+// Stacked height slices filling the cylinder volume. Each slice is a full disc.
+export function createSlicedCylinderMesh(radialSegments: number, slices: number, padding = 0): { vertices: Float32Array; indices: Uint32Array } {
   const verts: number[] = [];
   const idx: number[] = [];
   const TWO_PI = Math.PI * 2;
   const capSegs = Math.max(1, Math.floor(radialSegments / 4));
+  const maxR = 0.5 + padding;   // radius extent
+  const hLo = -padding;         // height range: [-padding, 1+padding]
+  const hHi = 1 + padding;
 
-  // ── Horizontal disc slices (stacked along height) ──────────────────────────
   for (let s = 0; s <= slices; s++) {
-    const h = s / slices;
+    const h = hLo + (hHi - hLo) * s / slices;
     const py = h - 0.5;
     const discBase = verts.length / 6;
     for (let ring = 0; ring <= capSegs; ring++) {
       const r01 = ring / capSegs;
-      const rPos = r01 * 0.5;
+      const rPos = r01 * maxR;
       for (let i = 0; i <= radialSegments; i++) {
         const u = i / radialSegments;
         const angle = u * TWO_PI;
@@ -191,47 +185,12 @@ export function createSlicedCylinderMesh(radialSegments: number, slices: number)
     }
   }
 
-  // ── Radial "pie" slices (vertical planes through center axis) ──────────────
-  // Each slice is a rectangle from center to edge, spanning full height.
-  const heightSegs = Math.max(1, Math.floor(slices / 2));
-  const radialSlices = Math.max(8, Math.floor(radialSegments / 2));
-  for (let s = 0; s < radialSlices; s++) {
-    const u = s / radialSlices;
-    const angle = u * TWO_PI;
-    const cosA = Math.cos(angle);
-    const sinA = Math.sin(angle);
-    const sliceBase = verts.length / 6;
-    // Grid across the diameter (from -0.5 to +0.5 radius) and height
-    const rSegs = capSegs * 2; // points across the full diameter
-    for (let hj = 0; hj <= heightSegs; hj++) {
-      const h = hj / heightSegs;
-      const py = h - 0.5;
-      for (let ri = 0; ri <= rSegs; ri++) {
-        const rFrac = ri / rSegs; // 0..1 across diameter
-        const rPos = (rFrac - 0.5); // -0.5..+0.5
-        const px = rPos * cosA;
-        const pz = rPos * sinA;
-        // color coords: hue=angle, radius=abs distance from center, height
-        const r01 = Math.abs(rPos) * 2.0; // 0..1
-        // hue wraps: for negative rPos, add 0.5 to hue (opposite side)
-        const hue = rPos >= 0 ? u : (u + 0.5) % 1.0;
-        verts.push(px, py, pz, hue, r01, h);
-      }
-    }
-    const stride = rSegs + 1;
-    for (let hj = 0; hj < heightSegs; hj++) {
-      for (let ri = 0; ri < rSegs; ri++) {
-        const a = sliceBase + hj * stride + ri;
-        const b = a + 1;
-        const c = a + stride;
-        const d = c + 1;
-        idx.push(a, b, c, b, d, c);
-      }
-    }
-  }
-
   return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
 }
 
 // Polar model IDs that should use a cylinder
 export const POLAR_MODEL_IDS = new Set([3, 5, 7, 9, 11, 13, 16, 19, 22]);
+
+// All hue-based model IDs (polar + non-polar). In gamut clip mode these all
+// need the cylinder mesh so rotation doesn't distort the periodic hue axis.
+export const HUE_MODEL_IDS = new Set([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 18, 19, 21, 22]);

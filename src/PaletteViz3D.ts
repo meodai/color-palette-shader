@@ -13,8 +13,8 @@ import {
   assembleFragShader3D,
   outlineFragmentShaderSrc,
 } from './shaderSrc.ts';
-import { createCubeMesh, createCylinderMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS } from './mesh.ts';
-import { mat4Perspective, mat4Multiply, mat4RotateX, mat4RotateY, mat4Translate } from './math.ts';
+import { createCubeMesh, createCylinderMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS, HUE_MODEL_IDS } from './mesh.ts';
+import { mat4Perspective, mat4Ortho, mat4Multiply, mat4RotateX, mat4RotateY, mat4RotateZ, mat4Translate } from './math.ts';
 
 export class PaletteViz3D {
   #palette: ColorList = [];
@@ -31,6 +31,9 @@ export class PaletteViz3D {
   #showRaw = false;
   #outlineWidth = 0;
   #gamutClip = false;
+  // Turntable orbit angles for gamut clip mode (avoids axis drift)
+  #gcYaw = 0;
+  #gcPitch = 0;
 
   readonly #colorModelMap = {
     rgb: 0, oklab: 1, okhsv: 2, okhsvPolar: 3, okhsl: 4, okhslPolar: 5,
@@ -64,6 +67,7 @@ export class PaletteViz3D {
   #uPaletteTexture: WebGLUniformLocation | null = null;
   #uPaletteMetricTexture: WebGLUniformLocation | null = null;
   #uPaletteSize: WebGLUniformLocation | null = null;
+  #uColorRotation: WebGLUniformLocation | null = null;
 
   // FBO + blit quad (always used — decouples 3D render from display compositor)
   #fbo: WebGLFramebuffer | null = null;
@@ -105,7 +109,9 @@ export class PaletteViz3D {
     this.#gamutClip = gamutClip;
     this.#position = position;
     this.#container = container;
-    this.#isPolar = POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
+    this.#isPolar = this.#gamutClip
+      ? HUE_MODEL_IDS.has(this.#colorModelMap[this.#colorModel])
+      : POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
 
     this.#canvas = document.createElement('canvas');
     this.#canvas.classList.add('palette-viz-3d');
@@ -147,7 +153,7 @@ export class PaletteViz3D {
 
     if (this.#isPolar) {
       const { vertices, indices } = this.#gamutClip
-        ? createSlicedCylinderMesh(64, 256)
+        ? createSlicedCylinderMesh(128, 256, 0.25)
         : createCylinderMesh(128, 64);
       this.#indexCount = indices.length;
 
@@ -171,7 +177,7 @@ export class PaletteViz3D {
       gl.bindVertexArray(null);
     } else {
       const { vertices, indices } = this.#gamutClip
-        ? createSlicedCubeMesh(32, 256)
+        ? createSlicedCubeMesh(64, 256, 0.42)
         : createCubeMesh(64);
       this.#indexCount = indices.length;
 
@@ -200,6 +206,7 @@ export class PaletteViz3D {
       INVERT_Z: this.#invertZ ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
       GAMUT_CLIP: this.#gamutClip ? 1 : false,
+      GAMUT_CLIP_POLAR: (this.#gamutClip && this.#isPolar) ? 1 : false,
     };
   }
 
@@ -218,6 +225,7 @@ export class PaletteViz3D {
     this.#uPaletteTexture = gl.getUniformLocation(this.#program, 'paletteTexture');
     this.#uPaletteMetricTexture = gl.getUniformLocation(this.#program, 'paletteMetricTexture');
     this.#uPaletteSize = gl.getUniformLocation(this.#program, 'uPaletteSize');
+    this.#uColorRotation = gl.getUniformLocation(this.#program, 'uColorRotation');
     this.#metricPaletteDirty = true;
   }
 
@@ -281,6 +289,21 @@ export class PaletteViz3D {
 
   #buildMVP(): Float32Array {
     const aspect = this.#canvas.width / this.#canvas.height;
+    if (this.#gamutClip) {
+      // Orthographic projection — all slices project identically (no perspective
+      // parallax that would reveal slice edges as line patterns).
+      const s = 1.0; // half-size of the view volume (covers padded mesh)
+      const proj = mat4Ortho(-s * aspect, s * aspect, -s, s, 0.1, 100);
+      const view = mat4Translate(0, 0, -3);
+      // Fixed orientation: slices always face the camera.
+      // Orientations chosen so that mesh draw order (ascending index) is
+      // back-to-front, enabling correct painter's-algorithm rendering
+      // without depth test.
+      const fixedOrientation = this.#isPolar
+        ? mat4RotateX(Math.PI / 2)
+        : mat4RotateY(-Math.PI / 2);
+      return mat4Multiply(proj, mat4Multiply(view, fixedOrientation));
+    }
     const proj = mat4Perspective(Math.PI / 5, aspect, 0.1, 100);
     const view = mat4Translate(0, 0, -3);
     return mat4Multiply(proj, mat4Multiply(view, this.#modelMatrix));
@@ -288,7 +311,9 @@ export class PaletteViz3D {
 
   #render(): void {
     if (this.#meshDirty) {
-      this.#isPolar = POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
+      this.#isPolar = this.#gamutClip
+      ? HUE_MODEL_IDS.has(this.#colorModelMap[this.#colorModel])
+      : POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
       this.#buildMesh();
       this.#meshDirty = false;
     }
@@ -301,12 +326,12 @@ export class PaletteViz3D {
     // ── Pass 1: render 3D scene into FBO ─────────────────────────────────────
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
 
-    if (this.#gamutClip) {
-      gl.clearColor(0.12, 0.12, 0.12, 1.0);
-    } else {
-      gl.clearColor(0, 0, 0, 0);
-    }
+    gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    // Gamut clip uses painter's algorithm (back-to-front slices, no depth test)
+    // to avoid visible slice-edge artifacts.
+    if (this.#gamutClip) gl.disable(gl.DEPTH_TEST);
 
     gl.useProgram(this.#program);
     if (this.#metricPaletteDirty) {
@@ -317,6 +342,15 @@ export class PaletteViz3D {
     }
     gl.uniformMatrix4fv(this.#uMVP, false, this.#buildMVP());
     gl.uniform1f(this.#uPosition, this.#position);
+    if (this.#gamutClip && this.#uColorRotation) {
+      // Extract upper-left 3×3 rotation from the model matrix
+      const m = this.#modelMatrix;
+      gl.uniformMatrix3fv(this.#uColorRotation, false, new Float32Array([
+        m[0], m[1], m[2],
+        m[4], m[5], m[6],
+        m[8], m[9], m[10],
+      ]));
+    }
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.#texture);
     gl.uniform1i(this.#uPaletteTexture, 0);
@@ -327,6 +361,8 @@ export class PaletteViz3D {
     gl.bindVertexArray(this.#vao);
     gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
     gl.bindVertexArray(null);
+
+    if (this.#gamutClip) gl.enable(gl.DEPTH_TEST);
     gl.flush();
 
     // ── Pass 2: blit FBO to default framebuffer (outline when enabled) ───────
@@ -438,10 +474,25 @@ export class PaletteViz3D {
 
   /** Apply an incremental spherical rotation (screen-space dx/dy in radians). */
   rotate(dx: number, dy: number): void {
-    const incY = mat4RotateY(-dx);
-    const incX = mat4RotateX(-dy);
-    this.#modelMatrix = mat4Multiply(incX, mat4Multiply(incY, this.#modelMatrix));
-    this.#paint();
+    if (this.#gamutClip) {
+      // Turntable orbit for gamut clip: track yaw/pitch and rebuild matrix.
+      // This avoids axis drift from accumulated matrix multiplication.
+      this.#gcYaw += dx;
+      this.#gcPitch += dy;
+      // Clamp pitch to avoid flipping
+      this.#gcPitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.#gcPitch));
+      // Rebuild: yaw around the "up" axis first, then pitch around the screen horizontal.
+      // Cube:  up = Y, horiz = Z → rotateY(yaw) * rotateZ(pitch)
+      // Cyl:   up = Z, horiz = X → rotateZ(yaw) * rotateX(pitch)
+      this.#modelMatrix = this.#isPolar
+        ? mat4Multiply(mat4RotateZ(-this.#gcYaw), mat4RotateX(-this.#gcPitch))
+        : mat4Multiply(mat4RotateY(-this.#gcYaw), mat4RotateZ(this.#gcPitch));
+      this.#paint();
+    } else {
+      const inc = mat4Multiply(mat4RotateX(-dy), mat4RotateY(-dx));
+      this.#modelMatrix = mat4Multiply(inc, this.#modelMatrix);
+      this.#paint();
+    }
   }
 
   set modelMatrix(m: Float32Array) {

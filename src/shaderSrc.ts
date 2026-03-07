@@ -51,7 +51,7 @@ vec3 modelToRGB(vec3 colorCoords) {
     return colorCoords;
   #elif COLOR_MODEL == 1
     vec3 linear = oklab_to_linear_srgb(vec3(colorCoords.z, colorCoords.x - 0.5, colorCoords.y - 0.5));
-    return clamp(vec3(srgb_transfer_function(linear.r), srgb_transfer_function(linear.g), srgb_transfer_function(linear.b)), 0.0, 1.0);
+    return vec3(srgb_transfer_function(linear.r), srgb_transfer_function(linear.g), srgb_transfer_function(linear.b));
   #elif COLOR_MODEL == 2 || COLOR_MODEL == 3
     return okhsv_to_srgb(colorCoords);
   #elif COLOR_MODEL == 4 || COLOR_MODEL == 5
@@ -66,7 +66,7 @@ vec3 modelToRGB(vec3 colorCoords) {
     return hwb2rgb(colorCoords);
   #elif COLOR_MODEL == 14
     vec3 linear14 = oklab_to_linear_srgb(vec3(toe_inv(colorCoords.z), colorCoords.x - 0.5, colorCoords.y - 0.5));
-    return clamp(vec3(srgb_transfer_function(linear14.r), srgb_transfer_function(linear14.g), srgb_transfer_function(linear14.b)), 0.0, 1.0);
+    return vec3(srgb_transfer_function(linear14.r), srgb_transfer_function(linear14.g), srgb_transfer_function(linear14.b));
   #elif COLOR_MODEL == 15 || COLOR_MODEL == 16
     return lch2rgb(vec3(toe_inv(colorCoords.z), colorCoords.y, colorCoords.x));
   #elif COLOR_MODEL == 17
@@ -131,13 +131,13 @@ void main(){
 
   vec3 rgb = modelToRGB(colorCoords);
 
-  #ifdef GAMUT_CLIP
-    if (any(lessThan(rgb, vec3(-0.002))) || any(greaterThan(rgb, vec3(1.002)))) {
-      fragColor = vec4(0.0);
-      return;
-    }
-  #endif
+  // Always discard out-of-gamut pixels as transparent
+  if (any(lessThan(rgb, vec3(-0.002))) || any(greaterThan(rgb, vec3(1.002)))) {
+    fragColor = vec4(0.0);
+    return;
+  }
 
+  rgb = clamp(rgb, 0.0, 1.0);
   #ifdef SHOW_RAW
     fragColor = vec4(rgb, 1.);
   #else
@@ -270,11 +270,18 @@ out vec3 vColorCoord;
 
 uniform mat4 uMVP;
 uniform float uPosition;
+#ifdef GAMUT_CLIP
+uniform mat3 uColorRotation;
+#endif
 
 void main() {
   vec3 pos = a_position;
   pos.x = min(pos.x, uPosition);
-  vColorCoord = pos;
+  #ifdef GAMUT_CLIP
+    vColorCoord = uColorRotation * (pos - 0.5) + 0.5;
+  #else
+    vColorCoord = pos;
+  #endif
   gl_Position = uMVP * vec4(pos - 0.5, 1.0);
 }`;
 
@@ -287,20 +294,46 @@ out vec3 vColorCoord;
 
 uniform mat4 uMVP;
 uniform float uPosition;
+#ifdef GAMUT_CLIP
+uniform mat3 uColorRotation;
+#endif
 
 void main() {
-  vec3 cc = a_colorCoord;
-  cc.z = min(cc.z, uPosition);
-  vec3 pos = a_position;
-  pos.y = cc.z - 0.5;
-  vColorCoord = cc;
-  gl_Position = uMVP * vec4(pos, 1.0);
+  #ifdef GAMUT_CLIP
+    // Pass rotated Cartesian position; polar conversion happens per-pixel
+    // in the fragment shader to avoid atan interpolation artifacts.
+    vColorCoord = uColorRotation * a_position;
+    gl_Position = uMVP * vec4(a_position, 1.0);
+  #else
+    vec3 cc = a_colorCoord;
+    cc.z = min(cc.z, uPosition);
+    vec3 pos = a_position;
+    pos.y = cc.z - 0.5;
+    vColorCoord = cc;
+    gl_Position = uMVP * vec4(pos, 1.0);
+  #endif
 }`;
 
 // Fragment shader for the 3D view.
 const mainSrc3D = `
 void main() {
   vec3 colorCoords = vColorCoord;
+
+  #ifdef GAMUT_CLIP_POLAR
+    // vColorCoord is rotated Cartesian position — convert to polar per-pixel
+    // to avoid atan interpolation artifacts across quad edges.
+    float _hue = atan(vColorCoord.z, vColorCoord.x) / TWO_PI;
+    if (_hue < 0.0) _hue += 1.0;
+    float _radius = length(vColorCoord.xz) * 2.0;
+    float _height = vColorCoord.y + 0.5;
+    // Discard if polar coords are outside the valid [0,1] range — prevents
+    // padded mesh from feeding out-of-range values to color conversion functions
+    // that might produce valid-looking but wrong sRGB output.
+    if (_radius > 1.0 || _height < 0.0 || _height > 1.0) {
+      discard;
+    }
+    colorCoords = vec3(_hue, _radius, _height);
+  #endif
 
   #ifdef INVERT_Z
     colorCoords.z = 1.0 - colorCoords.z;
@@ -314,6 +347,7 @@ void main() {
     }
   #endif
 
+  rgb = clamp(rgb, 0.0, 1.0);
   #ifdef SHOW_RAW
     fragColor = vec4(rgb, 1.0);
   #else

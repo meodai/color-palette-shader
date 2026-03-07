@@ -38,6 +38,17 @@ export function mat4RotateY(angle: number): Float32Array {
   ]);
 }
 
+export function mat4RotateZ(angle: number): Float32Array {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  // prettier-ignore
+  return new Float32Array([
+    c, s, 0, 0,
+    -s, c, 0, 0,
+    0, 0, 1, 0,
+    0, 0, 0, 1,
+  ]);
+}
+
 export function mat4RotateX(angle: number): Float32Array {
   const c = Math.cos(angle), s = Math.sin(angle);
   // prettier-ignore
@@ -46,6 +57,19 @@ export function mat4RotateX(angle: number): Float32Array {
     0, c, -s, 0,
     0, s, c, 0,
     0, 0, 0, 1,
+  ]);
+}
+
+export function mat4Ortho(left: number, right: number, bottom: number, top: number, near: number, far: number): Float32Array {
+  const lr = 1 / (left - right);
+  const bt = 1 / (bottom - top);
+  const nf = 1 / (near - far);
+  // prettier-ignore
+  return new Float32Array([
+    -2 * lr, 0, 0, 0,
+    0, -2 * bt, 0, 0,
+    0, 0, 2 * nf, 0,
+    (left + right) * lr, (top + bottom) * bt, (far + near) * nf, 1,
   ]);
 }
 

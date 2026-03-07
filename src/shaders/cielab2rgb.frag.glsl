@@ -71,11 +71,11 @@ vec3 cielab_d65_to_rgb(vec3 lab) {
     -0.9692660 * xyz.x + 1.8760108 * xyz.y + 0.0415560 * xyz.z,
      0.0556434 * xyz.x - 0.2040259 * xyz.y + 1.0572252 * xyz.z
   );
-  return clamp(vec3(
+  return vec3(
     srgb_transfer_function(lin.r),
     srgb_transfer_function(lin.g),
     srgb_transfer_function(lin.b)
-  ), 0.0, 1.0);
+  );
 }
 
 // CIELab D50 → sRGB  (L: [0,100], a,b: typically [-128,128])
@@ -87,9 +87,9 @@ vec3 cielab_d50_to_rgb(vec3 lab) {
     -0.9787684 * xyz.x + 1.9161415 * xyz.y + 0.0334540 * xyz.z,
      0.0719453 * xyz.x - 0.2289914 * xyz.y + 1.4052427 * xyz.z
   );
-  return clamp(vec3(
+  return vec3(
     srgb_transfer_function(lin.r),
     srgb_transfer_function(lin.g),
     srgb_transfer_function(lin.b)
-  ), 0.0, 1.0);
+  );
 }
