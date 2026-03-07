@@ -14,7 +14,7 @@ import {
   outlineFragmentShaderSrc,
 } from './shaderSrc.ts';
 import { createCubeMesh, createCylinderMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS, HUE_MODEL_IDS } from './mesh.ts';
-import { mat4Perspective, mat4Ortho, mat4Multiply, mat4RotateX, mat4RotateY, mat4RotateZ, mat4Translate } from './math.ts';
+import { mat4Perspective, mat4Ortho, mat4Multiply, mat4RotateX, mat4RotateY, mat4Translate } from './math.ts';
 
 export class PaletteViz3D {
   #palette: ColorList = [];
@@ -31,9 +31,6 @@ export class PaletteViz3D {
   #showRaw = false;
   #outlineWidth = 0;
   #gamutClip = false;
-  // Turntable orbit angles for gamut clip mode (avoids axis drift)
-  #gcYaw = 0;
-  #gcPitch = 0;
 
   readonly #colorModelMap = {
     rgb: 0, oklab: 1, okhsv: 2, okhsvPolar: 3, okhsl: 4, okhslPolar: 5,
@@ -471,24 +468,19 @@ export class PaletteViz3D {
   /** Apply an incremental spherical rotation (screen-space dx/dy in radians). */
   rotate(dx: number, dy: number): void {
     if (this.#gamutClip) {
-      // Turntable orbit for gamut clip: track yaw/pitch and rebuild matrix.
-      // This avoids axis drift from accumulated matrix multiplication.
-      this.#gcYaw += dx;
-      this.#gcPitch += dy;
-      // Clamp pitch to avoid flipping
-      this.#gcPitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, this.#gcPitch));
-      // Rebuild: yaw around the "up" axis first, then pitch around the screen horizontal.
-      // Cube:  up = Y, horiz = Z → rotateY(yaw) * rotateZ(pitch)
-      // Cyl:   up = Z, horiz = X → rotateZ(yaw) * rotateX(pitch)
-      this.#modelMatrix = this.#isPolar
-        ? mat4Multiply(mat4RotateZ(-this.#gcYaw), mat4RotateX(-this.#gcPitch))
-        : mat4Multiply(mat4RotateY(-this.#gcYaw), mat4RotateZ(this.#gcPitch));
-      this.#paint();
+      // The model matrix rotates the color space (inverse of geometry rotation).
+      // The camera views through fixed orientation F. To make drags feel natural:
+      //   R' = R * F^T * screenInc^T * F    (post-multiply, transposed, conjugated)
+      const F = this.#isPolar ? mat4RotateX(Math.PI / 2) : mat4RotateY(-Math.PI / 2);
+      const Ft = this.#isPolar ? mat4RotateX(-Math.PI / 2) : mat4RotateY(Math.PI / 2);
+      const screenIncT = mat4Multiply(mat4RotateY(dx), mat4RotateX(dy));
+      const colorInc = mat4Multiply(Ft, mat4Multiply(screenIncT, F));
+      this.#modelMatrix = mat4Multiply(this.#modelMatrix, colorInc);
     } else {
       const inc = mat4Multiply(mat4RotateX(-dy), mat4RotateY(-dx));
       this.#modelMatrix = mat4Multiply(inc, this.#modelMatrix);
-      this.#paint();
     }
+    this.#paint();
   }
 
   set modelMatrix(m: Float32Array) {
