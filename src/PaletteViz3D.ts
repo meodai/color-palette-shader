@@ -325,14 +325,10 @@ export class PaletteViz3D {
     }
     const gl = this.#gl;
 
-    const useOutline = !this.#showRaw && this.#outlineWidth > 0;
-
-    // Render into FBO only when outline pass is needed, otherwise direct
-    if (useOutline) {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
-    } else {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    }
+    // ── Pass 1: render 3D scene into FBO ─────────────────────────────────────
+    // Always render to FBO — rendering 512 slices with discard directly to the
+    // default framebuffer is significantly slower due to compositor overhead.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
 
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -365,24 +361,22 @@ export class PaletteViz3D {
     gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
     gl.bindVertexArray(null);
 
-    // ── Pass 2: blit FBO to screen (only when outline is enabled) ────────
-    if (useOutline) {
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.disable(gl.DEPTH_TEST);
-      gl.useProgram(this.#blitProgram);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, this.#fboTexture);
-      gl.uniform1i(this.#uColorMap, 0);
-      gl.uniform1f(this.#uOutlineWidth, this.#outlineWidth);
-      gl.uniform2f(this.#uOutlineResolution, this.#canvas.width, this.#canvas.height);
+    // ── Pass 2: blit FBO to default framebuffer ─────────────────────────────
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.disable(gl.DEPTH_TEST);
+    gl.useProgram(this.#blitProgram);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.#fboTexture);
+    gl.uniform1i(this.#uColorMap, 0);
+    gl.uniform1f(this.#uOutlineWidth, this.#showRaw ? 0 : this.#outlineWidth);
+    gl.uniform2f(this.#uOutlineResolution, this.#canvas.width, this.#canvas.height);
 
-      gl.clearColor(0, 0, 0, 0);
-      gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.bindVertexArray(this.#blitVao);
-      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      gl.bindVertexArray(null);
-      gl.enable(gl.DEPTH_TEST);
-    }
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindVertexArray(this.#blitVao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.bindVertexArray(null);
+    gl.enable(gl.DEPTH_TEST);
   }
 
   #paint(): void {
