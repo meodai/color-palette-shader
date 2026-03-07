@@ -154,7 +154,7 @@ export class PaletteViz3D {
 
     if (this.#isPolar) {
       const { vertices, indices } = this.#gamutClip
-        ? createSlicedCylinderMesh(32, 1024, 0.25)
+        ? createSlicedCylinderMesh(32, 512, 0.25)
         : createCylinderMesh(128, 64);
       this.#indexCount = indices.length;
 
@@ -178,7 +178,7 @@ export class PaletteViz3D {
       gl.bindVertexArray(null);
     } else {
       const { vertices, indices } = this.#gamutClip
-        ? createSlicedCubeMesh(2, 1024, 0.42)
+        ? createSlicedCubeMesh(2, 512, 0.42)
         : createCubeMesh(64);
       this.#indexCount = indices.length;
 
