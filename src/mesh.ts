@@ -117,5 +117,83 @@ export function createCylinderMesh(radialSegments: number, heightSegments: numbe
   return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
 }
 
+// Stacked X-axis slices filling the cube volume. Each slice is a YZ quad.
+// Used for gamut clipping — out-of-gamut fragments are discarded per-slice,
+// and the dense stack forms the visible gamut body.
+export function createSlicedCubeMesh(resolution: number, slices: number, padding = 0): { vertices: Float32Array; indices: Uint32Array } {
+  const verts: number[] = [];
+  const idx: number[] = [];
+  const n = resolution;
+  const lo = -padding;
+  const hi = 1 + padding;
+  const span = hi - lo;
+
+  // Iterate near-to-far so the draw order is front-to-back.
+  // With depth test on, early-Z rejects occluded fragments → huge perf win.
+  for (let s = slices; s >= 0; s--) {
+    const x = lo + span * s / slices;
+    const base = verts.length / 3;
+    for (let j = 0; j <= n; j++) {
+      for (let i = 0; i <= n; i++) {
+        verts.push(x, lo + span * j / n, lo + span * i / n);
+      }
+    }
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        const a = base + j * (n + 1) + i;
+        const b = a + 1;
+        const c = a + (n + 1);
+        const d = c + 1;
+        idx.push(a, b, c, b, d, c);
+      }
+    }
+  }
+
+  return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
+}
+
+// Stacked height slices filling the cylinder volume. Each slice is a full disc.
+export function createSlicedCylinderMesh(radialSegments: number, slices: number, padding = 0): { vertices: Float32Array; indices: Uint32Array } {
+  const verts: number[] = [];
+  const idx: number[] = [];
+  const TWO_PI = Math.PI * 2;
+  const capSegs = Math.max(1, Math.floor(radialSegments / 4));
+  const maxR = 0.5 + padding;   // radius extent
+  const hLo = -padding;         // height range: [-padding, 1+padding]
+  const hHi = 1 + padding;
+
+  // Iterate near-to-far so the draw order is front-to-back.
+  for (let s = slices; s >= 0; s--) {
+    const h = hLo + (hHi - hLo) * s / slices;
+    const py = h - 0.5;
+    const discBase = verts.length / 6;
+    for (let ring = 0; ring <= capSegs; ring++) {
+      const r01 = ring / capSegs;
+      const rPos = r01 * maxR;
+      for (let i = 0; i <= radialSegments; i++) {
+        const u = i / radialSegments;
+        const angle = u * TWO_PI;
+        verts.push(rPos * Math.cos(angle), py, rPos * Math.sin(angle), u, r01, h);
+      }
+    }
+    const stride = radialSegments + 1;
+    for (let ring = 0; ring < capSegs; ring++) {
+      for (let i = 0; i < radialSegments; i++) {
+        const a = discBase + ring * stride + i;
+        const b = a + 1;
+        const c = a + stride;
+        const d = c + 1;
+        idx.push(a, b, c, b, d, c);
+      }
+    }
+  }
+
+  return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
+}
+
 // Polar model IDs that should use a cylinder
 export const POLAR_MODEL_IDS = new Set([3, 5, 7, 9, 11, 13, 16, 19, 22]);
+
+// All hue-based model IDs (polar + non-polar). In gamut clip mode these all
+// need the cylinder mesh so rotation doesn't distort the periodic hue axis.
+export const HUE_MODEL_IDS = new Set([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 18, 19, 21, 22]);

@@ -24,6 +24,7 @@ export class PaletteViz {
   #invertZ = false;
   #showRaw = false;
   #outlineWidth = 0;
+  #gamutClip = false;
 
   // uniform value maps
   readonly #axisMap = { x: 0, y: 1, z: 2 } as const;
@@ -105,6 +106,7 @@ export class PaletteViz {
     invertZ = false,
     showRaw = false,
     outlineWidth = 0,
+    gamutClip = false,
   }: PaletteVizOptions = {}) {
     this.#palette = palette;
     this.#width = width;
@@ -117,6 +119,7 @@ export class PaletteViz {
     this.#invertZ = invertZ;
     this.#showRaw = showRaw;
     this.#outlineWidth = outlineWidth;
+    this.#gamutClip = gamutClip;
     this.#container = container;
 
     this.#canvas = document.createElement('canvas');
@@ -159,6 +162,7 @@ export class PaletteViz {
       PROGRESS_AXIS: this.#axisMap[this.#axis],
       INVERT_Z: this.#invertZ ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
+      GAMUT_CLIP: this.#gamutClip ? 1 : false,
     };
   }
 
@@ -445,6 +449,15 @@ export class PaletteViz {
   }
   get pixelRatio() {
     return this.#pixelRatio;
+  }
+
+  set gamutClip(value: boolean) {
+    this.#gamutClip = value;
+    this.#programDirty = true;
+    this.#paint();
+  }
+  get gamutClip() {
+    return this.#gamutClip;
   }
 
   set outlineWidth(value: number) {
