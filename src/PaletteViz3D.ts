@@ -13,7 +13,7 @@ import {
   assembleFragShader3D,
   outlineFragmentShaderSrc,
 } from './shaderSrc.ts';
-import { createCubeMesh, createCylinderMesh, POLAR_MODEL_IDS } from './mesh.ts';
+import { createCubeMesh, createCylinderMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS } from './mesh.ts';
 import { mat4Perspective, mat4Multiply, mat4RotateX, mat4RotateY, mat4Translate } from './math.ts';
 
 export class PaletteViz3D {
@@ -30,6 +30,7 @@ export class PaletteViz3D {
   #invertZ = false;
   #showRaw = false;
   #outlineWidth = 0;
+  #gamutClip = false;
 
   readonly #colorModelMap = {
     rgb: 0, oklab: 1, okhsv: 2, okhsvPolar: 3, okhsl: 4, okhslPolar: 5,
@@ -88,6 +89,7 @@ export class PaletteViz3D {
     invertZ = false,
     showRaw = false,
     outlineWidth = 0,
+    gamutClip = false,
     position = 1.0,
     modelMatrix,
   }: PaletteViz3DOptions = {}) {
@@ -100,6 +102,7 @@ export class PaletteViz3D {
     this.#invertZ = invertZ;
     this.#showRaw = showRaw;
     this.#outlineWidth = outlineWidth;
+    this.#gamutClip = gamutClip;
     this.#position = position;
     this.#container = container;
     this.#isPolar = POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
@@ -143,7 +146,9 @@ export class PaletteViz3D {
     if (this.#vao) gl.deleteVertexArray(this.#vao);
 
     if (this.#isPolar) {
-      const { vertices, indices } = createCylinderMesh(128, 64);
+      const { vertices, indices } = this.#gamutClip
+        ? createSlicedCylinderMesh(64, 256)
+        : createCylinderMesh(128, 64);
       this.#indexCount = indices.length;
 
       this.#vbo = gl.createBuffer()!;
@@ -165,7 +170,9 @@ export class PaletteViz3D {
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.#ibo);
       gl.bindVertexArray(null);
     } else {
-      const { vertices, indices } = createCubeMesh(64);
+      const { vertices, indices } = this.#gamutClip
+        ? createSlicedCubeMesh(32, 256)
+        : createCubeMesh(64);
       this.#indexCount = indices.length;
 
       this.#vbo = gl.createBuffer()!;
@@ -192,6 +199,7 @@ export class PaletteViz3D {
       DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
       INVERT_Z: this.#invertZ ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
+      GAMUT_CLIP: this.#gamutClip ? 1 : false,
     };
   }
 
@@ -280,9 +288,8 @@ export class PaletteViz3D {
 
   #render(): void {
     if (this.#meshDirty) {
-      const wasPolar = this.#isPolar;
       this.#isPolar = POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
-      if (wasPolar !== this.#isPolar) this.#buildMesh();
+      this.#buildMesh();
       this.#meshDirty = false;
     }
     if (this.#programDirty) {
@@ -294,7 +301,11 @@ export class PaletteViz3D {
     // ── Pass 1: render 3D scene into FBO ─────────────────────────────────────
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
 
-    gl.clearColor(0, 0, 0, 0);
+    if (this.#gamutClip) {
+      gl.clearColor(0.12, 0.12, 0.12, 1.0);
+    } else {
+      gl.clearColor(0, 0, 0, 0);
+    }
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.useProgram(this.#program);
@@ -438,6 +449,14 @@ export class PaletteViz3D {
     this.#paint();
   }
   get modelMatrix(): Float32Array { return new Float32Array(this.#modelMatrix); }
+
+  set gamutClip(value: boolean) {
+    this.#gamutClip = value;
+    this.#programDirty = true;
+    this.#meshDirty = true;
+    this.#paint();
+  }
+  get gamutClip() { return this.#gamutClip; }
 
   set outlineWidth(value: number) {
     this.#outlineWidth = value;

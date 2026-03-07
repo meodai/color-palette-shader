@@ -440,6 +440,18 @@ $showRawCheckbox.addEventListener('change', (e) => {
 });
 $tools.appendChild(labeled('Show raw colors', $showRawCheckbox));
 
+// Gamut clip
+const $gamutClipCheckbox = document.createElement('input');
+$gamutClipCheckbox.type = 'checkbox';
+$gamutClipCheckbox.checked = false;
+$gamutClipCheckbox.addEventListener('change', (e) => {
+  vizzes.forEach((v) => {
+    v.gamutClip = e.target.checked;
+  });
+  if (viz3d) viz3d.gamutClip = e.target.checked;
+});
+$tools.appendChild(labeled('Clip to sRGB gamut', $gamutClipCheckbox));
+
 // ── Palette editor ──────────────────────────────────────────────────────────
 
 function createDomFromPalette(palette) {
@@ -536,6 +548,7 @@ function encodeHash(colors, settings) {
     pos: settings.pos.toFixed(4),
     ...(settings.invertZ && { invert: '1' }),
     ...(settings.showRaw && { raw: '1' }),
+    ...(settings.gamutClip && { gamut: '1' }),
     ...(settings.outlineWidth > 0 && { outline: settings.outlineWidth.toString() }),
     ...(settings.is3D && { view3d: '1' }),
   });
@@ -562,6 +575,7 @@ function decodeHash(hash) {
     pos: parseFloat(params.get('pos') ?? '0'),
     invertZ: params.get('invert') === '1',
     showRaw: params.get('raw') === '1',
+    gamutClip: params.get('gamut') === '1',
     outlineWidth: parseFloat(params.get('outline') ?? '0'),
     is3D: params.get('view3d') === '1',
   };
@@ -574,6 +588,7 @@ function getSettings() {
     pos: parseFloat($positionSlider.value),
     invertZ: $invertZCheckbox.checked,
     showRaw: $showRawCheckbox.checked,
+    gamutClip: $gamutClipCheckbox.checked,
     outlineWidth: parseFloat($outlineSlider.value),
     is3D,
   };
@@ -593,6 +608,7 @@ function applyState(state) {
   $positionSlider.value = String(state.pos);
   $invertZCheckbox.checked = state.invertZ;
   $showRawCheckbox.checked = state.showRaw;
+  $gamutClipCheckbox.checked = state.gamutClip;
   $outlineSlider.value = String(state.outlineWidth);
 
   vizzes.forEach((v) => {
@@ -600,6 +616,7 @@ function applyState(state) {
     v.distanceMetric = state.distanceMetric;
     v.invertZ = state.invertZ;
     v.showRaw = state.showRaw;
+    v.gamutClip = state.gamutClip;
     v.outlineWidth = state.outlineWidth;
   });
   applyPosition(state.pos);
@@ -628,6 +645,7 @@ $positionSlider.addEventListener('input', scheduleHashUpdate);
 $outlineSlider.addEventListener('input', scheduleHashUpdate);
 $invertZCheckbox.addEventListener('change', scheduleHashUpdate);
 $showRawCheckbox.addEventListener('change', scheduleHashUpdate);
+$gamutClipCheckbox.addEventListener('change', scheduleHashUpdate);
 $palette.addEventListener('input', scheduleHashUpdate, true);
 $palette.addEventListener('click', (e) => {
   if (e.target.classList.contains('color-picker__remove')) scheduleHashUpdate();
@@ -737,6 +755,7 @@ function create3DViz() {
     distanceMetric: $distanceMetric.value,
     invertZ: $invertZCheckbox.checked,
     showRaw: $showRawCheckbox.checked,
+    gamutClip: $gamutClipCheckbox.checked,
     outlineWidth: parseFloat($outlineSlider.value),
   });
   viz3d.canvas.classList.add('palette-viz-3d');
@@ -823,6 +842,9 @@ $invertZCheckbox.addEventListener('change', () => {
 });
 $showRawCheckbox.addEventListener('change', () => {
   if (viz3d) viz3d.showRaw = $showRawCheckbox.checked;
+});
+$gamutClipCheckbox.addEventListener('change', () => {
+  if (viz3d) viz3d.gamutClip = $gamutClipCheckbox.checked;
 });
 $outlineSlider.addEventListener('input', () => {
   if (viz3d) viz3d.outlineWidth = parseFloat($outlineSlider.value);

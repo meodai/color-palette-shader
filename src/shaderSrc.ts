@@ -131,6 +131,13 @@ void main(){
 
   vec3 rgb = modelToRGB(colorCoords);
 
+  #ifdef GAMUT_CLIP
+    if (any(lessThan(rgb, vec3(-0.002))) || any(greaterThan(rgb, vec3(1.002)))) {
+      fragColor = vec4(0.0);
+      return;
+    }
+  #endif
+
   #ifdef SHOW_RAW
     fragColor = vec4(rgb, 1.);
   #else
@@ -300,6 +307,12 @@ void main() {
   #endif
 
   vec3 rgb = modelToRGB(colorCoords);
+
+  #ifdef GAMUT_CLIP
+    if (any(lessThan(rgb, vec3(-0.002))) || any(greaterThan(rgb, vec3(1.002)))) {
+      discard;
+    }
+  #endif
 
   #ifdef SHOW_RAW
     fragColor = vec4(rgb, 1.0);

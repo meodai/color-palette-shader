@@ -50,6 +50,7 @@ export type PaletteVizOptions = {
   invertZ?: boolean;
   showRaw?: boolean;
   outlineWidth?: number;
+  gamutClip?: boolean;
 };
 
 export type PaletteViz3DOptions = {
@@ -63,6 +64,7 @@ export type PaletteViz3DOptions = {
   invertZ?: boolean;
   showRaw?: boolean;
   outlineWidth?: number;
+  gamutClip?: boolean;
   position?: number;
   modelMatrix?: Float32Array;
 };
