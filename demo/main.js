@@ -715,7 +715,7 @@ $beamConnect.addEventListener('click', () => {
   });
 });
 
-// ── 3D cube view ─────────────────────────────────────────────────────────────
+// ── 3D view ──────────────────────────────────────────────────────────────────
 
 let is3D = false;
 
@@ -724,10 +724,14 @@ $toggle3D.type = 'checkbox';
 $toggle3D.checked = false;
 
 function create3DViz() {
+  const s = vizSize();
+  const portrait = window.matchMedia('(orientation: portrait)').matches;
+  const cols = portrait ? 2 : 3;
+  const rows = portrait ? 3 : 2;
   viz3d = new PaletteViz3D({
     palette: toVizPalette(palette),
-    width: $app.clientWidth - (window.matchMedia('(orientation: portrait)').matches ? 0 : Math.min(320, Math.max(200, window.innerWidth * 0.35))),
-    height: $app.clientHeight || 512,
+    width: s * cols,
+    height: s * rows,
     pixelRatio: devicePixelRatio * 2,
     colorModel: $colorModel.value,
     distanceMetric: $distanceMetric.value,
@@ -805,7 +809,7 @@ $toggle3D.addEventListener('change', (e) => {
   toggle3DView(e.target.checked);
   scheduleHashUpdate();
 });
-$tools.appendChild(labeled('3D cube view', $toggle3D));
+$tools.appendChild(labeled('3D view', $toggle3D));
 
 // keep 3D viz in sync with control changes
 $colorModel.addEventListener('change', () => {
@@ -827,10 +831,11 @@ $outlineSlider.addEventListener('input', () => {
 // resize 3D viz
 window.addEventListener('resize', () => {
   if (viz3d) {
-    const sidebarWidth = window.matchMedia('(orientation: portrait)').matches ? 0 : Math.min(320, Math.max(200, window.innerWidth * 0.35));
-    const w = $app.clientWidth - sidebarWidth;
-    const h = $app.clientHeight || 512;
-    viz3d.resize(w, h);
+    const s = vizSize();
+    const portrait = window.matchMedia('(orientation: portrait)').matches;
+    const cols = portrait ? 2 : 3;
+    const rows = portrait ? 3 : 2;
+    viz3d.resize(s * cols, s * rows);
   }
 });
 
