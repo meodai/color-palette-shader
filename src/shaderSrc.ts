@@ -267,6 +267,9 @@ export const vertexShader3DCubeSrc = `
 precision highp float;
 layout(location = 0) in vec3 a_position;
 out vec3 vColorCoord;
+#ifdef GAMUT_CLIP
+out float vSliceCoord;
+#endif
 
 uniform mat4 uMVP;
 uniform float uPosition;
@@ -276,10 +279,11 @@ uniform mat3 uColorRotation;
 
 void main() {
   vec3 pos = a_position;
-  pos.x = min(pos.x, uPosition);
   #ifdef GAMUT_CLIP
+    vSliceCoord = pos.x;
     vColorCoord = uColorRotation * (pos - 0.5) + 0.5;
   #else
+    pos.x = min(pos.x, uPosition);
     vColorCoord = pos;
   #endif
   gl_Position = uMVP * vec4(pos - 0.5, 1.0);
@@ -291,6 +295,9 @@ precision highp float;
 layout(location = 0) in vec3 a_position;
 layout(location = 1) in vec3 a_colorCoord;
 out vec3 vColorCoord;
+#ifdef GAMUT_CLIP
+out float vSliceCoord;
+#endif
 
 uniform mat4 uMVP;
 uniform float uPosition;
@@ -300,6 +307,8 @@ uniform mat3 uColorRotation;
 
 void main() {
   #ifdef GAMUT_CLIP
+    // a_position.y is the height (-0.5..0.5), map to 0..1 for slice coord
+    vSliceCoord = a_position.y + 0.5;
     // Pass rotated Cartesian position; polar conversion happens per-pixel
     // in the fragment shader to avoid atan interpolation artifacts.
     vColorCoord = uColorRotation * a_position;
@@ -317,6 +326,10 @@ void main() {
 // Fragment shader for the 3D view.
 const mainSrc3D = `
 void main() {
+  #ifdef GAMUT_CLIP
+    if (vSliceCoord > uPosition) discard;
+  #endif
+
   vec3 colorCoords = vColorCoord;
 
   #ifdef GAMUT_CLIP_POLAR
@@ -361,6 +374,10 @@ export function assembleFragShader3D(colorModel: number, distanceMetric: number,
 precision highp float;
 #define TWO_PI 6.28318530718
 in vec3 vColorCoord;
+#ifdef GAMUT_CLIP
+in float vSliceCoord;
+uniform float uPosition;
+#endif
 out vec4 fragColor;
 uniform sampler2D paletteTexture;
 `;
