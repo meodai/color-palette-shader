@@ -5,7 +5,7 @@ import {
   DistanceMetric,
 } from './types.ts';
 import { randomPalette } from './palette.ts';
-import { Defines, buildProgram, initTexture, uploadPaletteTexture } from './webgl.ts';
+import { Defines, buildProgram, initTexture, uploadPaletteTexture, computeMetricPalette, uploadMetricTexture } from './webgl.ts';
 import {
   vertexShaderSrc,
   vertexShader3DCubeSrc,
@@ -47,6 +47,7 @@ export class PaletteViz3D {
   #gl: WebGL2RenderingContext;
   #program: WebGLProgram | null = null;
   #texture: WebGLTexture | null = null;
+  #metricTexture: WebGLTexture | null = null;
   #vao: WebGLVertexArrayObject | null = null;
   #vbo: WebGLBuffer | null = null;
   #ibo: WebGLBuffer | null = null;
@@ -54,19 +55,22 @@ export class PaletteViz3D {
   #animationFrame: number | null = null;
   #programDirty = false;
   #meshDirty = false;
+  #metricPaletteDirty = true;
   #isPolar = false;
 
   #uMVP: WebGLUniformLocation | null = null;
   #uPosition: WebGLUniformLocation | null = null;
   #uPaletteTexture: WebGLUniformLocation | null = null;
+  #uPaletteMetricTexture: WebGLUniformLocation | null = null;
+  #uPaletteSize: WebGLUniformLocation | null = null;
 
-  // outline FBO resources
+  // FBO + blit quad (always used — decouples 3D render from display compositor)
   #fbo: WebGLFramebuffer | null = null;
   #fboTexture: WebGLTexture | null = null;
   #fboDepth: WebGLRenderbuffer | null = null;
-  #outlineProgram: WebGLProgram | null = null;
-  #outlineVao: WebGLVertexArrayObject | null = null;
-  #outlineQuadBuf: WebGLBuffer | null = null;
+  #blitProgram: WebGLProgram | null = null;
+  #blitVao: WebGLVertexArrayObject | null = null;
+  #blitQuadBuf: WebGLBuffer | null = null;
   #uColorMap: WebGLUniformLocation | null = null;
   #uOutlineWidth: WebGLUniformLocation | null = null;
   #uOutlineResolution: WebGLUniformLocation | null = null;
@@ -119,11 +123,14 @@ export class PaletteViz3D {
     initTexture(gl, this.#texture);
     uploadPaletteTexture(gl, this.#texture, this.#palette);
 
+    this.#metricTexture = gl.createTexture()!;
+    initTexture(gl, this.#metricTexture);
+
     this.#rebuildProgram();
     this.#setSize(this.#width, this.#height);
     gl.enable(gl.DEPTH_TEST);
 
-    if (this.#outlineWidth > 0) this.#buildOutlineResources();
+    this.#buildFBO();
     this.#container?.appendChild(this.#canvas);
     this.#paint();
   }
@@ -201,6 +208,9 @@ export class PaletteViz3D {
     this.#uMVP = gl.getUniformLocation(this.#program, 'uMVP');
     this.#uPosition = gl.getUniformLocation(this.#program, 'uPosition');
     this.#uPaletteTexture = gl.getUniformLocation(this.#program, 'paletteTexture');
+    this.#uPaletteMetricTexture = gl.getUniformLocation(this.#program, 'paletteMetricTexture');
+    this.#uPaletteSize = gl.getUniformLocation(this.#program, 'uPaletteSize');
+    this.#metricPaletteDirty = true;
   }
 
   #setSize(w: number, h: number): void {
@@ -214,39 +224,31 @@ export class PaletteViz3D {
     if (this.#fboTexture) this.#resizeFBO(pw, ph);
   }
 
-  #buildOutlineResources(): void {
+  #buildFBO(): void {
     const gl = this.#gl;
-    // Fullscreen quad for the outline pass
-    this.#outlineQuadBuf = gl.createBuffer()!;
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.#outlineQuadBuf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
 
-    this.#outlineVao = gl.createVertexArray()!;
-    gl.bindVertexArray(this.#outlineVao);
-    gl.enableVertexAttribArray(0);
-    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
-    gl.bindVertexArray(null);
-
-    // Reuse the same outline fragment shader as PaletteViz (reads vUv from vertex shader)
-    this.#outlineProgram = buildProgram(gl, {}, outlineFragmentShaderSrc, vertexShaderSrc);
-    this.#uColorMap = gl.getUniformLocation(this.#outlineProgram, 'colorMap');
-    this.#uOutlineWidth = gl.getUniformLocation(this.#outlineProgram, 'outlineWidth');
-    this.#uOutlineResolution = gl.getUniformLocation(this.#outlineProgram, 'resolution');
-
+    // FBO
     this.#fboTexture = gl.createTexture()!;
     this.#fboDepth = gl.createRenderbuffer()!;
     this.#fbo = gl.createFramebuffer()!;
     this.#resizeFBO(this.#canvas.width, this.#canvas.height);
-  }
 
-  #destroyOutlineResources(): void {
-    const gl = this.#gl;
-    if (this.#outlineProgram) { gl.deleteProgram(this.#outlineProgram); this.#outlineProgram = null; }
-    if (this.#fboTexture) { gl.deleteTexture(this.#fboTexture); this.#fboTexture = null; }
-    if (this.#fboDepth) { gl.deleteRenderbuffer(this.#fboDepth); this.#fboDepth = null; }
-    if (this.#fbo) { gl.deleteFramebuffer(this.#fbo); this.#fbo = null; }
-    if (this.#outlineVao) { gl.deleteVertexArray(this.#outlineVao); this.#outlineVao = null; }
-    if (this.#outlineQuadBuf) { gl.deleteBuffer(this.#outlineQuadBuf); this.#outlineQuadBuf = null; }
+    // Fullscreen quad for blit / outline pass
+    this.#blitQuadBuf = gl.createBuffer()!;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.#blitQuadBuf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+    this.#blitVao = gl.createVertexArray()!;
+    gl.bindVertexArray(this.#blitVao);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    gl.bindVertexArray(null);
+
+    // Outline/passthrough shader (outlineWidth=0 → pure passthrough)
+    this.#blitProgram = buildProgram(gl, {}, outlineFragmentShaderSrc, vertexShaderSrc);
+    this.#uColorMap = gl.getUniformLocation(this.#blitProgram, 'colorMap');
+    this.#uOutlineWidth = gl.getUniformLocation(this.#blitProgram, 'outlineWidth');
+    this.#uOutlineResolution = gl.getUniformLocation(this.#blitProgram, 'resolution');
   }
 
   #resizeFBO(pw: number, ph: number): void {
@@ -288,40 +290,47 @@ export class PaletteViz3D {
       this.#programDirty = false;
     }
     const gl = this.#gl;
-    const useOutline = this.#fbo && !this.#showRaw;
 
-    // ── Pass 1: render 3D scene ──────────────────────────────────────────────
-    if (useOutline) gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
+    // ── Pass 1: render 3D scene into FBO ─────────────────────────────────────
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
 
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.useProgram(this.#program);
+    if (this.#metricPaletteDirty) {
+      const metricCode = this.#distanceMetricMap[this.#distanceMetric];
+      uploadMetricTexture(gl, this.#metricTexture!, computeMetricPalette(this.#palette, metricCode), this.#palette.length);
+      gl.uniform1i(this.#uPaletteSize, this.#palette.length);
+      this.#metricPaletteDirty = false;
+    }
     gl.uniformMatrix4fv(this.#uMVP, false, this.#buildMVP());
     gl.uniform1f(this.#uPosition, this.#position);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.#texture);
     gl.uniform1i(this.#uPaletteTexture, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.#metricTexture);
+    gl.uniform1i(this.#uPaletteMetricTexture, 1);
 
     gl.bindVertexArray(this.#vao);
     gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
     gl.bindVertexArray(null);
+    gl.flush();
 
-    if (!useOutline) return;
-
-    // ── Pass 2: outline edge detection ───────────────────────────────────────
+    // ── Pass 2: blit FBO to default framebuffer (outline when enabled) ───────
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.disable(gl.DEPTH_TEST);
-    gl.useProgram(this.#outlineProgram);
+    gl.useProgram(this.#blitProgram);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.#fboTexture);
     gl.uniform1i(this.#uColorMap, 0);
-    gl.uniform1f(this.#uOutlineWidth, this.#outlineWidth);
+    gl.uniform1f(this.#uOutlineWidth, this.#showRaw ? 0 : this.#outlineWidth);
     gl.uniform2f(this.#uOutlineResolution, this.#canvas.width, this.#canvas.height);
 
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.bindVertexArray(this.#outlineVao);
+    gl.bindVertexArray(this.#blitVao);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     gl.bindVertexArray(null);
     gl.enable(gl.DEPTH_TEST);
@@ -354,9 +363,15 @@ export class PaletteViz3D {
       this.#animationFrame = null;
     }
     const gl = this.#gl;
-    this.#destroyOutlineResources();
+    if (this.#blitProgram) gl.deleteProgram(this.#blitProgram);
+    if (this.#blitVao) gl.deleteVertexArray(this.#blitVao);
+    if (this.#blitQuadBuf) gl.deleteBuffer(this.#blitQuadBuf);
+    if (this.#fboTexture) gl.deleteTexture(this.#fboTexture);
+    if (this.#fboDepth) gl.deleteRenderbuffer(this.#fboDepth);
+    if (this.#fbo) gl.deleteFramebuffer(this.#fbo);
     gl.deleteProgram(this.#program);
     gl.deleteTexture(this.#texture);
+    gl.deleteTexture(this.#metricTexture);
     gl.deleteBuffer(this.#vbo);
     gl.deleteBuffer(this.#ibo);
     gl.deleteVertexArray(this.#vao);
@@ -368,6 +383,7 @@ export class PaletteViz3D {
     if (palette.length === 0) throw new Error('Palette must contain at least one color');
     this.#palette = palette;
     uploadPaletteTexture(this.#gl, this.#texture!, palette);
+    this.#metricPaletteDirty = true;
     this.#paint();
   }
   get palette(): ColorList { return this.#palette.slice(); }
@@ -424,12 +440,7 @@ export class PaletteViz3D {
   get modelMatrix(): Float32Array { return new Float32Array(this.#modelMatrix); }
 
   set outlineWidth(value: number) {
-    const wasEnabled = this.#outlineWidth > 0;
     this.#outlineWidth = value;
-    if (value > 0 !== wasEnabled) {
-      if (value > 0) this.#buildOutlineResources();
-      else this.#destroyOutlineResources();
-    }
     this.#paint();
   }
   get outlineWidth() { return this.#outlineWidth; }

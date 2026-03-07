@@ -1,3 +1,7 @@
+#ifndef M_PI
+#define M_PI 3.1415926535897932384626433832795
+#endif
+
 // Kotsarenko/Ramos weighted RGB distance.
 // Operates on sRGB values directly (no linearisation needed).
 // Weights red and blue channels by the mean red value, which improves

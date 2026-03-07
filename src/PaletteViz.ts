@@ -7,7 +7,7 @@ import {
   DistanceMetric,
 } from './types.ts';
 import { paletteToRGBA, randomPalette } from './palette.ts';
-import { Defines, buildProgram, initTexture, uploadPaletteTexture } from './webgl.ts';
+import { Defines, buildProgram, initTexture, uploadPaletteTexture, computeMetricPalette, uploadMetricTexture } from './webgl.ts';
 import { vertexShaderSrc, assembleFragShader, outlineFragmentShaderSrc } from './shaderSrc.ts';
 
 export class PaletteViz {
@@ -68,19 +68,23 @@ export class PaletteViz {
   #gl: WebGL2RenderingContext;
   #program: WebGLProgram | null = null;
   #texture: WebGLTexture | null = null;
+  #metricTexture: WebGLTexture | null = null;
   #quadBuffer: WebGLBuffer | null = null;
   #vao: WebGLVertexArrayObject | null = null;
   #animationFrame: number | null = null;
   #programDirty = false;
+  #metricPaletteDirty = true;
 
   // cached uniform locations (re-queried after each program rebuild)
   #uProgress: WebGLUniformLocation | null = null;
   #uPaletteTexture: WebGLUniformLocation | null = null;
+  #uPaletteMetricTexture: WebGLUniformLocation | null = null;
+  #uPaletteSize: WebGLUniformLocation | null = null;
 
-  // outline pass (created/destroyed when outlineWidth toggles between 0 and >0)
+  // FBO + blit/outline pass (always used — decouples render from display compositor)
   #fbo: WebGLFramebuffer | null = null;
   #fboTexture: WebGLTexture | null = null;
-  #outlineProgram: WebGLProgram | null = null;
+  #blitProgram: WebGLProgram | null = null;
   #uColorMap: WebGLUniformLocation | null = null;
   #uOutlineWidth: WebGLUniformLocation | null = null;
   #uOutlineResolution: WebGLUniformLocation | null = null;
@@ -138,9 +142,12 @@ export class PaletteViz {
     initTexture(gl, this.#texture);
     uploadPaletteTexture(gl, this.#texture, this.#palette);
 
+    this.#metricTexture = gl.createTexture()!;
+    initTexture(gl, this.#metricTexture);
+
     this.#rebuildProgram();
     this.#setSize(this.#width, this.#height);
-    if (this.#outlineWidth > 0) this.#buildOutlineResources();
+    this.#buildFBO();
     this.#container?.appendChild(this.#canvas);
     this.#paint();
   }
@@ -166,34 +173,21 @@ export class PaletteViz {
     this.#program = buildProgram(gl, this.#defines(), fragSrc, vertexShaderSrc);
     this.#uProgress = gl.getUniformLocation(this.#program, 'progress');
     this.#uPaletteTexture = gl.getUniformLocation(this.#program, 'paletteTexture');
+    this.#uPaletteMetricTexture = gl.getUniformLocation(this.#program, 'paletteMetricTexture');
+    this.#uPaletteSize = gl.getUniformLocation(this.#program, 'uPaletteSize');
+    this.#metricPaletteDirty = true;
   }
 
-  #buildOutlineResources(): void {
+  #buildFBO(): void {
     const gl = this.#gl;
-    this.#outlineProgram = buildProgram(gl, {}, outlineFragmentShaderSrc, vertexShaderSrc);
-    this.#uColorMap = gl.getUniformLocation(this.#outlineProgram, 'colorMap');
-    this.#uOutlineWidth = gl.getUniformLocation(this.#outlineProgram, 'outlineWidth');
-    this.#uOutlineResolution = gl.getUniformLocation(this.#outlineProgram, 'resolution');
+    this.#blitProgram = buildProgram(gl, {}, outlineFragmentShaderSrc, vertexShaderSrc);
+    this.#uColorMap = gl.getUniformLocation(this.#blitProgram, 'colorMap');
+    this.#uOutlineWidth = gl.getUniformLocation(this.#blitProgram, 'outlineWidth');
+    this.#uOutlineResolution = gl.getUniformLocation(this.#blitProgram, 'resolution');
 
     this.#fboTexture = gl.createTexture()!;
     this.#fbo = gl.createFramebuffer()!;
     this.#resizeFBO(this.#canvas.width, this.#canvas.height);
-  }
-
-  #destroyOutlineResources(): void {
-    const gl = this.#gl;
-    if (this.#outlineProgram) {
-      gl.deleteProgram(this.#outlineProgram);
-      this.#outlineProgram = null;
-    }
-    if (this.#fboTexture) {
-      gl.deleteTexture(this.#fboTexture);
-      this.#fboTexture = null;
-    }
-    if (this.#fbo) {
-      gl.deleteFramebuffer(this.#fbo);
-      this.#fbo = null;
-    }
   }
 
   #resizeFBO(pw: number, ph: number): void {
@@ -234,34 +228,37 @@ export class PaletteViz {
     }
     const gl = this.#gl;
 
-    // ── Pass 1: closest-color render ────────────────────────────────────────
-    // Target: FBO when outline is active (and not showing raw), canvas otherwise.
-    const useOutline = this.#fbo && !this.#showRaw;
-    if (useOutline) gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
+    // ── Pass 1: closest-color render into FBO ────────────────────────────────
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
 
     gl.useProgram(this.#program);
+    if (this.#metricPaletteDirty) {
+      const metricCode = this.#distanceMetricMap[this.#distanceMetric];
+      uploadMetricTexture(gl, this.#metricTexture!, computeMetricPalette(this.#palette, metricCode), this.#palette.length);
+      gl.uniform1i(this.#uPaletteSize, this.#palette.length);
+      this.#metricPaletteDirty = false;
+    }
     gl.uniform1f(this.#uProgress, this.#position);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.#texture);
     gl.uniform1i(this.#uPaletteTexture, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.#metricTexture);
+    gl.uniform1i(this.#uPaletteMetricTexture, 1);
 
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.bindVertexArray(this.#vao);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.flush();
 
-    if (!useOutline) {
-      gl.bindVertexArray(null);
-      return;
-    }
-
-    // ── Pass 2: edge-detection using FBO texture ─────────────────────────────
+    // ── Pass 2: blit FBO to canvas (outline when enabled) ────────────────────
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.useProgram(this.#outlineProgram);
+    gl.useProgram(this.#blitProgram);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.#fboTexture);
     gl.uniform1i(this.#uColorMap, 0);
-    gl.uniform1f(this.#uOutlineWidth, this.#outlineWidth);
+    gl.uniform1f(this.#uOutlineWidth, this.#showRaw ? 0 : this.#outlineWidth);
     gl.uniform2f(this.#uOutlineResolution, this.#canvas.width, this.#canvas.height);
 
     gl.clearColor(0, 0, 0, 0);
@@ -303,9 +300,12 @@ export class PaletteViz {
       this.#animationFrame = null;
     }
     const gl = this.#gl;
-    this.#destroyOutlineResources();
+    if (this.#blitProgram) gl.deleteProgram(this.#blitProgram);
+    if (this.#fboTexture) gl.deleteTexture(this.#fboTexture);
+    if (this.#fbo) gl.deleteFramebuffer(this.#fbo);
     gl.deleteProgram(this.#program);
     gl.deleteTexture(this.#texture);
+    gl.deleteTexture(this.#metricTexture);
     gl.deleteBuffer(this.#quadBuffer);
     gl.deleteVertexArray(this.#vao);
     this.#canvas.remove();
@@ -318,6 +318,7 @@ export class PaletteViz {
     if (palette.length === 0) throw new Error('Palette must contain at least one color');
     this.#palette = palette;
     uploadPaletteTexture(this.#gl, this.#texture!, palette);
+    this.#metricPaletteDirty = true;
     this.#paint();
   }
   get palette(): ColorList {
@@ -328,12 +329,14 @@ export class PaletteViz {
     if (index < 0 || index >= this.#palette.length) throw new Error(`Index ${index} out of range`);
     this.#palette[index] = color;
     uploadPaletteTexture(this.#gl, this.#texture!, this.#palette);
+    this.#metricPaletteDirty = true;
     this.#paint();
   }
 
   addColor(color: ColorRGB, index?: number): void {
     this.#palette.splice(index ?? this.#palette.length, 0, color);
     uploadPaletteTexture(this.#gl, this.#texture!, this.#palette);
+    this.#metricPaletteDirty = true;
     this.#paint();
   }
 
@@ -352,6 +355,7 @@ export class PaletteViz {
     if (this.#palette.length === 1) throw new Error('Palette must contain at least one color');
     this.#palette.splice(index, 1);
     uploadPaletteTexture(this.#gl, this.#texture!, this.#palette);
+    this.#metricPaletteDirty = true;
     this.#paint();
   }
 
@@ -368,11 +372,10 @@ export class PaletteViz {
     const gl = this.#gl;
     const px = Math.min(this.#canvas.width - 1, Math.max(0, Math.round(x * (this.#canvas.width - 1))));
     const py = Math.min(this.#canvas.height - 1, Math.max(0, Math.round(y * (this.#canvas.height - 1))));
-    const previousFramebuffer = gl.getParameter(gl.FRAMEBUFFER_BINDING) as WebGLFramebuffer | null;
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo && !this.#showRaw ? this.#fbo : null);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
     const out = new Uint8Array(4);
     gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, previousFramebuffer);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return [out[0] / 255, out[1] / 255, out[2] / 255];
   }
 
@@ -445,12 +448,7 @@ export class PaletteViz {
   }
 
   set outlineWidth(value: number) {
-    const wasEnabled = this.#outlineWidth > 0;
     this.#outlineWidth = value;
-    if (value > 0 !== wasEnabled) {
-      if (value > 0) this.#buildOutlineResources();
-      else this.#destroyOutlineResources();
-    }
     this.#paint();
   }
   get outlineWidth() {
