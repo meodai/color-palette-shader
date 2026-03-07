@@ -399,10 +399,67 @@ function applyPosition(t) {
 }
 
 $positionSlider.addEventListener('input', (e) => {
+  if (animPlaying) stopAnim();
   applyPosition(parseFloat(e.target.value));
 });
 applyPosition(0);
-$tools.appendChild(labeled('Position', $positionSlider));
+
+// Play/pause animation for position
+let animPlaying = false;
+let animRAF = null;
+let animCounter = 0;
+let animLastTime = null;
+const ANIM_SPEED = 25; // units per second (full cycle ≈ 8s)
+
+const $playBtn = document.createElement('button');
+$playBtn.className = 'play-btn';
+$playBtn.textContent = '\u25B6';
+$playBtn.setAttribute('aria-label', 'Play position animation');
+
+function animTick(timestamp) {
+  if (!animPlaying) return;
+  if (animLastTime === null) animLastTime = timestamp;
+  const dt = (timestamp - animLastTime) / 1000;
+  animLastTime = timestamp;
+  animCounter += ANIM_SPEED * dt;
+  const linear = Math.abs(animCounter % 200 - 100) / 100;
+  const t = linear < 0.5
+    ? 2 * linear * linear
+    : 1 - 2 * (1 - linear) * (1 - linear);
+  $positionSlider.value = String(t);
+  applyPosition(t);
+  scheduleHashUpdate();
+  animRAF = requestAnimationFrame(animTick);
+}
+
+function stopAnim() {
+  animPlaying = false;
+  $playBtn.textContent = '\u25B6';
+  $playBtn.setAttribute('aria-label', 'Play position animation');
+  if (animRAF) {
+    cancelAnimationFrame(animRAF);
+    animRAF = null;
+  }
+}
+
+$playBtn.addEventListener('click', () => {
+  animPlaying = !animPlaying;
+  if (animPlaying) {
+    $playBtn.textContent = '\u23F8';
+    $playBtn.setAttribute('aria-label', 'Pause position animation');
+    animCounter = parseFloat($positionSlider.value) * 100;
+    animLastTime = null;
+    animRAF = requestAnimationFrame(animTick);
+  } else {
+    stopAnim();
+  }
+});
+
+const $positionGroup = document.createElement('span');
+$positionGroup.className = 'position-group';
+$positionGroup.appendChild($playBtn);
+$positionGroup.appendChild($positionSlider);
+$tools.appendChild(labeled('Position', $positionGroup));
 
 // Outline width
 const $outlineSlider = document.createElement('input');

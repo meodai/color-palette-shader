@@ -178,6 +178,32 @@ select:focus {
   outline-offset: 1px;
 }
 
+.position-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.play-btn {
+  background: none;
+  border: none;
+  color: var(--c-surface-on);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.7em;
+  line-height: 1;
+  flex: 0 0 auto;
+  padding: 0;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+
+.play-btn:hover {
+  opacity: 1;
+}
+
 input[type='range'] {
   -webkit-appearance: none;
   appearance: none;
