@@ -68,6 +68,7 @@ export class PaletteViz3D {
   #uPaletteMetricTexture: WebGLUniformLocation | null = null;
   #uPaletteSize: WebGLUniformLocation | null = null;
   #uColorRotation: WebGLUniformLocation | null = null;
+  #rot3x3 = new Float32Array(9);
 
   // FBO + blit quad (always used — decouples 3D render from display compositor)
   #fbo: WebGLFramebuffer | null = null;
@@ -324,8 +325,14 @@ export class PaletteViz3D {
     }
     const gl = this.#gl;
 
-    // ── Pass 1: render 3D scene into FBO ─────────────────────────────────────
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
+    const useOutline = !this.#showRaw && this.#outlineWidth > 0;
+
+    // Render into FBO only when outline pass is needed, otherwise direct
+    if (useOutline) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
+    } else {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
 
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -340,13 +347,12 @@ export class PaletteViz3D {
     gl.uniformMatrix4fv(this.#uMVP, false, this.#buildMVP());
     gl.uniform1f(this.#uPosition, this.#position);
     if (this.#gamutClip && this.#uColorRotation) {
-      // Extract upper-left 3×3 rotation from the model matrix
       const m = this.#modelMatrix;
-      gl.uniformMatrix3fv(this.#uColorRotation, false, new Float32Array([
-        m[0], m[1], m[2],
-        m[4], m[5], m[6],
-        m[8], m[9], m[10],
-      ]));
+      const r = this.#rot3x3;
+      r[0] = m[0]; r[1] = m[1]; r[2] = m[2];
+      r[3] = m[4]; r[4] = m[5]; r[5] = m[6];
+      r[6] = m[8]; r[7] = m[9]; r[8] = m[10];
+      gl.uniformMatrix3fv(this.#uColorRotation, false, r);
     }
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.#texture);
@@ -358,24 +364,25 @@ export class PaletteViz3D {
     gl.bindVertexArray(this.#vao);
     gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
     gl.bindVertexArray(null);
-    gl.flush();
 
-    // ── Pass 2: blit FBO to default framebuffer (outline when enabled) ───────
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    gl.disable(gl.DEPTH_TEST);
-    gl.useProgram(this.#blitProgram);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, this.#fboTexture);
-    gl.uniform1i(this.#uColorMap, 0);
-    gl.uniform1f(this.#uOutlineWidth, this.#showRaw ? 0 : this.#outlineWidth);
-    gl.uniform2f(this.#uOutlineResolution, this.#canvas.width, this.#canvas.height);
+    // ── Pass 2: blit FBO to screen (only when outline is enabled) ────────
+    if (useOutline) {
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.disable(gl.DEPTH_TEST);
+      gl.useProgram(this.#blitProgram);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.#fboTexture);
+      gl.uniform1i(this.#uColorMap, 0);
+      gl.uniform1f(this.#uOutlineWidth, this.#outlineWidth);
+      gl.uniform2f(this.#uOutlineResolution, this.#canvas.width, this.#canvas.height);
 
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.bindVertexArray(this.#blitVao);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    gl.bindVertexArray(null);
-    gl.enable(gl.DEPTH_TEST);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+      gl.bindVertexArray(this.#blitVao);
+      gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+      gl.bindVertexArray(null);
+      gl.enable(gl.DEPTH_TEST);
+    }
   }
 
   #paint(): void {
