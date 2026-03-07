@@ -128,7 +128,9 @@ export function createSlicedCubeMesh(resolution: number, slices: number, padding
   const hi = 1 + padding;
   const span = hi - lo;
 
-  for (let s = 0; s <= slices; s++) {
+  // Iterate near-to-far so the draw order is front-to-back.
+  // With depth test on, early-Z rejects occluded fragments → huge perf win.
+  for (let s = slices; s >= 0; s--) {
     const x = lo + span * s / slices;
     const base = verts.length / 3;
     for (let j = 0; j <= n; j++) {
@@ -160,7 +162,8 @@ export function createSlicedCylinderMesh(radialSegments: number, slices: number,
   const hLo = -padding;         // height range: [-padding, 1+padding]
   const hHi = 1 + padding;
 
-  for (let s = 0; s <= slices; s++) {
+  // Iterate near-to-far so the draw order is front-to-back.
+  for (let s = slices; s >= 0; s--) {
     const h = hLo + (hHi - hLo) * s / slices;
     const py = h - 0.5;
     const discBase = verts.length / 6;

@@ -131,11 +131,12 @@ void main(){
 
   vec3 rgb = modelToRGB(colorCoords);
 
-  // Always discard out-of-gamut pixels as transparent
-  if (any(lessThan(rgb, vec3(-0.002))) || any(greaterThan(rgb, vec3(1.002)))) {
+  #ifdef GAMUT_CLIP
+  if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) {
     fragColor = vec4(0.0);
     return;
   }
+  #endif
 
   rgb = clamp(rgb, 0.0, 1.0);
   #ifdef SHOW_RAW
@@ -355,9 +356,9 @@ void main() {
   vec3 rgb = modelToRGB(colorCoords);
 
   #ifdef GAMUT_CLIP
-    if (any(lessThan(rgb, vec3(-0.002))) || any(greaterThan(rgb, vec3(1.002)))) {
-      discard;
-    }
+  if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) {
+    discard;
+  }
   #endif
 
   rgb = clamp(rgb, 0.0, 1.0);
@@ -414,3 +415,95 @@ void main() {
   }
   fragColor = center;
 }`;
+
+// ── Ray march gamut clip shader ─────────────────────────────────────────────
+// Replaces the sliced-mesh approach: a single fullscreen quad where each pixel
+// marches through the color space along the view axis. closestColor runs at
+// most ONCE per pixel (vs 1024× with the sliced mesh).
+const rayMarchMainSrc = `
+uniform mat3 uColorRotation;
+uniform float uPosition;
+uniform float uViewSize;
+uniform float uAspect;
+uniform int uMarchSteps;
+
+void main() {
+  float ndcX = vUv.x * 2.0 - 1.0;
+  float ndcY = vUv.y * 2.0 - 1.0;
+
+  #ifdef IS_POLAR
+    // Cylinder: camera looks along Y via rotateX(PI/2)
+    // Screen X → model X, Screen Y → model -Z
+    float mX = ndcX * uViewSize * uAspect;
+    float mZ = -ndcY * uViewSize;
+    float rayLo = -0.75;  // padded height range
+    float rayHi = 0.75;
+    for (int i = 0; i < 1024; i++) {
+      if (i >= uMarchSteps) break;
+      float t = float(i) / float(uMarchSteps - 1);
+      float mY = rayLo + (rayHi - rayLo) * t;
+      // Slice coord in [0,1] for position clipping
+      if (mY + 0.5 > uPosition) continue;
+      vec3 rotated = uColorRotation * vec3(mX, mY, mZ);
+      float hue = atan(rotated.z, rotated.x) / TWO_PI;
+      if (hue < 0.0) hue += 1.0;
+      float radius = length(rotated.xz) * 2.0;
+      float height = rotated.y + 0.5;
+      if (radius > 1.0 || height < 0.0 || height > 1.0) continue;
+      vec3 colorCoords = vec3(hue, radius, height);
+      #ifdef INVERT_Z
+        colorCoords.z = 1.0 - colorCoords.z;
+      #endif
+      vec3 rgb = modelToRGB(colorCoords);
+      if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) continue;
+      rgb = clamp(rgb, 0.0, 1.0);
+      #ifdef SHOW_RAW
+        fragColor = vec4(rgb, 1.0);
+      #else
+        fragColor = vec4(closestColor(rgb, paletteTexture), 1.0);
+      #endif
+      return;
+    }
+  #else
+    // Cube: camera looks along X via rotateY(-PI/2)
+    // Screen X → model -Z, Screen Y → model Y
+    float mZ = 0.5 - ndcX * uViewSize * uAspect;
+    float mY = ndcY * uViewSize + 0.5;
+    float rayLo = -0.42;  // padded X range
+    float rayHi = 1.42;
+    for (int i = 0; i < 1024; i++) {
+      if (i >= uMarchSteps) break;
+      float t = float(i) / float(uMarchSteps - 1);
+      float mX = rayLo + (rayHi - rayLo) * t;
+      if (mX > uPosition) continue;
+      vec3 colorCoords = uColorRotation * (vec3(mX, mY, mZ) - 0.5) + 0.5;
+      #ifdef INVERT_Z
+        colorCoords.z = 1.0 - colorCoords.z;
+      #endif
+      vec3 rgb = modelToRGB(colorCoords);
+      if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) continue;
+      rgb = clamp(rgb, 0.0, 1.0);
+      #ifdef SHOW_RAW
+        fragColor = vec4(rgb, 1.0);
+      #else
+        fragColor = vec4(closestColor(rgb, paletteTexture), 1.0);
+      #endif
+      return;
+    }
+  #endif
+  fragColor = vec4(0.0);
+}`;
+
+export function assembleRayMarchShader(colorModel: number, distanceMetric: number, showRaw: boolean): string {
+  const needs = resolveNeeds(colorModel, distanceMetric, showRaw);
+  let src = `
+precision highp float;
+#define TWO_PI 6.28318530718
+in vec2 vUv;
+out vec4 fragColor;
+uniform sampler2D paletteTexture;
+`;
+  src += assembleChunks(needs);
+  src += modelToRGBSrc + rayMarchMainSrc;
+  return src;
+}

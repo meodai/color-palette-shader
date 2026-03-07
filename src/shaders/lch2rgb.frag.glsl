@@ -15,7 +15,7 @@ vec3 lch2rgb(vec3 lch) {
         lab.x - 0.0894841775f * lab.y - 1.2914855480f * lab.z
     );
 
-    lms = pow(max(lms, vec3(0.0)), vec3(3.0));
+    lms = lms * lms * lms;
 
     vec3 rgb = vec3(
         +4.0767416621f * lms.x - 3.3077115913f * lms.y + 0.2309699292f * lms.z,
