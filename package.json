@@ -1,6 +1,6 @@
 {
   "name": "palette-shader",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Dependency-free WebGL2 shader that maps any colour palette across perceptual colour spaces — OKHsv, OKHsl, OKLCH and more.",
   "keywords": [
     "color",
