@@ -11,7 +11,6 @@ import {
   vertexShader3DCubeSrc,
   vertexShader3DCylSrc,
   assembleFragShader3D,
-  assembleRayMarchShader,
   outlineFragmentShaderSrc,
 } from './shaderSrc.ts';
 import { createCubeMesh, createCylinderMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS, HUE_MODEL_IDS } from './mesh.ts';
@@ -69,17 +68,6 @@ export class PaletteViz3D {
   #uPaletteMetricTexture: WebGLUniformLocation | null = null;
   #uPaletteSize: WebGLUniformLocation | null = null;
   #uColorRotation: WebGLUniformLocation | null = null;
-
-  // Ray march program (used for gamut clip instead of sliced mesh)
-  #rayProgram: WebGLProgram | null = null;
-  #rmUColorRotation: WebGLUniformLocation | null = null;
-  #rmUPosition: WebGLUniformLocation | null = null;
-  #rmUViewSize: WebGLUniformLocation | null = null;
-  #rmUAspect: WebGLUniformLocation | null = null;
-  #rmUMarchSteps: WebGLUniformLocation | null = null;
-  #rmUPaletteTexture: WebGLUniformLocation | null = null;
-  #rmUPaletteMetricTexture: WebGLUniformLocation | null = null;
-  #rmUPaletteSize: WebGLUniformLocation | null = null;
 
   // FBO + blit quad (always used — decouples 3D render from display compositor)
   #fbo: WebGLFramebuffer | null = null;
@@ -225,32 +213,6 @@ export class PaletteViz3D {
   #rebuildProgram(): void {
     const gl = this.#gl;
     if (this.#program) gl.deleteProgram(this.#program);
-    if (this.#rayProgram) { gl.deleteProgram(this.#rayProgram); this.#rayProgram = null; }
-
-    if (this.#gamutClip) {
-      // Ray march program: fullscreen quad, no mesh needed
-      const rmDefs: Defines = {
-        COLOR_MODEL: this.#colorModelMap[this.#colorModel],
-        DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
-        INVERT_Z: this.#invertZ ? 1 : false,
-        SHOW_RAW: this.#showRaw ? 1 : false,
-        IS_POLAR: this.#isPolar ? 1 : false,
-      };
-      const rmFrag = assembleRayMarchShader(
-        this.#colorModelMap[this.#colorModel],
-        this.#distanceMetricMap[this.#distanceMetric],
-        this.#showRaw,
-      );
-      this.#rayProgram = buildProgram(gl, rmDefs, rmFrag, vertexShaderSrc);
-      this.#rmUColorRotation = gl.getUniformLocation(this.#rayProgram, 'uColorRotation');
-      this.#rmUPosition = gl.getUniformLocation(this.#rayProgram, 'uPosition');
-      this.#rmUViewSize = gl.getUniformLocation(this.#rayProgram, 'uViewSize');
-      this.#rmUAspect = gl.getUniformLocation(this.#rayProgram, 'uAspect');
-      this.#rmUMarchSteps = gl.getUniformLocation(this.#rayProgram, 'uMarchSteps');
-      this.#rmUPaletteTexture = gl.getUniformLocation(this.#rayProgram, 'paletteTexture');
-      this.#rmUPaletteMetricTexture = gl.getUniformLocation(this.#rayProgram, 'paletteMetricTexture');
-      this.#rmUPaletteSize = gl.getUniformLocation(this.#rayProgram, 'uPaletteSize');
-    }
 
     const fragSrc = assembleFragShader3D(
       this.#colorModelMap[this.#colorModel],
