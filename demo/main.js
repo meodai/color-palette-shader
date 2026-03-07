@@ -386,13 +386,16 @@ $positionSlider.value = '0';
 let viz3d = null;
 
 function applyPosition(t) {
-  vizzes.slice(0, 3).forEach((v) => {
-    v.position = t;
-  });
-  vizzes.slice(3, 6).forEach((v) => {
-    v.position = 1 - t;
-  });
-  if (viz3d) viz3d.position = 1 - t;
+  if (!viz3d) {
+    vizzes.slice(0, 3).forEach((v) => {
+      v.position = t;
+    });
+    vizzes.slice(3, 6).forEach((v) => {
+      v.position = 1 - t;
+    });
+  } else {
+    viz3d.position = 1 - t;
+  }
 }
 
 $positionSlider.addEventListener('input', (e) => {
@@ -794,6 +797,7 @@ function toggle3DView(enable) {
       viz3d = null;
     }
     vizzes.forEach((v) => { v.canvas.style.display = ''; });
+    applyPosition(parseFloat($positionSlider.value));
   }
 }
 
