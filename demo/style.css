@@ -128,7 +128,7 @@ label {
   display: flex;
   flex-direction: column;
   gap: 0;
-  border-top: var(--s-line) solid var(--c-surface-on);
+  border-bottom: var(--s-line) solid var(--c-surface-on);
 }
 
 .sidebar__tools label {

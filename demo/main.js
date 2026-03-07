@@ -447,7 +447,7 @@ $playBtn.addEventListener('click', () => {
   if (animPlaying) {
     $playBtn.textContent = '\u23F8';
     $playBtn.setAttribute('aria-label', 'Pause position animation');
-    animCounter = parseFloat($positionSlider.value) * 100;
+    animCounter = 100 + parseFloat($positionSlider.value) * 100;
     animLastTime = null;
     animRAF = requestAnimationFrame(animTick);
   } else {
