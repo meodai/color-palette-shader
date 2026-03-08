@@ -1,5 +1,5 @@
 import './style.css';
-import { PaletteViz, PaletteViz3D, mat4RotateX, mat4RotateY, mat4Multiply } from 'palette-shader';
+import { PaletteViz, PaletteViz3D } from 'palette-shader';
 import { TargetSession, extractColorTokens } from 'token-beam';
 import { converter } from 'culori';
 
