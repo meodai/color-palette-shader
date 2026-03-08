@@ -49,74 +49,6 @@ export function createCubeMesh(resolution: number): { vertices: Float32Array; in
   return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
 }
 
-// Generate a cylinder mesh for polar color models.
-// The color coordinate is stored per-vertex as (angle/TWO_PI, radius, height)
-// where angle ∈ [0,1], radius ∈ [0,1], height ∈ [0,1].
-// The 3D position is centered: x = r*cos(θ), z = r*sin(θ), y = height-0.5
-export function createCylinderMesh(radialSegments: number, heightSegments: number): { vertices: Float32Array; indices: Uint32Array } {
-  const verts: number[] = [];
-  const idx: number[] = [];
-  const TWO_PI = Math.PI * 2;
-
-  // ── Side wall ──────────────────────────────────────────────────────────────
-  const sideBase = 0;
-  for (let j = 0; j <= heightSegments; j++) {
-    const v = j / heightSegments;
-    for (let i = 0; i <= radialSegments; i++) {
-      const u = i / radialSegments;
-      const angle = u * TWO_PI;
-      const r = 0.5; // unit radius (maps to radius=1 in color space)
-      // position (centered around origin)
-      const px = r * Math.cos(angle);
-      const pz = r * Math.sin(angle);
-      const py = v - 0.5;
-      // color coord: (angle/TWO_PI, 1.0 (edge), height)
-      verts.push(px, py, pz, u, 1.0, v);
-    }
-  }
-  const sideStride = radialSegments + 1;
-  for (let j = 0; j < heightSegments; j++) {
-    for (let i = 0; i < radialSegments; i++) {
-      const a = sideBase + j * sideStride + i;
-      const b = a + 1;
-      const c = a + sideStride;
-      const d = c + 1;
-      idx.push(a, b, c, b, d, c);
-    }
-  }
-
-  // ── Cap discs (top and bottom) ─────────────────────────────────────────────
-  for (const capV of [0, 1]) {
-    const capBase = verts.length / 6;
-    const capY = capV - 0.5;
-    const capSegs = Math.max(1, Math.floor(radialSegments / 4)); // radial rings on cap
-    for (let ring = 0; ring <= capSegs; ring++) {
-      const r01 = ring / capSegs; // 0 = center, 1 = edge
-      const rPos = r01 * 0.5;
-      for (let i = 0; i <= radialSegments; i++) {
-        const u = i / radialSegments;
-        const angle = u * TWO_PI;
-        const px = rPos * Math.cos(angle);
-        const pz = rPos * Math.sin(angle);
-        verts.push(px, capY, pz, u, r01, capV);
-      }
-    }
-    const capStride = radialSegments + 1;
-    for (let ring = 0; ring < capSegs; ring++) {
-      for (let i = 0; i < radialSegments; i++) {
-        const a = capBase + ring * capStride + i;
-        const b = a + 1;
-        const c = a + capStride;
-        const d = c + 1;
-        idx.push(a, b, c, b, d, c);
-      }
-    }
-  }
-
-  // Interleave: 6 floats per vertex (px, py, pz, colorU, colorV, colorW)
-  return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
-}
-
 // Stacked X-axis slices filling the cube volume. Each slice is a YZ quad.
 // Used for gamut clipping — out-of-gamut fragments are discarded per-slice,
 // and the dense stack forms the visible gamut body.
@@ -153,6 +85,8 @@ export function createSlicedCubeMesh(resolution: number, slices: number, padding
 }
 
 // Stacked height slices filling the cylinder volume. Each slice is a full disc.
+// Only position (3 floats) is stored per vertex — polar conversion happens
+// per-pixel in the fragment shader via the color-rotation matrix.
 export function createSlicedCylinderMesh(radialSegments: number, slices: number, padding = 0): { vertices: Float32Array; indices: Uint32Array } {
   const verts: number[] = [];
   const idx: number[] = [];
@@ -166,14 +100,14 @@ export function createSlicedCylinderMesh(radialSegments: number, slices: number,
   for (let s = slices; s >= 0; s--) {
     const h = hLo + (hHi - hLo) * s / slices;
     const py = h - 0.5;
-    const discBase = verts.length / 6;
+    const discBase = verts.length / 3;
     for (let ring = 0; ring <= capSegs; ring++) {
       const r01 = ring / capSegs;
       const rPos = r01 * maxR;
       for (let i = 0; i <= radialSegments; i++) {
         const u = i / radialSegments;
         const angle = u * TWO_PI;
-        verts.push(rPos * Math.cos(angle), py, rPos * Math.sin(angle), u, r01, h);
+        verts.push(rPos * Math.cos(angle), py, rPos * Math.sin(angle));
       }
     }
     const stride = radialSegments + 1;
@@ -203,88 +137,5 @@ export const BICONE_MODEL_IDS = new Set([5, 11]); // okhslPolar, hslPolar
 // Inverted cone: HWB-type polar models (radius = 1-height, wide at bottom, point at top)
 export const CONE_INV_MODEL_IDS = new Set([13]); // hwbPolar
 
-// Generate a cone mesh for HSV-type polar models.
-// Radius tapers linearly: r = height * 0.5 (point at bottom, full circle at top).
-export function createConeMesh(radialSegments: number, heightSegments: number): { vertices: Float32Array; indices: Uint32Array } {
-  const verts: number[] = [];
-  const idx: number[] = [];
-  const TWO_PI = Math.PI * 2;
 
-  // ── Side wall (tapered) ───────────────────────────────────────────────────
-  for (let j = 0; j <= heightSegments; j++) {
-    const v = j / heightSegments;
-    const r = v * 0.5; // tapers to 0 at bottom (v=0)
-    for (let i = 0; i <= radialSegments; i++) {
-      const u = i / radialSegments;
-      const angle = u * TWO_PI;
-      verts.push(r * Math.cos(angle), v - 0.5, r * Math.sin(angle), u, 1.0, v);
-    }
-  }
-  const stride = radialSegments + 1;
-  for (let j = 0; j < heightSegments; j++) {
-    for (let i = 0; i < radialSegments; i++) {
-      const a = j * stride + i;
-      const b = a + 1;
-      const c = a + stride;
-      const d = c + 1;
-      idx.push(a, b, c, b, d, c);
-    }
-  }
-
-  // ── Top cap only (full disc at v=1) ───────────────────────────────────────
-  const capBase = verts.length / 6;
-  const capSegs = Math.max(1, Math.floor(radialSegments / 4));
-  for (let ring = 0; ring <= capSegs; ring++) {
-    const r01 = ring / capSegs;
-    const rPos = r01 * 0.5;
-    for (let i = 0; i <= radialSegments; i++) {
-      const u = i / radialSegments;
-      const angle = u * TWO_PI;
-      verts.push(rPos * Math.cos(angle), 0.5, rPos * Math.sin(angle), u, r01, 1.0);
-    }
-  }
-  const capStride = radialSegments + 1;
-  for (let ring = 0; ring < capSegs; ring++) {
-    for (let i = 0; i < radialSegments; i++) {
-      const a = capBase + ring * capStride + i;
-      const b = a + 1;
-      const c = a + capStride;
-      const d = c + 1;
-      idx.push(a, b, c, b, d, c);
-    }
-  }
-
-  return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
-}
-
-// Generate a bicone (double cone) mesh for HSL-type polar models.
-// Radius = (1 - |2h - 1|) * 0.5 — full circle at h=0.5, points at h=0 and h=1.
-export function createBiconeMesh(radialSegments: number, heightSegments: number): { vertices: Float32Array; indices: Uint32Array } {
-  const verts: number[] = [];
-  const idx: number[] = [];
-  const TWO_PI = Math.PI * 2;
-
-  // Side wall only — both ends are points, no caps needed
-  for (let j = 0; j <= heightSegments; j++) {
-    const v = j / heightSegments;
-    const r = (1 - Math.abs(2 * v - 1)) * 0.5;
-    for (let i = 0; i <= radialSegments; i++) {
-      const u = i / radialSegments;
-      const angle = u * TWO_PI;
-      verts.push(r * Math.cos(angle), v - 0.5, r * Math.sin(angle), u, 1.0, v);
-    }
-  }
-  const stride = radialSegments + 1;
-  for (let j = 0; j < heightSegments; j++) {
-    for (let i = 0; i < radialSegments; i++) {
-      const a = j * stride + i;
-      const b = a + 1;
-      const c = a + stride;
-      const d = c + 1;
-      idx.push(a, b, c, b, d, c);
-    }
-  }
-
-  return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
-}
 

@@ -287,8 +287,8 @@ void main() {
 }`;
 
 // Cylinder vertex shader: always uses color-space rotation (ortho + fixed camera).
-// The mesh is interleaved (pos.xyz, colorCoord.xyz) but only pos is read —
-// polar conversion happens per-pixel in the fragment shader.
+// The mesh stores only position (3 floats) — polar conversion happens
+// per-pixel in the fragment shader.
 export const vertexShader3DCylSrc = `
 precision highp float;
 layout(location = 0) in vec3 a_position;
