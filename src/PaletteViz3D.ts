@@ -496,6 +496,12 @@ export class PaletteViz3D {
           this.#uDepthSliceOffset,
         );
       } else {
+        this.#applySharedUniforms(
+          this.#depthProgram!,
+          this.#uDepthMVP,
+          this.#uDepthPosition,
+          this.#uDepthColorRotation,
+        );
         gl.bindVertexArray(this.#vao);
         gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
         gl.bindVertexArray(null);
@@ -506,7 +512,11 @@ export class PaletteViz3D {
       gl.depthMask(false);
     }
 
-    this.#applySharedUniforms(this.#program!, this.#uMVP, this.#uPosition, this.#uColorRotation);
+    if (this.#gamutClip) {
+      gl.useProgram(this.#program!);
+    } else {
+      this.#applySharedUniforms(this.#program!, this.#uMVP, this.#uPosition, this.#uColorRotation);
+    }
     if (this.#metricPaletteDirty) {
       const metricCode = this.#distanceMetricMap[this.#distanceMetric];
       uploadMetricTexture(
