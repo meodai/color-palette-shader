@@ -340,7 +340,7 @@ void main() {
   vec3 rgb = modelToRGB(cc);
 
   #ifdef GAMUT_CLIP
-    if (any(lessThan(rgb, vec3(-0.001))) || any(greaterThan(rgb, vec3(1.001)))) discard;
+    if (any(lessThan(rgb, vec3(-0.0))) || any(greaterThan(rgb, vec3(1.0)))) discard;
   #endif
 
   #ifdef SHOW_RAW
