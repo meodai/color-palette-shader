@@ -251,6 +251,25 @@ const hideProbe = () => {
 const updateProbe = () => {
   probeRAF = null;
   if (!probeEvent || !(probeEvent.target instanceof Element)) return;
+
+  // Try 3D canvas first (it has its own class and handles the y-flip internally)
+  const canvas3d = probeEvent.target.closest('canvas.palette-viz-3d');
+  if (canvas3d && viz3d && viz3d.canvas === canvas3d) {
+    const rect = canvas3d.getBoundingClientRect();
+    const u = (probeEvent.clientX - rect.left) / rect.width;
+    const v = (probeEvent.clientY - rect.top) / rect.height;
+    if (u < 0 || u > 1 || v < 0 || v > 1) return hideProbe();
+    const color = viz3d.getColorAtUV(u, v); // 3D method handles y-flip internally
+    if (!color) return hideProbe(); // transparent — no geometry at this pixel
+    const hex = rgbToHex(color);
+    $cursorProbeDot.style.background = hex;
+    $cursorProbeLabel.textContent = hex;
+    $cursorProbe.style.left = `${probeEvent.clientX + 14}px`;
+    $cursorProbe.style.top = `${probeEvent.clientY + 14}px`;
+    $cursorProbe.classList.add('is-visible');
+    return;
+  }
+
   const canvas = probeEvent.target.closest('canvas.palette-viz');
   if (!canvas) return hideProbe();
 

@@ -438,6 +438,33 @@ export class PaletteViz3D {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
+  /**
+   * Read the rendered colour at normalised screen coordinates (0–1, y=0 is top).
+   * Returns [r, g, b] in [0, 1], or null if the pixel is transparent (no geometry).
+   * Flushes any pending rAF frame to ensure the reading is up to date.
+   */
+  getColorAtUV(x: number, y: number): [number, number, number] | null {
+    if (!Number.isFinite(x) || !Number.isFinite(y))
+      throw new Error('x and y must be finite numbers');
+    if (x < 0 || x > 1 || y < 0 || y > 1) throw new Error('x and y must be in the range [0, 1]');
+    if (this.#animationFrame !== null) {
+      cancelAnimationFrame(this.#animationFrame);
+      this.#animationFrame = null;
+    }
+    this.#render();
+
+    const gl = this.#gl;
+    const px = Math.min(this.#canvas.width - 1, Math.max(0, Math.round(x * (this.#canvas.width - 1))));
+    // WebGL y=0 is bottom; UV y=0 is top
+    const py = Math.min(this.#canvas.height - 1, Math.max(0, Math.round((1 - y) * (this.#canvas.height - 1))));
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
+    const out = new Uint8Array(4);
+    gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    if (out[3] === 0) return null; // transparent — no geometry at this pixel
+    return [out[0] / 255, out[1] / 255, out[2] / 255];
+  }
+
   get canvas(): HTMLCanvasElement {
     return this.#canvas;
   }
