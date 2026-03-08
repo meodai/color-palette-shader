@@ -99,6 +99,7 @@ void main(){
     float radius = length(toCenter) * 2.0;
 
     #if PROGRESS_AXIS == 2
+      if (radius > 1.0) { discard; }
       colorCoords = vec3((angle / TWO_PI), radius, 1. - progress);
     #elif PROGRESS_AXIS == 1
       colorCoords = vec3((angle / TWO_PI), 1. - progress, radius);
@@ -114,6 +115,7 @@ void main(){
     float radius = length(toCenter) * 2.0;
 
     #if PROGRESS_AXIS == 2
+      if (radius > 1.0) { discard; }
       colorCoords = vec3(angle / TWO_PI, 1.0 - radius, progress);
     #elif PROGRESS_AXIS == 1
       if (radius > 1.0) { discard; }

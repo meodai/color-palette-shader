@@ -1,5 +1,4 @@
 import { ColorList } from './types.ts';
-import { paletteToRGBA } from './palette.ts';
 
 export type Defines = Record<string, number | false>;
 
@@ -184,16 +183,13 @@ export function uploadPaletteTexture(
   palette: ColorList,
 ): void {
   if (palette.length === 0) throw new Error('Palette must contain at least one color');
+  const data = new Float32Array(palette.length * 4);
+  palette.forEach(([r, g, b], i) => {
+    data[i * 4] = r;
+    data[i * 4 + 1] = g;
+    data[i * 4 + 2] = b;
+    data[i * 4 + 3] = 1.0;
+  });
   gl.bindTexture(gl.TEXTURE_2D, tex);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA8,
-    palette.length,
-    1,
-    0,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    paletteToRGBA(palette),
-  );
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, palette.length, 1, 0, gl.RGBA, gl.FLOAT, data);
 }
