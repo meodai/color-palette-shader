@@ -245,7 +245,9 @@ export class PaletteViz3D {
     if (!(this.#gamutClip || this.#isPolar)) return 0;
     const diagonal = Math.hypot(this.#canvas.width, this.#canvas.height);
     const settled = Math.max(320, Math.min(640, Math.round(diagonal * 0.9)));
-    return this.#isInteractive() ? Math.max(160, Math.min(320, Math.round(settled * 0.4))) : settled;
+    return this.#isInteractive()
+      ? Math.max(160, Math.min(320, Math.round(settled * 0.4)))
+      : settled;
   }
 
   #isInteractive(): boolean {
@@ -535,9 +537,15 @@ export class PaletteViz3D {
     this.#render();
 
     const gl = this.#gl;
-    const px = Math.min(this.#canvas.width - 1, Math.max(0, Math.round(x * (this.#canvas.width - 1))));
+    const px = Math.min(
+      this.#canvas.width - 1,
+      Math.max(0, Math.round(x * (this.#canvas.width - 1))),
+    );
     // WebGL y=0 is bottom; UV y=0 is top
-    const py = Math.min(this.#canvas.height - 1, Math.max(0, Math.round((1 - y) * (this.#canvas.height - 1))));
+    const py = Math.min(
+      this.#canvas.height - 1,
+      Math.max(0, Math.round((1 - y) * (this.#canvas.height - 1))),
+    );
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
     const out = new Uint8Array(4);
     gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);

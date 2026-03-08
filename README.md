@@ -402,7 +402,15 @@ canvas.addEventListener('mousemove', (e) => {
     (e.clientY - rect.top) / rect.height,
   );
   if (color) {
-    const hex = '#' + color.map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join('');
+    const hex =
+      '#' +
+      color
+        .map((c) =>
+          Math.round(c * 255)
+            .toString(16)
+            .padStart(2, '0'),
+        )
+        .join('');
     console.log(hex);
   }
 });
