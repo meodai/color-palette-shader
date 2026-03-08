@@ -7,7 +7,14 @@ import {
   DistanceMetric,
 } from './types.ts';
 import { paletteToRGBA, randomPalette } from './palette.ts';
-import { Defines, buildProgram, initTexture, uploadPaletteTexture, computeMetricPalette, uploadMetricTexture } from './webgl.ts';
+import {
+  Defines,
+  buildProgram,
+  initTexture,
+  uploadPaletteTexture,
+  computeMetricPalette,
+  uploadMetricTexture,
+} from './webgl.ts';
 import { vertexShaderSrc, assembleFragShader, outlineFragmentShaderSrc } from './shaderSrc.ts';
 
 export class PaletteViz {
@@ -238,7 +245,12 @@ export class PaletteViz {
     gl.useProgram(this.#program);
     if (this.#metricPaletteDirty) {
       const metricCode = this.#distanceMetricMap[this.#distanceMetric];
-      uploadMetricTexture(gl, this.#metricTexture!, computeMetricPalette(this.#palette, metricCode), this.#palette.length);
+      uploadMetricTexture(
+        gl,
+        this.#metricTexture!,
+        computeMetricPalette(this.#palette, metricCode),
+        this.#palette.length,
+      );
       gl.uniform1i(this.#uPaletteSize, this.#palette.length);
       this.#metricPaletteDirty = false;
     }
@@ -351,8 +363,7 @@ export class PaletteViz {
       typeof indexOrColor === 'number'
         ? indexOrColor
         : this.#palette.findIndex(
-            (c) =>
-              c[0] === indexOrColor[0] && c[1] === indexOrColor[1] && c[2] === indexOrColor[2],
+            (c) => c[0] === indexOrColor[0] && c[1] === indexOrColor[1] && c[2] === indexOrColor[2],
           );
     if (index === -1) throw new Error('Color not found in palette');
     if (index < 0 || index >= this.#palette.length) throw new Error(`Index ${index} out of range`);
@@ -364,7 +375,8 @@ export class PaletteViz {
   }
 
   getColorAtUV(x: number, y: number): ColorRGB {
-    if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error('x and y must be finite numbers');
+    if (!Number.isFinite(x) || !Number.isFinite(y))
+      throw new Error('x and y must be finite numbers');
     if (x < 0 || x > 1 || y < 0 || y > 1) throw new Error('x and y must be in the range [0, 1]');
     if (this.#animationFrame !== null) {
       cancelAnimationFrame(this.#animationFrame);
@@ -374,8 +386,14 @@ export class PaletteViz {
     this.#render();
 
     const gl = this.#gl;
-    const px = Math.min(this.#canvas.width - 1, Math.max(0, Math.round(x * (this.#canvas.width - 1))));
-    const py = Math.min(this.#canvas.height - 1, Math.max(0, Math.round(y * (this.#canvas.height - 1))));
+    const px = Math.min(
+      this.#canvas.width - 1,
+      Math.max(0, Math.round(x * (this.#canvas.width - 1))),
+    );
+    const py = Math.min(
+      this.#canvas.height - 1,
+      Math.max(0, Math.round(y * (this.#canvas.height - 1))),
+    );
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
     const out = new Uint8Array(4);
     gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);

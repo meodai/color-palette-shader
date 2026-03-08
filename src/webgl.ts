@@ -17,14 +17,16 @@ function _linearToOklab(r: number, g: number, b: number): [number, number, numbe
   const m_ = Math.cbrt(m);
   const s_ = Math.cbrt(s);
   return [
-    0.2104542553 * l_ + 0.7936177850 * m_ - 0.0040720468 * s_,
-    1.9779984951 * l_ - 2.4285922050 * m_ + 0.4505937099 * s_,
-    0.0259040371 * l_ + 0.7827717662 * m_ - 0.8086757660 * s_,
+    0.2104542553 * l_ + 0.793617785 * m_ - 0.0040720468 * s_,
+    1.9779984951 * l_ - 2.428592205 * m_ + 0.4505937099 * s_,
+    0.0259040371 * l_ + 0.7827717662 * m_ - 0.808675766 * s_,
   ];
 }
 
 function _toe(x: number): number {
-  const k1 = 0.206, k2 = 0.03, k3 = (1 + k1) / (1 + k2);
+  const k1 = 0.206,
+    k2 = 0.03,
+    k3 = (1 + k1) / (1 + k2);
   return 0.5 * (k3 * x - k1 + Math.sqrt((k3 * x - k1) ** 2 + 4 * k2 * k3 * x));
 }
 
@@ -33,7 +35,14 @@ function _labF(t: number): number {
   return t > delta ** 3 ? Math.cbrt(t) : t / (3 * delta * delta) + 4 / 29;
 }
 
-function _xyzToLab(x: number, y: number, z: number, wx: number, wy: number, wz: number): [number, number, number] {
+function _xyzToLab(
+  x: number,
+  y: number,
+  z: number,
+  wx: number,
+  wy: number,
+  wz: number,
+): [number, number, number] {
   const fx = _labF(x / wx);
   const fy = _labF(y / wy);
   const fz = _labF(z / wz);
@@ -41,22 +50,30 @@ function _xyzToLab(x: number, y: number, z: number, wx: number, wy: number, wz: 
 }
 
 function _srgbToCielabD65(r: number, g: number, b: number): [number, number, number] {
-  const lr = _srgbToLinear(r), lg = _srgbToLinear(g), lb = _srgbToLinear(b);
+  const lr = _srgbToLinear(r),
+    lg = _srgbToLinear(g),
+    lb = _srgbToLinear(b);
   return _xyzToLab(
     0.4124564 * lr + 0.3575761 * lg + 0.1804375 * lb,
-    0.2126729 * lr + 0.7151522 * lg + 0.0721750 * lb,
-    0.0193339 * lr + 0.1191920 * lg + 0.9503041 * lb,
-    0.95047, 1.0, 1.08883,
+    0.2126729 * lr + 0.7151522 * lg + 0.072175 * lb,
+    0.0193339 * lr + 0.119192 * lg + 0.9503041 * lb,
+    0.95047,
+    1.0,
+    1.08883,
   );
 }
 
 function _srgbToCielabD50(r: number, g: number, b: number): [number, number, number] {
-  const lr = _srgbToLinear(r), lg = _srgbToLinear(g), lb = _srgbToLinear(b);
+  const lr = _srgbToLinear(r),
+    lg = _srgbToLinear(g),
+    lb = _srgbToLinear(b);
   return _xyzToLab(
     0.4360747 * lr + 0.3850649 * lg + 0.1430804 * lb,
     0.2225045 * lr + 0.7168786 * lg + 0.0606169 * lb,
     0.0139322 * lr + 0.0971045 * lg + 0.7141733 * lb,
-    0.96422, 1.0, 0.82521,
+    0.96422,
+    1.0,
+    0.82521,
   );
 }
 
@@ -69,16 +86,20 @@ export function computeMetricPalette(palette: ColorList, metricCode: number): Fl
     const [r, g, b] = palette[i];
     let c: [number, number, number];
     switch (metricCode) {
-      case 1: { // oklab
+      case 1: {
+        // oklab
         c = _linearToOklab(_srgbToLinear(r), _srgbToLinear(g), _srgbToLinear(b));
         break;
       }
-      case 6: { // oklrab
+      case 6: {
+        // oklrab
         const lab = _linearToOklab(_srgbToLinear(r), _srgbToLinear(g), _srgbToLinear(b));
         c = [_toe(lab[0]), lab[1], lab[2]];
         break;
       }
-      case 2: case 3: case 5: // deltaE76, deltaE2000, deltaE94
+      case 2:
+      case 3:
+      case 5: // deltaE76, deltaE2000, deltaE94
         c = _srgbToCielabD65(r, g, b);
         break;
       case 7: // cielabD50

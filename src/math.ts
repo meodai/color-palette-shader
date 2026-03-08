@@ -1,7 +1,12 @@
 // Simple 4×4 matrix helpers (column-major) — exported so consumers can build
 // their own orbit / trackball controls.
 
-export function mat4Perspective(fov: number, aspect: number, near: number, far: number): Float32Array {
+export function mat4Perspective(
+  fov: number,
+  aspect: number,
+  near: number,
+  far: number,
+): Float32Array {
   const f = 1.0 / Math.tan(fov / 2);
   const nf = 1 / (near - far);
   // prettier-ignore
@@ -28,7 +33,8 @@ export function mat4Multiply(a: Float32Array, b: Float32Array): Float32Array {
 }
 
 export function mat4RotateY(angle: number): Float32Array {
-  const c = Math.cos(angle), s = Math.sin(angle);
+  const c = Math.cos(angle),
+    s = Math.sin(angle);
   // prettier-ignore
   return new Float32Array([
     c, 0, s, 0,
@@ -39,7 +45,8 @@ export function mat4RotateY(angle: number): Float32Array {
 }
 
 export function mat4RotateZ(angle: number): Float32Array {
-  const c = Math.cos(angle), s = Math.sin(angle);
+  const c = Math.cos(angle),
+    s = Math.sin(angle);
   // prettier-ignore
   return new Float32Array([
     c, s, 0, 0,
@@ -50,7 +57,8 @@ export function mat4RotateZ(angle: number): Float32Array {
 }
 
 export function mat4RotateX(angle: number): Float32Array {
-  const c = Math.cos(angle), s = Math.sin(angle);
+  const c = Math.cos(angle),
+    s = Math.sin(angle);
   // prettier-ignore
   return new Float32Array([
     1, 0, 0, 0,
@@ -60,7 +68,14 @@ export function mat4RotateX(angle: number): Float32Array {
   ]);
 }
 
-export function mat4Ortho(left: number, right: number, bottom: number, top: number, near: number, far: number): Float32Array {
+export function mat4Ortho(
+  left: number,
+  right: number,
+  bottom: number,
+  top: number,
+  near: number,
+  far: number,
+): Float32Array {
   const lr = 1 / (left - right);
   const bt = 1 / (bottom - top);
   const nf = 1 / (near - far);

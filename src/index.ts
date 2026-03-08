@@ -21,10 +21,4 @@ export { paletteToRGBA, paletteToTexture, randomPalette } from './palette.ts';
 export { fragmentShader } from './shaderSrc.ts';
 
 // 4×4 matrix helpers (for building custom orbit / trackball controls)
-export {
-  mat4Perspective,
-  mat4Multiply,
-  mat4RotateX,
-  mat4RotateY,
-  mat4Translate,
-} from './math.ts';
+export { mat4Perspective, mat4Multiply, mat4RotateX, mat4RotateY, mat4Translate } from './math.ts';

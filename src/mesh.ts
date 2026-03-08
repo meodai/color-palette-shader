@@ -1,5 +1,8 @@
 // Generate a unit cube mesh as indexed triangles. Returns interleaved positions.
-export function createCubeMesh(resolution: number): { vertices: Float32Array; indices: Uint32Array } {
+export function createCubeMesh(resolution: number): {
+  vertices: Float32Array;
+  indices: Uint32Array;
+} {
   const verts: number[] = [];
   const idx: number[] = [];
   const n = resolution; // quads per face edge
@@ -9,17 +12,17 @@ export function createCubeMesh(resolution: number): { vertices: Float32Array; in
   const faces: [number, number, number, number, number, number][] = [
     // axisIndex, sign, uAxis, vAxis, uSign, vSign
     // +X face
-    [0, 1,  2, 1, 1, 1],
+    [0, 1, 2, 1, 1, 1],
     // -X face
-    [0, 0,  2, 1, -1, 1],
+    [0, 0, 2, 1, -1, 1],
     // +Y face
-    [1, 1,  0, 2, 1, 1],
+    [1, 1, 0, 2, 1, 1],
     // -Y face
-    [1, 0,  0, 2, 1, -1],
+    [1, 0, 0, 2, 1, -1],
     // +Z face
-    [2, 1,  0, 1, 1, 1],
+    [2, 1, 0, 1, 1, 1],
     // -Z face
-    [2, 0,  0, 1, -1, 1],
+    [2, 0, 0, 1, -1, 1],
   ];
 
   for (const [axIdx, sign, uIdx, vIdx, _uSign, _vSign] of faces) {
@@ -52,7 +55,11 @@ export function createCubeMesh(resolution: number): { vertices: Float32Array; in
 // Stacked X-axis slices filling the cube volume. Each slice is a YZ quad.
 // Used for gamut clipping — out-of-gamut fragments are discarded per-slice,
 // and the dense stack forms the visible gamut body.
-export function createSlicedCubeMesh(resolution: number, slices: number, padding = 0): { vertices: Float32Array; indices: Uint32Array } {
+export function createSlicedCubeMesh(
+  resolution: number,
+  slices: number,
+  padding = 0,
+): { vertices: Float32Array; indices: Uint32Array } {
   const verts: number[] = [];
   const idx: number[] = [];
   const n = resolution;
@@ -63,11 +70,11 @@ export function createSlicedCubeMesh(resolution: number, slices: number, padding
   // Iterate near-to-far so the draw order is front-to-back.
   // With depth test on, early-Z rejects occluded fragments → huge perf win.
   for (let s = slices; s >= 0; s--) {
-    const x = lo + span * s / slices;
+    const x = lo + (span * s) / slices;
     const base = verts.length / 3;
     for (let j = 0; j <= n; j++) {
       for (let i = 0; i <= n; i++) {
-        verts.push(x, lo + span * j / n, lo + span * i / n);
+        verts.push(x, lo + (span * j) / n, lo + (span * i) / n);
       }
     }
     for (let j = 0; j < n; j++) {
@@ -87,18 +94,22 @@ export function createSlicedCubeMesh(resolution: number, slices: number, padding
 // Stacked height slices filling the cylinder volume. Each slice is a full disc.
 // Only position (3 floats) is stored per vertex — polar conversion happens
 // per-pixel in the fragment shader via the color-rotation matrix.
-export function createSlicedCylinderMesh(radialSegments: number, slices: number, padding = 0): { vertices: Float32Array; indices: Uint32Array } {
+export function createSlicedCylinderMesh(
+  radialSegments: number,
+  slices: number,
+  padding = 0,
+): { vertices: Float32Array; indices: Uint32Array } {
   const verts: number[] = [];
   const idx: number[] = [];
   const TWO_PI = Math.PI * 2;
   const capSegs = Math.max(1, Math.floor(radialSegments / 4));
-  const maxR = 0.5 + padding;   // radius extent
-  const hLo = -padding;         // height range: [-padding, 1+padding]
+  const maxR = 0.5 + padding; // radius extent
+  const hLo = -padding; // height range: [-padding, 1+padding]
   const hHi = 1 + padding;
 
   // Iterate near-to-far so the draw order is front-to-back.
   for (let s = slices; s >= 0; s--) {
-    const h = hLo + (hHi - hLo) * s / slices;
+    const h = hLo + ((hHi - hLo) * s) / slices;
     const py = h - 0.5;
     const discBase = verts.length / 3;
     for (let ring = 0; ring <= capSegs; ring++) {
@@ -136,6 +147,3 @@ export const BICONE_MODEL_IDS = new Set([5, 11]); // okhslPolar, hslPolar
 
 // Inverted cone: HWB-type polar models (radius = 1-height, wide at bottom, point at top)
 export const CONE_INV_MODEL_IDS = new Set([13]); // hwbPolar
-
-
-

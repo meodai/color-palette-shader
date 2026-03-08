@@ -47,8 +47,8 @@
         A dependency-free WebGL2 shader that visualizes a color palette by mapping a color space
         onto a plane, polar wheel, or interactive 3D solid, then snapping each pixel to the nearest
         palette color. Toggle the 3D view to explore the full color space as a rotatable cube or
-        cylinder — drag to orbit and use the position slider to slice into the volume. Supports
-        20+ color models and eight distance metrics, all running entirely on the GPU.
+        cylinder — drag to orbit and use the position slider to slice into the volume. Supports 20+
+        color models and eight distance metrics, all running entirely on the GPU.
       </p>
 
       <aside>
@@ -120,8 +120,13 @@ viz.destroy();</code></pre>
       <aside>
         <h2>3D Usage</h2>
         <figure>
-          <figcaption><code>PaletteViz3D</code> renders the full color space as an interactive 3D cube (or cylinder for polar models). Drag to orbit, use the position slider to slice.</figcaption>
-          <pre class="code"><code>import { PaletteViz3D, mat4RotateX, mat4RotateY, mat4Multiply } from 'palette-shader';
+          <figcaption>
+            <code>PaletteViz3D</code> renders the full color space as an interactive 3D cube (or
+            cylinder for polar models). Drag to orbit, use the position slider to slice.
+          </figcaption>
+          <pre
+            class="code"
+          ><code>import { PaletteViz3D, mat4RotateX, mat4RotateY, mat4Multiply } from 'palette-shader';
 
 const viz3d = new PaletteViz3D({
   palette: ['#f2f0e5', '#4b80ca', '#b45252', '#a2dcc7'].map(c),
@@ -145,9 +150,12 @@ viz3d.destroy();</code></pre>
       <aside>
         <h2>Notes</h2>
         <p>
-          No runtime dependencies — uses raw WebGL 2. Colors are passed as <code>[r, g, b]</code> arrays (0–1 sRGB); use <a href="https://culorijs.org/" target="_blank" rel="noopener noreferrer">culori</a> or any color library to convert from CSS strings.
-          Color models and distance metrics are orthogonal — the model controls how the color space
-          is rendered, the metric controls which palette color each pixel snaps to.
+          No runtime dependencies — uses raw WebGL 2. Colors are passed as
+          <code>[r, g, b]</code> arrays (0–1 sRGB); use
+          <a href="https://culorijs.org/" target="_blank" rel="noopener noreferrer">culori</a> or
+          any color library to convert from CSS strings. Color models and distance metrics are
+          orthogonal — the model controls how the color space is rendered, the metric controls which
+          palette color each pixel snaps to.
         </p>
         <p>
           The <strong>outline width</strong> slider draws a transparent gap where regions meet,

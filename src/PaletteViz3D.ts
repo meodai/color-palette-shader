@@ -1,11 +1,13 @@
-import {
-  ColorList,
-  PaletteViz3DOptions,
-  SupportedColorModels,
-  DistanceMetric,
-} from './types.ts';
+import { ColorList, PaletteViz3DOptions, SupportedColorModels, DistanceMetric } from './types.ts';
 import { randomPalette } from './palette.ts';
-import { Defines, buildProgram, initTexture, uploadPaletteTexture, computeMetricPalette, uploadMetricTexture } from './webgl.ts';
+import {
+  Defines,
+  buildProgram,
+  initTexture,
+  uploadPaletteTexture,
+  computeMetricPalette,
+  uploadMetricTexture,
+} from './webgl.ts';
 import {
   vertexShaderSrc,
   vertexShader3DCubeSrc,
@@ -13,8 +15,23 @@ import {
   assembleFragShader3D,
   outlineFragmentShaderSrc,
 } from './shaderSrc.ts';
-import { createCubeMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS, CONE_MODEL_IDS, BICONE_MODEL_IDS, CONE_INV_MODEL_IDS } from './mesh.ts';
-import { mat4Perspective, mat4Ortho, mat4Multiply, mat4RotateX, mat4RotateY, mat4Translate } from './math.ts';
+import {
+  createCubeMesh,
+  createSlicedCubeMesh,
+  createSlicedCylinderMesh,
+  POLAR_MODEL_IDS,
+  CONE_MODEL_IDS,
+  BICONE_MODEL_IDS,
+  CONE_INV_MODEL_IDS,
+} from './mesh.ts';
+import {
+  mat4Perspective,
+  mat4Ortho,
+  mat4Multiply,
+  mat4RotateX,
+  mat4RotateY,
+  mat4Translate,
+} from './math.ts';
 
 export class PaletteViz3D {
   #palette: ColorList = [];
@@ -23,7 +40,7 @@ export class PaletteViz3D {
   #pixelRatio = 1;
   #position = 1.0;
   // accumulated model rotation matrix (spherical/trackball controls)
-  #modelMatrix = new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1]);
+  #modelMatrix = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 
   #colorModel: SupportedColorModels = 'okhsv';
   #distanceMetric: DistanceMetric = 'oklab';
@@ -33,15 +50,39 @@ export class PaletteViz3D {
   #gamutClip = false;
 
   readonly #colorModelMap = {
-    rgb: 0, oklab: 1, okhsv: 2, okhsvPolar: 3, okhsl: 4, okhslPolar: 5,
-    oklch: 6, oklchPolar: 7, hsv: 8, hsvPolar: 9, hsl: 10, hslPolar: 11,
-    hwb: 12, hwbPolar: 13, oklrab: 14, oklrch: 15, oklrchPolar: 16,
-    cielab: 17, cielch: 18, cielchPolar: 19,
-    cielabD50: 20, cielchD50: 21, cielchD50Polar: 22,
+    rgb: 0,
+    oklab: 1,
+    okhsv: 2,
+    okhsvPolar: 3,
+    okhsl: 4,
+    okhslPolar: 5,
+    oklch: 6,
+    oklchPolar: 7,
+    hsv: 8,
+    hsvPolar: 9,
+    hsl: 10,
+    hslPolar: 11,
+    hwb: 12,
+    hwbPolar: 13,
+    oklrab: 14,
+    oklrch: 15,
+    oklrchPolar: 16,
+    cielab: 17,
+    cielch: 18,
+    cielchPolar: 19,
+    cielabD50: 20,
+    cielchD50: 21,
+    cielchD50Polar: 22,
   } as const;
   readonly #distanceMetricMap = {
-    rgb: 0, oklab: 1, deltaE76: 2, deltaE2000: 3, kotsarenkoRamos: 4,
-    deltaE94: 5, oklrab: 6, cielabD50: 7,
+    rgb: 0,
+    oklab: 1,
+    deltaE76: 2,
+    deltaE2000: 3,
+    kotsarenkoRamos: 4,
+    deltaE94: 5,
+    oklrab: 6,
+    cielabD50: 7,
   } as const;
 
   #canvas: HTMLCanvasElement;
@@ -199,9 +240,9 @@ export class PaletteViz3D {
       SHOW_RAW: this.#showRaw ? 1 : false,
       GAMUT_CLIP: this.#gamutClip ? 1 : false,
       IS_POLAR: this.#isPolar ? 1 : false,
-      SHAPE_CONE: (this.#isPolar && CONE_MODEL_IDS.has(modelId)) ? 1 : false,
-      SHAPE_CONE_INV: (this.#isPolar && CONE_INV_MODEL_IDS.has(modelId)) ? 1 : false,
-      SHAPE_BICONE: (this.#isPolar && BICONE_MODEL_IDS.has(modelId)) ? 1 : false,
+      SHAPE_CONE: this.#isPolar && CONE_MODEL_IDS.has(modelId) ? 1 : false,
+      SHAPE_CONE_INV: this.#isPolar && CONE_INV_MODEL_IDS.has(modelId) ? 1 : false,
+      SHAPE_BICONE: this.#isPolar && BICONE_MODEL_IDS.has(modelId) ? 1 : false,
     };
   }
 
@@ -248,7 +289,7 @@ export class PaletteViz3D {
     // Fullscreen quad for blit / outline pass
     this.#blitQuadBuf = gl.createBuffer()!;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.#blitQuadBuf);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
 
     this.#blitVao = gl.createVertexArray()!;
     gl.bindVertexArray(this.#blitVao);
@@ -278,8 +319,19 @@ export class PaletteViz3D {
     gl.bindRenderbuffer(gl.RENDERBUFFER, null);
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.#fboTexture, 0);
-    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, this.#fboDepth);
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      this.#fboTexture,
+      0,
+    );
+    gl.framebufferRenderbuffer(
+      gl.FRAMEBUFFER,
+      gl.DEPTH_ATTACHMENT,
+      gl.RENDERBUFFER,
+      this.#fboDepth,
+    );
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
@@ -291,9 +343,7 @@ export class PaletteViz3D {
       const s = 1.0;
       const proj = mat4Ortho(-s * aspect, s * aspect, -s, s, 0.1, 100);
       const view = mat4Translate(0, 0, -3);
-      const fixedOrientation = this.#isPolar
-        ? mat4RotateX(Math.PI / 2)
-        : mat4RotateY(-Math.PI / 2);
+      const fixedOrientation = this.#isPolar ? mat4RotateX(Math.PI / 2) : mat4RotateY(-Math.PI / 2);
       return mat4Multiply(proj, mat4Multiply(view, fixedOrientation));
     }
     const proj = mat4Perspective(Math.PI / 5, aspect, 0.1, 100);
@@ -324,7 +374,12 @@ export class PaletteViz3D {
     gl.useProgram(this.#program);
     if (this.#metricPaletteDirty) {
       const metricCode = this.#distanceMetricMap[this.#distanceMetric];
-      uploadMetricTexture(gl, this.#metricTexture!, computeMetricPalette(this.#palette, metricCode), this.#palette.length);
+      uploadMetricTexture(
+        gl,
+        this.#metricTexture!,
+        computeMetricPalette(this.#palette, metricCode),
+        this.#palette.length,
+      );
       gl.uniform1i(this.#uPaletteSize, this.#palette.length);
       this.#metricPaletteDirty = false;
     }
@@ -333,9 +388,15 @@ export class PaletteViz3D {
     if ((this.#gamutClip || this.#isPolar) && this.#uColorRotation) {
       const m = this.#modelMatrix;
       const r = this.#rot3x3;
-      r[0] = m[0]; r[1] = m[1]; r[2] = m[2];
-      r[3] = m[4]; r[4] = m[5]; r[5] = m[6];
-      r[6] = m[8]; r[7] = m[9]; r[8] = m[10];
+      r[0] = m[0];
+      r[1] = m[1];
+      r[2] = m[2];
+      r[3] = m[4];
+      r[4] = m[5];
+      r[5] = m[6];
+      r[6] = m[8];
+      r[7] = m[9];
+      r[8] = m[10];
       gl.uniformMatrix3fv(this.#uColorRotation, false, r);
     }
     gl.activeTexture(gl.TEXTURE0);
@@ -377,9 +438,15 @@ export class PaletteViz3D {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
-  get canvas(): HTMLCanvasElement { return this.#canvas; }
-  get width() { return this.#width; }
-  get height() { return this.#height; }
+  get canvas(): HTMLCanvasElement {
+    return this.#canvas;
+  }
+  get width() {
+    return this.#width;
+  }
+  get height() {
+    return this.#height;
+  }
 
   resize(width: number, height: number | null = null): void {
     this.#width = width;
@@ -417,7 +484,9 @@ export class PaletteViz3D {
     this.#metricPaletteDirty = true;
     this.#paint();
   }
-  get palette(): ColorList { return this.#palette.slice(); }
+  get palette(): ColorList {
+    return this.#palette.slice();
+  }
 
   set colorModel(model: SupportedColorModels) {
     if (!(model in this.#colorModelMap)) throw new Error(`colorModel '${model}' is not supported`);
@@ -426,35 +495,46 @@ export class PaletteViz3D {
     this.#meshDirty = true;
     this.#paint();
   }
-  get colorModel() { return this.#colorModel; }
+  get colorModel() {
+    return this.#colorModel;
+  }
 
   set distanceMetric(metric: DistanceMetric) {
-    if (!(metric in this.#distanceMetricMap)) throw new Error(`distanceMetric '${metric}' is not supported`);
+    if (!(metric in this.#distanceMetricMap))
+      throw new Error(`distanceMetric '${metric}' is not supported`);
     this.#distanceMetric = metric;
     this.#programDirty = true;
     this.#paint();
   }
-  get distanceMetric() { return this.#distanceMetric; }
+  get distanceMetric() {
+    return this.#distanceMetric;
+  }
 
   set invertZ(value: boolean) {
     this.#invertZ = value;
     this.#programDirty = true;
     this.#paint();
   }
-  get invertZ() { return this.#invertZ; }
+  get invertZ() {
+    return this.#invertZ;
+  }
 
   set showRaw(value: boolean) {
     this.#showRaw = value;
     this.#programDirty = true;
     this.#paint();
   }
-  get showRaw() { return this.#showRaw; }
+  get showRaw() {
+    return this.#showRaw;
+  }
 
   set position(value: number) {
     this.#position = Math.max(0, Math.min(1, value));
     this.#paint();
   }
-  get position() { return this.#position; }
+  get position() {
+    return this.#position;
+  }
 
   /** Apply an incremental spherical rotation (screen-space dx/dy in radians). */
   rotate(dx: number, dy: number): void {
@@ -478,7 +558,9 @@ export class PaletteViz3D {
     this.#modelMatrix = new Float32Array(m);
     this.#paint();
   }
-  get modelMatrix(): Float32Array { return new Float32Array(this.#modelMatrix); }
+  get modelMatrix(): Float32Array {
+    return new Float32Array(this.#modelMatrix);
+  }
 
   set gamutClip(value: boolean) {
     this.#gamutClip = value;
@@ -486,18 +568,24 @@ export class PaletteViz3D {
     this.#meshDirty = true;
     this.#paint();
   }
-  get gamutClip() { return this.#gamutClip; }
+  get gamutClip() {
+    return this.#gamutClip;
+  }
 
   set outlineWidth(value: number) {
     this.#outlineWidth = value;
     this.#paint();
   }
-  get outlineWidth() { return this.#outlineWidth; }
+  get outlineWidth() {
+    return this.#outlineWidth;
+  }
 
   set pixelRatio(value: number) {
     this.#pixelRatio = value;
     this.#setSize(this.#width, this.#height);
     this.#paint();
   }
-  get pixelRatio() { return this.#pixelRatio; }
+  get pixelRatio() {
+    return this.#pixelRatio;
+  }
 }

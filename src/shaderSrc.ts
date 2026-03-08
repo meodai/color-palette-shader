@@ -148,7 +148,8 @@ void main(){
 
 // Full fragment shader source with all includes — exported for users who want
 // to inspect or reuse the complete GLSL source.
-export const fragmentShader = `
+export const fragmentShader =
+  `
 precision highp float;
 #define TWO_PI 6.28318530718
 in vec2 vUv;
@@ -165,7 +166,9 @@ ${shaderHWB2RGB}
 ${shaderCIELab2RGB}
 ${shaderDeltaE}
 ${shaderClosestColor}
-` + modelToRGBSrc + mainSrc;
+` +
+  modelToRGBSrc +
+  mainSrc;
 
 // ── Selective shader assembly ────────────────────────────────────────────────
 // Instead of compiling ALL shader includes every time, pick only the chunks
@@ -186,31 +189,61 @@ type ShaderNeeds = {
 
 function shaderNeedsForModel(model: number): Partial<ShaderNeeds> {
   switch (model) {
-    case 0: return {};                                             // rgb
-    case 1: case 14: return { oklab: true };                       // oklab, oklrab
-    case 2: case 3: return { oklab: true };                        // okhsv, okhsvPolar
-    case 4: case 5: return { oklab: true };                        // okhsl, okhslPolar
-    case 6: case 7: case 15: case 16: return { oklab: true, lch2rgb: true }; // oklch/oklrch + polar
-    case 8: case 9: return { hsv2rgb: true };                      // hsv, hsvPolar
-    case 10: case 11: return { hsl2rgb: true };                    // hsl, hslPolar
-    case 12: case 13: return { hwb2rgb: true };                    // hwb, hwbPolar
-    case 17: case 18: case 19:                                     // cielab, cielch, cielchPolar
+    case 0:
+      return {}; // rgb
+    case 1:
+    case 14:
+      return { oklab: true }; // oklab, oklrab
+    case 2:
+    case 3:
+      return { oklab: true }; // okhsv, okhsvPolar
+    case 4:
+    case 5:
+      return { oklab: true }; // okhsl, okhslPolar
+    case 6:
+    case 7:
+    case 15:
+    case 16:
+      return { oklab: true, lch2rgb: true }; // oklch/oklrch + polar
+    case 8:
+    case 9:
+      return { hsv2rgb: true }; // hsv, hsvPolar
+    case 10:
+    case 11:
+      return { hsl2rgb: true }; // hsl, hslPolar
+    case 12:
+    case 13:
+      return { hwb2rgb: true }; // hwb, hwbPolar
+    case 17:
+    case 18:
+    case 19: // cielab, cielch, cielchPolar
       return { oklab: true, srgb2rgb: true, cielab2rgb: true };
-    case 20: case 21: case 22:                                     // cielabD50, cielchD50, cielchD50Polar
+    case 20:
+    case 21:
+    case 22: // cielabD50, cielchD50, cielchD50Polar
       return { oklab: true, srgb2rgb: true, cielab2rgb: true };
-    default: return {};
+    default:
+      return {};
   }
 }
 
 function shaderNeedsForMetric(metric: number): Partial<ShaderNeeds> {
   switch (metric) {
-    case 0: return {};                                                           // rgb
-    case 1: case 6: return { oklab: true, srgb2rgb: true };                      // oklab, oklrab
-    case 2: case 3: case 5:                                                      // deltaE76, deltaE2000, deltaE94
+    case 0:
+      return {}; // rgb
+    case 1:
+    case 6:
+      return { oklab: true, srgb2rgb: true }; // oklab, oklrab
+    case 2:
+    case 3:
+    case 5: // deltaE76, deltaE2000, deltaE94
       return { oklab: true, srgb2rgb: true, cielab2rgb: true, deltaE: true };
-    case 4: return { deltaE: true };                                             // kotsarenkoRamos
-    case 7: return { oklab: true, srgb2rgb: true, cielab2rgb: true };            // cielabD50
-    default: return {};
+    case 4:
+      return { deltaE: true }; // kotsarenkoRamos
+    case 7:
+      return { oklab: true, srgb2rgb: true, cielab2rgb: true }; // cielabD50
+    default:
+      return {};
   }
 }
 
@@ -245,7 +278,11 @@ function resolveNeeds(colorModel: number, distanceMetric: number, showRaw: boole
   };
 }
 
-export function assembleFragShader(colorModel: number, distanceMetric: number, showRaw: boolean): string {
+export function assembleFragShader(
+  colorModel: number,
+  distanceMetric: number,
+  showRaw: boolean,
+): string {
   const needs = resolveNeeds(colorModel, distanceMetric, showRaw);
   let src = `
 precision highp float;
@@ -350,7 +387,11 @@ void main() {
   #endif
 }`;
 
-export function assembleFragShader3D(colorModel: number, distanceMetric: number, showRaw: boolean): string {
+export function assembleFragShader3D(
+  colorModel: number,
+  distanceMetric: number,
+  showRaw: boolean,
+): string {
   const needs = resolveNeeds(colorModel, distanceMetric, showRaw);
   let src = `
 precision highp float;
@@ -393,4 +434,3 @@ void main() {
   }
   fragColor = center;
 }`;
-

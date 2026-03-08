@@ -422,10 +422,8 @@ function animTick(timestamp) {
   const dt = (timestamp - animLastTime) / 1000;
   animLastTime = timestamp;
   animCounter += ANIM_SPEED * dt;
-  const linear = Math.abs(animCounter % 200 - 100) / 100;
-  const t = linear < 0.5
-    ? 2 * linear * linear
-    : 1 - 2 * (1 - linear) * (1 - linear);
+  const linear = Math.abs((animCounter % 200) - 100) / 100;
+  const t = linear < 0.5 ? 2 * linear * linear : 1 - 2 * (1 - linear) * (1 - linear);
   $positionSlider.value = String(t);
   applyPosition(t);
   scheduleHashUpdate();
@@ -867,7 +865,9 @@ function toggle3DView(enable) {
   is3D = enable;
   if (enable) {
     // hide 2D canvases
-    vizzes.forEach((v) => { v.canvas.style.display = 'none'; });
+    vizzes.forEach((v) => {
+      v.canvas.style.display = 'none';
+    });
     create3DViz();
     $app.appendChild(viz3d.canvas);
   } else {
@@ -876,7 +876,9 @@ function toggle3DView(enable) {
       viz3d.destroy();
       viz3d = null;
     }
-    vizzes.forEach((v) => { v.canvas.style.display = ''; });
+    vizzes.forEach((v) => {
+      v.canvas.style.display = '';
+    });
     applyPosition(parseFloat($positionSlider.value));
   }
 }

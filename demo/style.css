@@ -536,13 +536,13 @@ input[type='checkbox']:focus {
   margin-bottom: 0;
 }
 
-.about h2+p,
-.about h2+figure,
-.about h2+pre {
+.about h2 + p,
+.about h2 + figure,
+.about h2 + pre {
   margin-top: 0.75em;
 }
 
-.about p+p {
+.about p + p {
   margin-top: 0.75em;
 }
 
@@ -600,7 +600,6 @@ a:hover {
 }
 
 @keyframes shakeup {
-
   0%,
   to {
     transform: translateY(0) rotate(0);

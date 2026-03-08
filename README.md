@@ -35,7 +35,10 @@ import { PaletteViz } from 'palette-shader';
 import { converter } from 'culori';
 
 const toSRGB = converter('srgb');
-const toRGB = (hex) => { const c = toSRGB(hex); return [c.r, c.g, c.b]; };
+const toRGB = (hex) => {
+  const c = toSRGB(hex);
+  return [c.r, c.g, c.b];
+};
 
 // option A — pass a container, canvas is appended automatically
 const viz = new PaletteViz({
@@ -60,21 +63,21 @@ new PaletteViz(options?: PaletteVizOptions)
 
 All options are optional. The palette defaults to a random 20-color set.
 
-| Option           | Type                | Default            | Description                                                                                                  |
-| ---------------- | ------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `palette`        | `[number, number, number][]` | random   | sRGB colors as `[r, g, b]` arrays, each component in the `0–1` range                                        |
-| `container`      | `HTMLElement`       | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself                            |
-| `width`          | `number`            | `512`              | Canvas width in CSS pixels                                                                                   |
-| `height`         | `number`            | `512`              | Canvas height in CSS pixels                                                                                  |
-| `pixelRatio`     | `number`            | `devicePixelRatio` | Renderer pixel ratio                                                                                         |
-| `colorModel`     | `string`            | `'okhsv'`          | Color space for the visualization (see [Color models](#color-models))                                        |
-| `distanceMetric` | `string`            | `'oklab'`          | Distance function for nearest-color matching (see [Distance metrics](#distance-metrics))                     |
-| `axis`           | `'x' \| 'y' \| 'z'` | `'y'`              | Which axis the `position` value controls                                                                     |
-| `position`       | `number`            | `0`                | 0–1 position along the chosen axis                                                                           |
-| `invertZ`        | `boolean`           | `false`            | Flip the lightness/value axis                                                                                |
-| `showRaw`        | `boolean`           | `false`            | Bypass nearest-color matching (shows the raw color space)                                                    |
-| `outlineWidth`   | `number`            | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead). |
-| `gamutClip`      | `boolean`           | `false`            | Discard out-of-sRGB-gamut pixels instead of clamping. Reveals the true gamut boundary of the color model.    |
+| Option           | Type                         | Default            | Description                                                                                                  |
+| ---------------- | ---------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `palette`        | `[number, number, number][]` | random             | sRGB colors as `[r, g, b]` arrays, each component in the `0–1` range                                         |
+| `container`      | `HTMLElement`                | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself                            |
+| `width`          | `number`                     | `512`              | Canvas width in CSS pixels                                                                                   |
+| `height`         | `number`                     | `512`              | Canvas height in CSS pixels                                                                                  |
+| `pixelRatio`     | `number`                     | `devicePixelRatio` | Renderer pixel ratio                                                                                         |
+| `colorModel`     | `string`                     | `'okhsv'`          | Color space for the visualization (see [Color models](#color-models))                                        |
+| `distanceMetric` | `string`                     | `'oklab'`          | Distance function for nearest-color matching (see [Distance metrics](#distance-metrics))                     |
+| `axis`           | `'x' \| 'y' \| 'z'`          | `'y'`              | Which axis the `position` value controls                                                                     |
+| `position`       | `number`                     | `0`                | 0–1 position along the chosen axis                                                                           |
+| `invertZ`        | `boolean`                    | `false`            | Flip the lightness/value axis                                                                                |
+| `showRaw`        | `boolean`                    | `false`            | Bypass nearest-color matching (shows the raw color space)                                                    |
+| `outlineWidth`   | `number`                     | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead). |
+| `gamutClip`      | `boolean`                    | `false`            | Discard out-of-sRGB-gamut pixels instead of clamping. Reveals the true gamut boundary of the color model.    |
 
 ---
 
@@ -83,7 +86,11 @@ All options are optional. The palette defaults to a random 20-color set.
 Every constructor option is also a live setter/getter. Assigning any of them re-renders immediately via `requestAnimationFrame`.
 
 ```js
-viz.palette = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+viz.palette = [
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1],
+];
 viz.position = 0.5;
 viz.colorModel = 'okhslPolar';
 viz.distanceMetric = 'deltaE2000';
@@ -180,11 +187,11 @@ Controls the 3-D color space the visualization is rendered in. Polar variants (`
 
 **CIE Lab / LCH — D65**
 
-| Value           | Shape | Description                                                     |
-| --------------- | ----- | --------------------------------------------------------------- |
-| `'cielab'`      | cube  | CIELab D65: x→a, y→b, z→L. The classic perceptual color space.  |
-| `'cielch'`      | cube  | CIELab D65 in cylindrical LCH coordinates.                      |
-| `'cielchPolar'` | wheel | Polar form of CIELch D65.                                       |
+| Value           | Shape | Description                                                    |
+| --------------- | ----- | -------------------------------------------------------------- |
+| `'cielab'`      | cube  | CIELab D65: x→a, y→b, z→L. The classic perceptual color space. |
+| `'cielch'`      | cube  | CIELab D65 in cylindrical LCH coordinates.                     |
+| `'cielchPolar'` | wheel | Polar form of CIELch D65.                                      |
 
 **CIE Lab / LCH — D50**
 
@@ -315,7 +322,11 @@ import { paletteToRGBA, randomPalette, fragmentShader } from 'palette-shader';
 
 // Get raw RGBA bytes (Uint8Array, sRGB, 4 bytes per color)
 // Useful for building your own WebGL texture or processing palette data
-const rgba = paletteToRGBA([[1, 0, 0], [0, 1, 0], [0, 0, 1]]);
+const rgba = paletteToRGBA([
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1],
+]);
 
 // Quick random palette for prototyping
 const palette = randomPalette(16);
@@ -339,7 +350,7 @@ const viz3d = new PaletteViz3D({
   palette: ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'].map(toRGB),
   container: document.querySelector('#app'),
   colorModel: 'okhsv',
-  position: 1.0,        // 1 = full volume, 0 = fully sliced
+  position: 1.0, // 1 = full volume, 0 = fully sliced
   outlineWidth: 2,
 });
 ```
@@ -352,7 +363,7 @@ new PaletteViz3D(options?: PaletteViz3DOptions)
 
 | Option           | Type                         | Default               | Description                                                                  |
 | ---------------- | ---------------------------- | --------------------- | ---------------------------------------------------------------------------- |
-| `palette`        | `[number, number, number][]` | random                | sRGB colors as `[r, g, b]`, each in `0–1`                                   |
+| `palette`        | `[number, number, number][]` | random                | sRGB colors as `[r, g, b]`, each in `0–1`                                    |
 | `container`      | `HTMLElement`                | `undefined`           | Element the canvas is appended to                                            |
 | `width`          | `number`                     | `512`                 | Canvas width in CSS pixels                                                   |
 | `height`         | `number`                     | `512`                 | Canvas height in CSS pixels                                                  |
@@ -364,7 +375,7 @@ new PaletteViz3D(options?: PaletteViz3DOptions)
 | `showRaw`        | `boolean`                    | `false`               | Bypass nearest-color matching                                                |
 | `outlineWidth`   | `number`                     | `0`                   | Transparent outline width (physical px). `0` disables                        |
 | `gamutClip`      | `boolean`                    | `false`               | Discard out-of-sRGB-gamut pixels instead of clamping                         |
-| `modelMatrix`    | `Float32Array`               | slight tilt (default) | Initial 4×4 column-major model rotation matrix                              |
+| `modelMatrix`    | `Float32Array`               | slight tilt (default) | Initial 4×4 column-major model rotation matrix                               |
 
 ### Properties (3D)
 
@@ -372,10 +383,10 @@ All constructor options except `modelMatrix` are live setter/getters (re-render 
 
 Additional properties:
 
-| Property      | Type           | Description                                                     |
-| ------------- | -------------- | --------------------------------------------------------------- |
-| `canvas`      | `HTMLCanvasElement` | The canvas (read-only)                                     |
-| `modelMatrix` | `Float32Array` | Get/set the 4×4 model rotation matrix (copies on read & write) |
+| Property      | Type                | Description                                                    |
+| ------------- | ------------------- | -------------------------------------------------------------- |
+| `canvas`      | `HTMLCanvasElement` | The canvas (read-only)                                         |
+| `modelMatrix` | `Float32Array`      | Get/set the 4×4 model rotation matrix (copies on read & write) |
 
 ### Methods (3D)
 
@@ -416,13 +427,13 @@ const model = mat4Multiply(mat4RotateX(0.4), mat4RotateY(0.6));
 viz3d.modelMatrix = model;
 ```
 
-| Function         | Signature                                              | Description                           |
-| ---------------- | ------------------------------------------------------ | ------------------------------------- |
-| `mat4Perspective`| `(fov, aspect, near, far) → Float32Array`              | Perspective projection matrix         |
-| `mat4Multiply`   | `(a, b) → Float32Array`                                | Matrix multiplication `a × b`         |
-| `mat4RotateX`    | `(angle) → Float32Array`                               | Rotation around X axis (radians)      |
-| `mat4RotateY`    | `(angle) → Float32Array`                               | Rotation around Y axis (radians)      |
-| `mat4Translate`  | `(x, y, z) → Float32Array`                             | Translation matrix                    |
+| Function          | Signature                                 | Description                      |
+| ----------------- | ----------------------------------------- | -------------------------------- |
+| `mat4Perspective` | `(fov, aspect, near, far) → Float32Array` | Perspective projection matrix    |
+| `mat4Multiply`    | `(a, b) → Float32Array`                   | Matrix multiplication `a × b`    |
+| `mat4RotateX`     | `(angle) → Float32Array`                  | Rotation around X axis (radians) |
+| `mat4RotateY`     | `(angle) → Float32Array`                  | Rotation around Y axis (radians) |
+| `mat4Translate`   | `(x, y, z) → Float32Array`                | Translation matrix               |
 
 ---
 
