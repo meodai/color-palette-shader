@@ -194,6 +194,3 @@ export function createSlicedCylinderMesh(radialSegments: number, slices: number,
 // Polar model IDs that should use a cylinder
 export const POLAR_MODEL_IDS = new Set([3, 5, 7, 9, 11, 13, 16, 19, 22]);
 
-// All hue-based model IDs (polar + non-polar). In gamut clip mode these all
-// need the cylinder mesh so rotation doesn't distort the periodic hue axis.
-export const HUE_MODEL_IDS = new Set([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 18, 19, 21, 22]);

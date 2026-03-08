@@ -13,7 +13,7 @@ import {
   assembleFragShader3D,
   outlineFragmentShaderSrc,
 } from './shaderSrc.ts';
-import { createCubeMesh, createCylinderMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS, HUE_MODEL_IDS } from './mesh.ts';
+import { createCubeMesh, createCylinderMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS } from './mesh.ts';
 import { mat4Perspective, mat4Ortho, mat4Multiply, mat4RotateX, mat4RotateY, mat4Translate } from './math.ts';
 
 export class PaletteViz3D {
@@ -107,9 +107,7 @@ export class PaletteViz3D {
     this.#gamutClip = gamutClip;
     this.#position = position;
     this.#container = container;
-    this.#isPolar = this.#gamutClip
-      ? HUE_MODEL_IDS.has(this.#colorModelMap[this.#colorModel])
-      : POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
+    this.#isPolar = POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
 
     this.#canvas = document.createElement('canvas');
     this.#canvas.classList.add('palette-viz-3d');
@@ -310,9 +308,7 @@ export class PaletteViz3D {
 
   #render(): void {
     if (this.#meshDirty) {
-      this.#isPolar = this.#gamutClip
-      ? HUE_MODEL_IDS.has(this.#colorModelMap[this.#colorModel])
-      : POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
+      this.#isPolar = POLAR_MODEL_IDS.has(this.#colorModelMap[this.#colorModel]);
       this.#buildMesh();
       this.#meshDirty = false;
     }

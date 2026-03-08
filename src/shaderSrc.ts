@@ -339,6 +339,11 @@ void main() {
     #ifdef GAMUT_CLIP_POLAR
       if (colorCoords.z > uPosition) discard;
     #else
+      // Discard fragments outside the valid [0,1]³ parameter range.
+      // The mesh has padding to cover the rotated color cube, but fragments
+      // in the padded region with coords outside [0,1]³ would produce
+      // duplicated/mirrored colors (hue wraps via trig, negative chroma mirrors).
+      if (any(lessThan(colorCoords, vec3(0.0))) || any(greaterThan(colorCoords, vec3(1.0)))) discard;
       if (colorCoords.x > uPosition) discard;
     #endif
   #endif
