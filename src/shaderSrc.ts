@@ -286,80 +286,67 @@ void main() {
   gl_Position = uMVP * vec4(pos - 0.5, 1.0);
 }`;
 
-// Cylinder vertex shader: interleaved (pos.xyz, colorCoord.xyz) with stride=6
+// Cylinder vertex shader: always uses color-space rotation (ortho + fixed camera).
+// The mesh is interleaved (pos.xyz, colorCoord.xyz) but only pos is read —
+// polar conversion happens per-pixel in the fragment shader.
 export const vertexShader3DCylSrc = `
 precision highp float;
 layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec3 a_colorCoord;
 out vec3 vColorCoord;
 
 uniform mat4 uMVP;
-uniform float uPosition;
 uniform mat3 uColorRotation;
 
 void main() {
-  vec3 pos = a_position;
-  vColorCoord = uColorRotation * pos;
-  gl_Position = uMVP * vec4(pos, 1.0);
+  vColorCoord = uColorRotation * a_position;
+  gl_Position = uMVP * vec4(a_position, 1.0);
 }`;
 
 // Fragment shader for the 3D view.
 const mainSrc3D = `
 void main() {
-  vec3 colorCoords = vColorCoord;
+  vec3 cc = vColorCoord;
 
-  #ifdef GAMUT_CLIP_POLAR
-    // vColorCoord is rotated Cartesian position — convert to polar per-pixel
-    // to avoid atan interpolation artifacts across quad edges.
-    float _hue = atan(vColorCoord.z, vColorCoord.x) / TWO_PI;
-    if (_hue < 0.0) _hue += 1.0;
-    float _radius = length(vColorCoord.xz) * 2.0;
-    float _height = vColorCoord.y + 0.5;
-    if (_height < 0.0 || _height > 1.0) discard;
-    // Shape enforcement — only in gamut clip (non-clip uses mesh geometry)
-    #ifdef SHAPE_CONE
-      if (_radius > _height) discard;
-    #elif defined(SHAPE_CONE_INV)
-      if (_radius > 1.0 - _height) discard;
-    #elif defined(SHAPE_BICONE)
-      if (_radius > 1.0 - abs(2.0 * _height - 1.0)) discard;
-    #else
-      if (_radius > 1.0) discard;
-    #endif
-    colorCoords = vec3(_hue, _radius, _height);
-  #endif
-
-  // Position slider — universal for all 3D modes
   #ifdef IS_POLAR
-    if (colorCoords.z > uPosition) discard;
+    // Rotated Cartesian → polar per-pixel (avoids atan interpolation artifacts)
+    float hue = atan(cc.z, cc.x) / TWO_PI;
+    if (hue < 0.0) hue += 1.0;
+    float r = length(cc.xz) * 2.0;
+    float h = cc.y + 0.5;
+    // Single discard: height bounds + position + shape envelope
+    #ifdef SHAPE_CONE
+      if (h < 0.0 || h > uPosition || r > h) discard;
+    #elif defined(SHAPE_CONE_INV)
+      if (h < 0.0 || h > uPosition || r > 1.0 - h) discard;
+    #elif defined(SHAPE_BICONE)
+      if (h < 0.0 || h > uPosition || r > 1.0 - abs(2.0 * h - 1.0)) discard;
+    #else
+      if (h < 0.0 || h > uPosition || r > 1.0) discard;
+    #endif
+    cc = vec3(hue, r, h);
   #else
     #ifdef GAMUT_CLIP
-      // Discard fragments outside the valid [0,1]³ parameter range.
-      // The mesh has padding to cover the rotated color cube, but fragments
-      // in the padded region with coords outside [0,1]³ would produce
-      // duplicated/mirrored colors (hue wraps via trig, negative chroma mirrors).
-      if (any(lessThan(colorCoords, vec3(0.0))) || any(greaterThan(colorCoords, vec3(1.0)))) discard;
+      // Discard outside [0,1]³ — padding covers the rotated cube but
+      // out-of-range coords would duplicate via trig periodicity / mirroring.
+      if (any(lessThan(cc, vec3(0.0))) || any(greaterThan(cc, vec3(1.0)))) discard;
     #endif
-    if (colorCoords.x > uPosition) discard;
+    if (cc.x > uPosition) discard;
   #endif
 
   #ifdef INVERT_Z
-    colorCoords.z = 1.0 - colorCoords.z;
+    cc.z = 1.0 - cc.z;
   #endif
 
-  vec3 rgb = modelToRGB(colorCoords);
+  vec3 rgb = modelToRGB(cc);
 
   #ifdef GAMUT_CLIP
-  if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) {
-    discard;
-  }
+    if (any(lessThan(rgb, vec3(-0.001))) || any(greaterThan(rgb, vec3(1.001)))) discard;
   #endif
 
-  rgb = clamp(rgb, 0.0, 1.0);
   #ifdef SHOW_RAW
-    fragColor = vec4(rgb, 1.0);
+    fragColor = vec4(clamp(rgb, 0.0, 1.0), 1.0);
   #else
-    fragColor = vec4(closestColor(rgb, paletteTexture), 1.0);
+    fragColor = vec4(closestColor(clamp(rgb, 0.0, 1.0), paletteTexture), 1.0);
   #endif
 }`;
 

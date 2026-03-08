@@ -201,7 +201,6 @@ export class PaletteViz3D {
       INVERT_Z: this.#invertZ ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
       GAMUT_CLIP: this.#gamutClip ? 1 : false,
-      GAMUT_CLIP_POLAR: this.#isPolar ? 1 : false,
       IS_POLAR: this.#isPolar ? 1 : false,
       SHAPE_CONE: (this.#isPolar && CONE_MODEL_IDS.has(modelId)) ? 1 : false,
       SHAPE_CONE_INV: (this.#isPolar && CONE_INV_MODEL_IDS.has(modelId)) ? 1 : false,
