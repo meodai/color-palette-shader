@@ -390,6 +390,24 @@ Additional properties:
 
 ### Methods (3D)
 
+#### `getColorAtUV(x, y)`
+
+Returns the rendered color at normalised screen coordinates (`0–1` on both axes, y=0 is top) as `[r, g, b]` in `0–1` sRGB, or `null` if the cursor is over a transparent pixel (i.e. outside the 3D geometry). Flushes any pending rAF frame so the reading is always current.
+
+```js
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const color = viz3d.getColorAtUV(
+    (e.clientX - rect.left) / rect.width,
+    (e.clientY - rect.top) / rect.height,
+  );
+  if (color) {
+    const hex = '#' + color.map((c) => Math.round(c * 255).toString(16).padStart(2, '0')).join('');
+    console.log(hex);
+  }
+});
+```
+
 #### `rotate(dx, dy)`
 
 Apply an incremental trackball rotation. `dx` and `dy` are in radians (screen-space). Left-multiplies incremental X/Y rotations onto the accumulated model matrix.
