@@ -389,6 +389,44 @@ void main() {
   #endif
 }`;
 
+const mainSrc3DPrepass = `
+void main() {
+  vec3 cc = vColorCoord;
+
+  #ifdef IS_POLAR
+    float hue = atan(cc.z, cc.x) / TWO_PI;
+    if (hue < 0.0) hue += 1.0;
+    float r = length(cc.xz) * 2.0;
+    float h = cc.y + 0.5;
+    #ifdef SHAPE_CONE
+      if (h < 0.0 || h > uPosition || r > h) discard;
+    #elif defined(SHAPE_CONE_INV)
+      if (h < 0.0 || h > uPosition || r > 1.0 - h) discard;
+    #elif defined(SHAPE_BICONE)
+      if (h < 0.0 || h > uPosition || r > 1.0 - abs(2.0 * h - 1.0)) discard;
+    #else
+      if (h < 0.0 || h > uPosition || r > 1.0) discard;
+    #endif
+    cc = vec3(hue, r, h);
+  #else
+    #ifdef GAMUT_CLIP
+      if (any(lessThan(cc, vec3(0.0))) || any(greaterThan(cc, vec3(1.0)))) discard;
+    #endif
+    if (cc.x > uPosition) discard;
+  #endif
+
+  #ifdef INVERT_Z
+    cc.z = 1.0 - cc.z;
+  #endif
+
+  #ifdef GAMUT_CLIP
+    vec3 rgb = modelToRGB(cc);
+    if (any(lessThan(rgb, vec3(-0.0))) || any(greaterThan(rgb, vec3(1.0)))) discard;
+  #endif
+
+  fragColor = vec4(1.0);
+}`;
+
 export function assembleFragShader3D(
   colorModel: number,
   distanceMetric: number,
@@ -405,6 +443,24 @@ uniform float uPosition;
 `;
   src += assembleChunks(needs);
   src += modelToRGBSrc + mainSrc3D;
+  return src;
+}
+
+export function assembleFragShader3DPrepass(colorModel: number, gamutClip: boolean): string {
+  const needs = {
+    ...resolveNeeds(colorModel, 0, true),
+    closestColor: false,
+  };
+  let src = `
+precision highp float;
+#define TWO_PI 6.28318530718
+in vec3 vColorCoord;
+out vec4 fragColor;
+uniform float uPosition;
+`;
+  src += assembleChunks(needs);
+  if (gamutClip) src += modelToRGBSrc;
+  src += mainSrc3DPrepass;
   return src;
 }
 
