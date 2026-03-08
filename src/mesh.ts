@@ -200,6 +200,9 @@ export const CONE_MODEL_IDS = new Set([3, 9]); // okhsvPolar, hsvPolar
 // Bicone: HSL-type polar models (radius = 1-|2L-1|, points at top and bottom)
 export const BICONE_MODEL_IDS = new Set([5, 11]); // okhslPolar, hslPolar
 
+// Inverted cone: HWB-type polar models (radius = 1-height, wide at bottom, point at top)
+export const CONE_INV_MODEL_IDS = new Set([13]); // hwbPolar
+
 // Generate a cone mesh for HSV-type polar models.
 // Radius tapers linearly: r = height * 0.5 (point at bottom, full circle at top).
 export function createConeMesh(radialSegments: number, heightSegments: number): { vertices: Float32Array; indices: Uint32Array } {

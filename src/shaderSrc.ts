@@ -319,6 +319,8 @@ void main() {
     // Shape enforcement — only in gamut clip (non-clip uses mesh geometry)
     #ifdef SHAPE_CONE
       if (_radius > _height) discard;
+    #elif defined(SHAPE_CONE_INV)
+      if (_radius > 1.0 - _height) discard;
     #elif defined(SHAPE_BICONE)
       if (_radius > 1.0 - abs(2.0 * _height - 1.0)) discard;
     #else

@@ -13,7 +13,7 @@ import {
   assembleFragShader3D,
   outlineFragmentShaderSrc,
 } from './shaderSrc.ts';
-import { createCubeMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS, CONE_MODEL_IDS, BICONE_MODEL_IDS } from './mesh.ts';
+import { createCubeMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS, CONE_MODEL_IDS, BICONE_MODEL_IDS, CONE_INV_MODEL_IDS } from './mesh.ts';
 import { mat4Perspective, mat4Ortho, mat4Multiply, mat4RotateX, mat4RotateY, mat4Translate } from './math.ts';
 
 export class PaletteViz3D {
@@ -204,6 +204,7 @@ export class PaletteViz3D {
       GAMUT_CLIP_POLAR: this.#isPolar ? 1 : false,
       IS_POLAR: this.#isPolar ? 1 : false,
       SHAPE_CONE: (this.#isPolar && CONE_MODEL_IDS.has(modelId)) ? 1 : false,
+      SHAPE_CONE_INV: (this.#isPolar && CONE_INV_MODEL_IDS.has(modelId)) ? 1 : false,
       SHAPE_BICONE: (this.#isPolar && BICONE_MODEL_IDS.has(modelId)) ? 1 : false,
     };
   }
