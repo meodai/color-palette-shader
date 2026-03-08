@@ -34,6 +34,9 @@ import {
   mat4Translate,
 } from './math.ts';
 
+const GUTTERED_CLIP_PADDING = 0.42;
+const SETTLED_CLIP_PASS_COUNT = 2;
+
 export class PaletteViz3D {
   #palette: ColorList = [];
   #width = 512;
@@ -114,6 +117,8 @@ export class PaletteViz3D {
   #uPaletteSize: WebGLUniformLocation | null = null;
   #uColorRotation: WebGLUniformLocation | null = null;
   #uDepthColorRotation: WebGLUniformLocation | null = null;
+  #uSliceOffset: WebGLUniformLocation | null = null;
+  #uDepthSliceOffset: WebGLUniformLocation | null = null;
   #rot3x3 = new Float32Array(9);
 
   // FBO + blit quad (always used — decouples 3D render from display compositor)
@@ -219,7 +224,7 @@ export class PaletteViz3D {
     } else {
       this.#sliceCount = this.#gamutClip ? this.#desiredSliceCount() : 0;
       const { vertices, indices } = this.#gamutClip
-        ? createSlicedCubeMesh(2, this.#sliceCount, 0.42)
+        ? createSlicedCubeMesh(2, this.#sliceCount, GUTTERED_CLIP_PADDING)
         : createCubeMesh(64);
       this.#indexCount = indices.length;
 
@@ -272,6 +277,35 @@ export class PaletteViz3D {
     if (desired !== this.#sliceCount) this.#meshDirty = true;
   }
 
+  #clipPassCount(): number {
+    return this.#gamutClip && !this.#isInteractive() ? SETTLED_CLIP_PASS_COUNT : 1;
+  }
+
+  #clipSliceOffset(passIndex: number, passCount: number): number {
+    if (!this.#gamutClip || passCount <= 1 || this.#sliceCount <= 0) return 0;
+    const span = 1 + GUTTERED_CLIP_PADDING * 2;
+    const step = span / this.#sliceCount;
+    return ((passIndex + 0.5) / passCount - 0.5) * step;
+  }
+
+  #drawClipPasses(
+    program: WebGLProgram,
+    mvp: WebGLUniformLocation | null,
+    position: WebGLUniformLocation | null,
+    colorRotation: WebGLUniformLocation | null,
+    sliceOffset: WebGLUniformLocation | null,
+  ): void {
+    const gl = this.#gl;
+    const passCount = this.#clipPassCount();
+    this.#applySharedUniforms(program, mvp, position, colorRotation);
+    gl.bindVertexArray(this.#vao);
+    for (let passIndex = 0; passIndex < passCount; passIndex++) {
+      if (sliceOffset) gl.uniform1f(sliceOffset, this.#clipSliceOffset(passIndex, passCount));
+      gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
+    }
+    gl.bindVertexArray(null);
+  }
+
   #defines(): Defines {
     const modelId = this.#colorModelMap[this.#colorModel];
     return {
@@ -313,6 +347,8 @@ export class PaletteViz3D {
     this.#uPaletteSize = gl.getUniformLocation(this.#program, 'uPaletteSize');
     this.#uColorRotation = gl.getUniformLocation(this.#program, 'uColorRotation');
     this.#uDepthColorRotation = gl.getUniformLocation(this.#depthProgram, 'uColorRotation');
+    this.#uSliceOffset = gl.getUniformLocation(this.#program, 'uSliceOffset');
+    this.#uDepthSliceOffset = gl.getUniformLocation(this.#depthProgram, 'uSliceOffset');
     this.#metricPaletteDirty = true;
   }
 
@@ -450,16 +486,20 @@ export class PaletteViz3D {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     if (this.#gamutClip || this.#isPolar) {
-      this.#applySharedUniforms(
-        this.#depthProgram!,
-        this.#uDepthMVP,
-        this.#uDepthPosition,
-        this.#uDepthColorRotation,
-      );
       gl.colorMask(false, false, false, false);
-      gl.bindVertexArray(this.#vao);
-      gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
-      gl.bindVertexArray(null);
+      if (this.#gamutClip) {
+        this.#drawClipPasses(
+          this.#depthProgram!,
+          this.#uDepthMVP,
+          this.#uDepthPosition,
+          this.#uDepthColorRotation,
+          this.#uDepthSliceOffset,
+        );
+      } else {
+        gl.bindVertexArray(this.#vao);
+        gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
+        gl.bindVertexArray(null);
+      }
       gl.colorMask(true, true, true, true);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.depthFunc(gl.EQUAL);
@@ -485,9 +525,19 @@ export class PaletteViz3D {
     gl.bindTexture(gl.TEXTURE_2D, this.#metricTexture);
     gl.uniform1i(this.#uPaletteMetricTexture, 1);
 
-    gl.bindVertexArray(this.#vao);
-    gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
-    gl.bindVertexArray(null);
+    if (this.#gamutClip) {
+      this.#drawClipPasses(
+        this.#program!,
+        this.#uMVP,
+        this.#uPosition,
+        this.#uColorRotation,
+        this.#uSliceOffset,
+      );
+    } else {
+      gl.bindVertexArray(this.#vao);
+      gl.drawElements(gl.TRIANGLES, this.#indexCount, gl.UNSIGNED_INT, 0);
+      gl.bindVertexArray(null);
+    }
     if (this.#gamutClip || this.#isPolar) {
       gl.depthMask(true);
       gl.depthFunc(gl.LESS);

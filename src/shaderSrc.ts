@@ -312,11 +312,13 @@ uniform mat4 uMVP;
 uniform float uPosition;
 #ifdef GAMUT_CLIP
 uniform mat3 uColorRotation;
+uniform float uSliceOffset;
 #endif
 
 void main() {
   vec3 pos = a_position;
   #ifdef GAMUT_CLIP
+    pos.x += uSliceOffset;
     vColorCoord = uColorRotation * (pos - 0.5) + 0.5;
   #else
     pos.x = min(pos.x, uPosition);
