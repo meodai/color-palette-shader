@@ -53,6 +53,8 @@ const viz = new PaletteViz({ palette: ['#264653', '#2a9d8f', '#e9c46a'].map(toRG
 document.querySelector('#app').appendChild(viz.canvas);
 ```
 
+If you only use the 2D renderer, import `PaletteViz` and let your bundler tree-shake the rest. `PaletteViz3D` pulls in substantially more code for mesh generation, extra shaders, and interaction handling, so it is worth avoiding in apps that never render the 3-D view.
+
 ---
 
 ## Constructor
