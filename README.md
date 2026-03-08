@@ -74,6 +74,7 @@ All options are optional. The palette defaults to a random 20-color set.
 | `invertZ`        | `boolean`           | `false`            | Flip the lightness/value axis                                                                                |
 | `showRaw`        | `boolean`           | `false`            | Bypass nearest-color matching (shows the raw color space)                                                    |
 | `outlineWidth`   | `number`            | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead). |
+| `gamutClip`      | `boolean`           | `false`            | Discard out-of-sRGB-gamut pixels instead of clamping. Reveals the true gamut boundary of the color model.    |
 
 ---
 
@@ -89,6 +90,7 @@ viz.distanceMetric = 'deltaE2000';
 viz.invertZ = true;
 viz.showRaw = true;
 viz.outlineWidth = 2; // transparent border between regions, in physical pixels
+viz.gamutClip = true; // discard out-of-gamut pixels
 viz.pixelRatio = window.devicePixelRatio; // update after display changes
 ```
 
@@ -361,6 +363,7 @@ new PaletteViz3D(options?: PaletteViz3DOptions)
 | `invertZ`        | `boolean`                    | `false`               | Flip the lightness/value axis                                                |
 | `showRaw`        | `boolean`                    | `false`               | Bypass nearest-color matching                                                |
 | `outlineWidth`   | `number`                     | `0`                   | Transparent outline width (physical px). `0` disables                        |
+| `gamutClip`      | `boolean`                    | `false`               | Discard out-of-sRGB-gamut pixels instead of clamping                         |
 | `modelMatrix`    | `Float32Array`               | slight tilt (default) | Initial 4×4 column-major model rotation matrix                              |
 
 ### Properties (3D)
