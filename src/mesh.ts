@@ -191,6 +191,97 @@ export function createSlicedCylinderMesh(radialSegments: number, slices: number,
   return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
 }
 
-// Polar model IDs that should use a cylinder
+// Polar model IDs that should use a cylinder (or cone/bicone variant)
 export const POLAR_MODEL_IDS = new Set([3, 5, 7, 9, 11, 13, 16, 19, 22]);
+
+// Cone: HSV-type polar models (radius = value, point at bottom)
+export const CONE_MODEL_IDS = new Set([3, 9]); // okhsvPolar, hsvPolar
+
+// Bicone: HSL-type polar models (radius = 1-|2L-1|, points at top and bottom)
+export const BICONE_MODEL_IDS = new Set([5, 11]); // okhslPolar, hslPolar
+
+// Generate a cone mesh for HSV-type polar models.
+// Radius tapers linearly: r = height * 0.5 (point at bottom, full circle at top).
+export function createConeMesh(radialSegments: number, heightSegments: number): { vertices: Float32Array; indices: Uint32Array } {
+  const verts: number[] = [];
+  const idx: number[] = [];
+  const TWO_PI = Math.PI * 2;
+
+  // ── Side wall (tapered) ───────────────────────────────────────────────────
+  for (let j = 0; j <= heightSegments; j++) {
+    const v = j / heightSegments;
+    const r = v * 0.5; // tapers to 0 at bottom (v=0)
+    for (let i = 0; i <= radialSegments; i++) {
+      const u = i / radialSegments;
+      const angle = u * TWO_PI;
+      verts.push(r * Math.cos(angle), v - 0.5, r * Math.sin(angle), u, 1.0, v);
+    }
+  }
+  const stride = radialSegments + 1;
+  for (let j = 0; j < heightSegments; j++) {
+    for (let i = 0; i < radialSegments; i++) {
+      const a = j * stride + i;
+      const b = a + 1;
+      const c = a + stride;
+      const d = c + 1;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+
+  // ── Top cap only (full disc at v=1) ───────────────────────────────────────
+  const capBase = verts.length / 6;
+  const capSegs = Math.max(1, Math.floor(radialSegments / 4));
+  for (let ring = 0; ring <= capSegs; ring++) {
+    const r01 = ring / capSegs;
+    const rPos = r01 * 0.5;
+    for (let i = 0; i <= radialSegments; i++) {
+      const u = i / radialSegments;
+      const angle = u * TWO_PI;
+      verts.push(rPos * Math.cos(angle), 0.5, rPos * Math.sin(angle), u, r01, 1.0);
+    }
+  }
+  const capStride = radialSegments + 1;
+  for (let ring = 0; ring < capSegs; ring++) {
+    for (let i = 0; i < radialSegments; i++) {
+      const a = capBase + ring * capStride + i;
+      const b = a + 1;
+      const c = a + capStride;
+      const d = c + 1;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+
+  return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
+}
+
+// Generate a bicone (double cone) mesh for HSL-type polar models.
+// Radius = (1 - |2h - 1|) * 0.5 — full circle at h=0.5, points at h=0 and h=1.
+export function createBiconeMesh(radialSegments: number, heightSegments: number): { vertices: Float32Array; indices: Uint32Array } {
+  const verts: number[] = [];
+  const idx: number[] = [];
+  const TWO_PI = Math.PI * 2;
+
+  // Side wall only — both ends are points, no caps needed
+  for (let j = 0; j <= heightSegments; j++) {
+    const v = j / heightSegments;
+    const r = (1 - Math.abs(2 * v - 1)) * 0.5;
+    for (let i = 0; i <= radialSegments; i++) {
+      const u = i / radialSegments;
+      const angle = u * TWO_PI;
+      verts.push(r * Math.cos(angle), v - 0.5, r * Math.sin(angle), u, 1.0, v);
+    }
+  }
+  const stride = radialSegments + 1;
+  for (let j = 0; j < heightSegments; j++) {
+    for (let i = 0; i < radialSegments; i++) {
+      const a = j * stride + i;
+      const b = a + 1;
+      const c = a + stride;
+      const d = c + 1;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+
+  return { vertices: new Float32Array(verts), indices: new Uint32Array(idx) };
+}
 

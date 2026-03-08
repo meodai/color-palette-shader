@@ -13,7 +13,7 @@ import {
   assembleFragShader3D,
   outlineFragmentShaderSrc,
 } from './shaderSrc.ts';
-import { createCubeMesh, createCylinderMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS } from './mesh.ts';
+import { createCubeMesh, createSlicedCubeMesh, createSlicedCylinderMesh, POLAR_MODEL_IDS, CONE_MODEL_IDS, BICONE_MODEL_IDS } from './mesh.ts';
 import { mat4Perspective, mat4Ortho, mat4Multiply, mat4RotateX, mat4RotateY, mat4Translate } from './math.ts';
 
 export class PaletteViz3D {
@@ -148,9 +148,7 @@ export class PaletteViz3D {
     if (this.#vao) gl.deleteVertexArray(this.#vao);
 
     if (this.#isPolar) {
-      const { vertices, indices } = this.#gamutClip
-        ? createSlicedCylinderMesh(32, 512, 0.25)
-        : createCylinderMesh(128, 64);
+      const { vertices, indices } = createSlicedCylinderMesh(32, 512, 0.25);
       this.#indexCount = indices.length;
 
       this.#vbo = gl.createBuffer()!;
@@ -196,13 +194,17 @@ export class PaletteViz3D {
   }
 
   #defines(): Defines {
+    const modelId = this.#colorModelMap[this.#colorModel];
     return {
-      COLOR_MODEL: this.#colorModelMap[this.#colorModel],
+      COLOR_MODEL: modelId,
       DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
       INVERT_Z: this.#invertZ ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
       GAMUT_CLIP: this.#gamutClip ? 1 : false,
-      GAMUT_CLIP_POLAR: (this.#gamutClip && this.#isPolar) ? 1 : false,
+      GAMUT_CLIP_POLAR: this.#isPolar ? 1 : false,
+      IS_POLAR: this.#isPolar ? 1 : false,
+      SHAPE_CONE: (this.#isPolar && CONE_MODEL_IDS.has(modelId)) ? 1 : false,
+      SHAPE_BICONE: (this.#isPolar && BICONE_MODEL_IDS.has(modelId)) ? 1 : false,
     };
   }
 
@@ -286,16 +288,12 @@ export class PaletteViz3D {
 
   #buildMVP(): Float32Array {
     const aspect = this.#canvas.width / this.#canvas.height;
-    if (this.#gamutClip) {
+    if (this.#gamutClip || this.#isPolar) {
       // Orthographic projection — all slices project identically (no perspective
       // parallax that would reveal slice edges as line patterns).
-      const s = 1.0; // half-size of the view volume (covers padded mesh)
+      const s = 1.0;
       const proj = mat4Ortho(-s * aspect, s * aspect, -s, s, 0.1, 100);
       const view = mat4Translate(0, 0, -3);
-      // Fixed orientation: slices always face the camera.
-      // Orientations chosen so that mesh draw order (ascending index) is
-      // back-to-front, enabling correct painter's-algorithm rendering
-      // without depth test.
       const fixedOrientation = this.#isPolar
         ? mat4RotateX(Math.PI / 2)
         : mat4RotateY(-Math.PI / 2);
@@ -335,7 +333,7 @@ export class PaletteViz3D {
     }
     gl.uniformMatrix4fv(this.#uMVP, false, this.#buildMVP());
     gl.uniform1f(this.#uPosition, this.#position);
-    if (this.#gamutClip && this.#uColorRotation) {
+    if ((this.#gamutClip || this.#isPolar) && this.#uColorRotation) {
       const m = this.#modelMatrix;
       const r = this.#rot3x3;
       r[0] = m[0]; r[1] = m[1]; r[2] = m[2];
@@ -463,7 +461,7 @@ export class PaletteViz3D {
 
   /** Apply an incremental spherical rotation (screen-space dx/dy in radians). */
   rotate(dx: number, dy: number): void {
-    if (this.#gamutClip) {
+    if (this.#gamutClip || this.#isPolar) {
       // The model matrix rotates the color space (inverse of geometry rotation).
       // The camera views through fixed orientation F. To make drags feel natural:
       //   R' = R * F^T * screenInc^T * F    (post-multiply, transposed, conjugated)

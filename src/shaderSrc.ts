@@ -295,23 +295,12 @@ out vec3 vColorCoord;
 
 uniform mat4 uMVP;
 uniform float uPosition;
-#ifdef GAMUT_CLIP
 uniform mat3 uColorRotation;
-#endif
 
 void main() {
-  #ifdef GAMUT_CLIP
-    vec3 pos = a_position;
-    vColorCoord = uColorRotation * pos;
-    gl_Position = uMVP * vec4(pos, 1.0);
-  #else
-    vec3 cc = a_colorCoord;
-    cc.z = min(cc.z, uPosition);
-    vec3 pos = a_position;
-    pos.y = cc.z - 0.5;
-    vColorCoord = cc;
-    gl_Position = uMVP * vec4(pos, 1.0);
-  #endif
+  vec3 pos = a_position;
+  vColorCoord = uColorRotation * pos;
+  gl_Position = uMVP * vec4(pos, 1.0);
 }`;
 
 // Fragment shader for the 3D view.
@@ -326,26 +315,30 @@ void main() {
     if (_hue < 0.0) _hue += 1.0;
     float _radius = length(vColorCoord.xz) * 2.0;
     float _height = vColorCoord.y + 0.5;
-    // Discard if polar coords are outside the valid [0,1] range — prevents
-    // padded mesh from feeding out-of-range values to color conversion functions
-    // that might produce valid-looking but wrong sRGB output.
-    if (_radius > 1.0 || _height < 0.0 || _height > 1.0) {
-      discard;
-    }
+    if (_height < 0.0 || _height > 1.0) discard;
+    // Shape enforcement — only in gamut clip (non-clip uses mesh geometry)
+    #ifdef SHAPE_CONE
+      if (_radius > _height) discard;
+    #elif defined(SHAPE_BICONE)
+      if (_radius > 1.0 - abs(2.0 * _height - 1.0)) discard;
+    #else
+      if (_radius > 1.0) discard;
+    #endif
     colorCoords = vec3(_hue, _radius, _height);
   #endif
 
-  #ifdef GAMUT_CLIP
-    #ifdef GAMUT_CLIP_POLAR
-      if (colorCoords.z > uPosition) discard;
-    #else
+  // Position slider — universal for all 3D modes
+  #ifdef IS_POLAR
+    if (colorCoords.z > uPosition) discard;
+  #else
+    #ifdef GAMUT_CLIP
       // Discard fragments outside the valid [0,1]³ parameter range.
       // The mesh has padding to cover the rotated color cube, but fragments
       // in the padded region with coords outside [0,1]³ would produce
       // duplicated/mirrored colors (hue wraps via trig, negative chroma mirrors).
       if (any(lessThan(colorCoords, vec3(0.0))) || any(greaterThan(colorCoords, vec3(1.0)))) discard;
-      if (colorCoords.x > uPosition) discard;
     #endif
+    if (colorCoords.x > uPosition) discard;
   #endif
 
   #ifdef INVERT_Z
@@ -376,9 +369,7 @@ precision highp float;
 in vec3 vColorCoord;
 out vec4 fragColor;
 uniform sampler2D paletteTexture;
-#ifdef GAMUT_CLIP
 uniform float uPosition;
-#endif
 `;
   src += assembleChunks(needs);
   src += modelToRGBSrc + mainSrc3D;
