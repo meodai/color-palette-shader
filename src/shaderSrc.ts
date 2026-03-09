@@ -33,7 +33,10 @@ import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { t
 //                         22=cielabD50 23=cielchD50 24=cielchD50Polar
 //                         25=rgb18bit 26=rgb6bit 27=rgb15bit
 //   PROGRESS_AXIS    int  0=x 1=y 2=z
+//   INVERT_X         flag (defined = true)
+//   INVERT_Y         flag (defined = true)
 //   INVERT_Z         flag (defined = true)
+//   AUTO_FLIP_Y      flag (defined = true)
 //   SHOW_RAW         flag (defined = true)
 
 export const vertexShaderSrc = `
@@ -128,16 +131,21 @@ vec3 modelToRGB(vec3 colorCoords) {
 
 const mainSrc = `
 void main(){
+  vec2 uv = vUv;
+  #ifdef AUTO_FLIP_Y
+    uv.y = 1. - uv.y;
+  #endif
+
   #if PROGRESS_AXIS == 1
-    vec3 colorCoords = vec3(vUv.x, progress, vUv.y);
+    vec3 colorCoords = vec3(uv.x, progress, uv.y);
   #elif PROGRESS_AXIS == 2
-    vec3 colorCoords = vec3(vUv.x, vUv.y, 1. - progress);
+    vec3 colorCoords = vec3(uv.x, uv.y, 1. - progress);
   #else
-    vec3 colorCoords = vec3(progress, vUv.x, vUv.y);
+    vec3 colorCoords = vec3(progress, uv.x, uv.y);
   #endif
 
   #if COLOR_MODEL == 5 || COLOR_MODEL == 7 || COLOR_MODEL == 9 || COLOR_MODEL == 11 || COLOR_MODEL == 13 || COLOR_MODEL == 18 || COLOR_MODEL == 21 || COLOR_MODEL == 24
-    vec2 toCenter = vUv - 0.5;
+    vec2 toCenter = uv - 0.5;
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
 
@@ -149,11 +157,11 @@ void main(){
       if (radius > 1.0) { discard; }
     #else
       float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
-      if (vUv.x > 0.5) { hue += 0.5; }
-      colorCoords = vec3(hue, abs(0.5 - vUv.x) * 2.0, vUv.y);
+      if (uv.x > 0.5) { hue += 0.5; }
+      colorCoords = vec3(hue, abs(0.5 - uv.x) * 2.0, uv.y);
     #endif
   #elif COLOR_MODEL == 15
-    vec2 toCenter = vUv - 0.5;
+    vec2 toCenter = uv - 0.5;
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
 
@@ -165,9 +173,17 @@ void main(){
       colorCoords = vec3(angle / TWO_PI, radius, progress);
     #else
       float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
-      if (vUv.x > 0.5) { hue += 0.5; }
-      colorCoords = vec3(hue, 1.0 - abs(0.5 - vUv.x) * 2.0, vUv.y);
+      if (uv.x > 0.5) { hue += 0.5; }
+      colorCoords = vec3(hue, 1.0 - abs(0.5 - uv.x) * 2.0, uv.y);
     #endif
+  #endif
+
+  #ifdef INVERT_X
+    colorCoords.x = 1. - colorCoords.x;
+  #endif
+
+  #ifdef INVERT_Y
+    colorCoords.y = 1. - colorCoords.y;
   #endif
 
   #ifdef INVERT_Z
@@ -422,6 +438,14 @@ void main() {
     if (cc.x > uPosition) discard;
   #endif
 
+  #ifdef INVERT_X
+    cc.x = 1.0 - cc.x;
+  #endif
+
+  #ifdef INVERT_Y
+    cc.y = 1.0 - cc.y;
+  #endif
+
   #ifdef INVERT_Z
     cc.z = 1.0 - cc.z;
   #endif
@@ -463,6 +487,14 @@ void main() {
       if (any(lessThan(cc, vec3(0.0))) || any(greaterThan(cc, vec3(1.0)))) discard;
     #endif
     if (cc.x > uPosition) discard;
+  #endif
+
+  #ifdef INVERT_X
+    cc.x = 1.0 - cc.x;
+  #endif
+
+  #ifdef INVERT_Y
+    cc.y = 1.0 - cc.y;
   #endif
 
   #ifdef INVERT_Z

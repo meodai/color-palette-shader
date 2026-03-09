@@ -52,7 +52,7 @@ export type PaletteVizOptions = {
   distanceMetric?: DistanceMetric;
   axis?: Axis;
   position?: number;
-  invertZ?: boolean;
+  invertAxes?: Axis[];
   showRaw?: boolean;
   outlineWidth?: number;
   gamutClip?: boolean;
@@ -66,7 +66,7 @@ export type PaletteViz3DOptions = {
   container?: HTMLElement;
   colorModel?: SupportedColorModels;
   distanceMetric?: DistanceMetric;
-  invertZ?: boolean;
+  invertAxes?: Axis[];
   showRaw?: boolean;
   outlineWidth?: number;
   gamutClip?: boolean;

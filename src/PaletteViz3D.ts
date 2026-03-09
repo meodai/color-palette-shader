@@ -1,4 +1,4 @@
-import { ColorList, PaletteViz3DOptions, SupportedColorModels, DistanceMetric } from './types.ts';
+import { ColorList, PaletteViz3DOptions, SupportedColorModels, DistanceMetric, Axis } from './types.ts';
 import { randomPalette } from './palette.ts';
 import {
   Defines,
@@ -48,10 +48,12 @@ export class PaletteViz3D {
 
   #colorModel: SupportedColorModels = 'okhsv';
   #distanceMetric: DistanceMetric = 'oklab';
-  #invertZ = false;
+  #invertAxes: Axis[] = [];
   #showRaw = false;
   #outlineWidth = 0;
   #gamutClip = false;
+
+  readonly #axisMap = { x: 0, y: 1, z: 2 } as const;
 
   readonly #colorModelMap = {
     rgb: 0,
@@ -147,7 +149,7 @@ export class PaletteViz3D {
     container,
     colorModel = 'okhsv',
     distanceMetric = 'oklab',
-    invertZ = false,
+    invertAxes = [],
     showRaw = false,
     outlineWidth = 0,
     gamutClip = false,
@@ -160,7 +162,7 @@ export class PaletteViz3D {
     this.#pixelRatio = pixelRatio;
     this.#colorModel = colorModel;
     this.#distanceMetric = distanceMetric;
-    this.#invertZ = invertZ;
+    this.#invertAxes = this.#normalizeInvertAxes(invertAxes);
     this.#showRaw = showRaw;
     this.#outlineWidth = outlineWidth;
     this.#gamutClip = gamutClip;
@@ -316,7 +318,9 @@ export class PaletteViz3D {
     return {
       COLOR_MODEL: modelId,
       DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
-      INVERT_Z: this.#invertZ ? 1 : false,
+      INVERT_X: this.#invertAxes.includes('x') ? 1 : false,
+      INVERT_Y: this.#invertAxes.includes('y') ? 1 : false,
+      INVERT_Z: this.#invertAxes.includes('z') ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
       GAMUT_CLIP: this.#gamutClip ? 1 : false,
       IS_POLAR: this.#isPolar ? 1 : false,
@@ -324,6 +328,15 @@ export class PaletteViz3D {
       SHAPE_CONE_INV: this.#isPolar && CONE_INV_MODEL_IDS.has(modelId) ? 1 : false,
       SHAPE_BICONE: this.#isPolar && BICONE_MODEL_IDS.has(modelId) ? 1 : false,
     };
+  }
+
+  #normalizeInvertAxes(axes: Axis[]): Axis[] {
+    const uniqueAxes = new Set<Axis>();
+    axes.forEach((axis) => {
+      if (!(axis in this.#axisMap)) throw new Error("invertAxes entries must be 'x', 'y', or 'z'");
+      uniqueAxes.add(axis);
+    });
+    return [...uniqueAxes];
   }
 
   #rebuildProgram(): void {
@@ -697,13 +710,13 @@ export class PaletteViz3D {
     return this.#distanceMetric;
   }
 
-  set invertZ(value: boolean) {
-    this.#invertZ = value;
+  set invertAxes(value: Axis[]) {
+    this.#invertAxes = this.#normalizeInvertAxes(value);
     this.#programDirty = true;
     this.#paint();
   }
-  get invertZ() {
-    return this.#invertZ;
+  get invertAxes() {
+    return this.#invertAxes.slice();
   }
 
   set showRaw(value: boolean) {

@@ -215,17 +215,62 @@ const sharedOptions = {
   pixelRatio: devicePixelRatio * 2,
 };
 
-const viz = new PaletteViz({ ...sharedOptions, axis: 'x', position: 0 });
-
 const vizzes = [
-  viz,
+  new PaletteViz({ ...sharedOptions, axis: 'x', position: 0 }),
   new PaletteViz({ ...sharedOptions, axis: 'y', position: 0 }),
   new PaletteViz({ ...sharedOptions, axis: 'z', position: 0 }),
-  new PaletteViz({ ...sharedOptions, axis: 'x', position: 1 }),
-  new PaletteViz({ ...sharedOptions, axis: 'y', position: 1 }),
-  new PaletteViz({ ...sharedOptions, axis: 'z', position: 1 }),
+  new PaletteViz({ ...sharedOptions, axis: 'x', position: 0, invertAxes: ['z'] }),
+  new PaletteViz({ ...sharedOptions, axis: 'y', position: 0, invertAxes: ['z'] }),
+  new PaletteViz({ ...sharedOptions, axis: 'z', position: 0, invertAxes: ['z'] }),
 ];
-// t=0 default: first row at 0 (one extreme), second row at 1 (other side)
+// t=0 default: both rows show the same slice; the second row flips Z.
+
+const defaultInvertAxesByViz = [[], [], [], ['z'], ['z'], ['z']];
+
+function setInvertAxis(viz, axis, enabled) {
+  const nextAxes = viz.invertAxes.filter((currentAxis) => currentAxis !== axis);
+  if (enabled) nextAxes.push(axis);
+  viz.invertAxes = nextAxes;
+}
+
+function restoreDefaultInvertZ() {
+  vizzes.forEach((v, index) => {
+    v.invertAxes = [...defaultInvertAxesByViz[index]];
+  });
+  if (viz3d) viz3d.invertAxes = [];
+}
+
+function setInvertZ(enabled) {
+  vizzes.forEach((v, index) => {
+    const keepAxes = defaultInvertAxesByViz[index].filter((axis) => axis !== 'z');
+    v.invertAxes = enabled ? [...keepAxes, 'z'] : keepAxes;
+  });
+  if (viz3d) viz3d.invertAxes = enabled ? ['z'] : [];
+}
+
+function toggleInvertZ() {
+  vizzes.forEach((v) => {
+    setInvertAxis(v, 'z', !v.invertAxes.includes('z'));
+  });
+  if (viz3d) {
+    setInvertAxis(viz3d, 'z', !viz3d.invertAxes.includes('z'));
+  }
+  syncInvertZCheckbox();
+}
+
+function syncInvertZCheckbox() {
+  const targets = viz3d ? [viz3d] : vizzes;
+  const zStates = targets.map((viz) => viz.invertAxes.includes('z'));
+  const allInverted = zStates.every(Boolean);
+  const noneInverted = zStates.every((state) => !state);
+  $invertZCheckbox.checked = allInverted;
+  $invertZCheckbox.indeterminate = !allInverted && !noneInverted;
+}
+
+function getInvertZMode() {
+  if ($invertZCheckbox.indeterminate) return 'default';
+  return $invertZCheckbox.checked ? 'all' : 'none';
+}
 
 const $cursorProbe = document.createElement('div');
 $cursorProbe.className = 'cursor-probe';
@@ -415,7 +460,7 @@ function applyPosition(t) {
       v.position = t;
     });
     vizzes.slice(3, 6).forEach((v) => {
-      v.position = 1 - t;
+      v.position = t;
     });
   } else {
     viz3d.position = 1 - t;
@@ -501,10 +546,8 @@ $tools.appendChild(labeled('Outline width', $outlineSlider));
 const $invertZCheckbox = document.createElement('input');
 $invertZCheckbox.type = 'checkbox';
 $invertZCheckbox.checked = false;
-$invertZCheckbox.addEventListener('change', (e) => {
-  vizzes.forEach((v) => {
-    v.invertZ = e.target.checked;
-  });
+$invertZCheckbox.addEventListener('change', () => {
+  toggleInvertZ();
 });
 $tools.appendChild(labeled('Invert Z', $invertZCheckbox));
 
@@ -625,7 +668,7 @@ function encodeHash(colors, settings) {
     model: settings.colorModel,
     metric: settings.distanceMetric,
     pos: settings.pos.toFixed(4),
-    ...(settings.invertZ && { invert: '1' }),
+    ...(settings.invertZMode !== 'default' && { invert: settings.invertZMode }),
     ...(settings.showRaw && { raw: '1' }),
     ...(settings.gamutClip && { gamut: '1' }),
     ...(settings.outlineWidth > 0 && { outline: settings.outlineWidth.toString() }),
@@ -652,7 +695,12 @@ function decodeHash(hash) {
     colorModel: params.get('model') || 'okhsl',
     distanceMetric: params.get('metric') || 'oklab',
     pos: parseFloat(params.get('pos') ?? '0'),
-    invertZ: params.get('invert') === '1',
+    invertZMode:
+      params.get('invert') === 'all' || params.get('invert') === 'z'
+        ? 'all'
+        : params.get('invert') === 'none'
+          ? 'none'
+          : 'default',
     showRaw: params.get('raw') === '1',
     gamutClip: params.get('gamut') === '1',
     outlineWidth: parseFloat(params.get('outline') ?? '0'),
@@ -665,7 +713,7 @@ function getSettings() {
     colorModel: $colorModel.value,
     distanceMetric: $distanceMetric.value,
     pos: parseFloat($positionSlider.value),
-    invertZ: $invertZCheckbox.checked,
+    invertZMode: getInvertZMode(),
     showRaw: $showRawCheckbox.checked,
     gamutClip: $gamutClipCheckbox.checked,
     outlineWidth: parseFloat($outlineSlider.value),
@@ -685,7 +733,6 @@ function applyState(state) {
   $colorModel.value = state.colorModel;
   $distanceMetric.value = state.distanceMetric;
   $positionSlider.value = String(state.pos);
-  $invertZCheckbox.checked = state.invertZ;
   $showRawCheckbox.checked = state.showRaw;
   $gamutClipCheckbox.checked = state.gamutClip;
   $outlineSlider.value = String(state.outlineWidth);
@@ -693,12 +740,19 @@ function applyState(state) {
   vizzes.forEach((v) => {
     v.colorModel = state.colorModel;
     v.distanceMetric = state.distanceMetric;
-    v.invertZ = state.invertZ;
     v.showRaw = state.showRaw;
     v.gamutClip = state.gamutClip;
     v.outlineWidth = state.outlineWidth;
   });
+  if (state.invertZMode === 'all') {
+    setInvertZ(true);
+  } else if (state.invertZMode === 'none') {
+    setInvertZ(false);
+  } else {
+    restoreDefaultInvertZ();
+  }
   applyPosition(state.pos);
+  syncInvertZCheckbox();
 
   // 3D toggle
   if (state.is3D !== is3D) {
@@ -730,6 +784,8 @@ $palette.addEventListener('click', (e) => {
   if (e.target.classList.contains('color-picker__remove')) scheduleHashUpdate();
 });
 $palettePaste.addEventListener('input', scheduleHashUpdate);
+
+syncInvertZCheckbox();
 
 // ── Token Beam receiver ──────────────────────────────────────────────────────
 
@@ -832,7 +888,7 @@ function create3DViz() {
     pixelRatio: devicePixelRatio * 2,
     colorModel: $colorModel.value,
     distanceMetric: $distanceMetric.value,
-    invertZ: $invertZCheckbox.checked,
+    invertAxes: getInvertZMode() === 'all' ? ['z'] : [],
     showRaw: $showRawCheckbox.checked,
     gamutClip: $gamutClipCheckbox.checked,
     outlineWidth: parseFloat($outlineSlider.value),
@@ -921,7 +977,7 @@ $distanceMetric.addEventListener('change', () => {
   if (viz3d) viz3d.distanceMetric = $distanceMetric.value;
 });
 $invertZCheckbox.addEventListener('change', () => {
-  if (viz3d) viz3d.invertZ = $invertZCheckbox.checked;
+  if (viz3d) viz3d.invertAxes = getInvertZMode() === 'all' ? ['z'] : [];
 });
 $showRawCheckbox.addEventListener('change', () => {
   if (viz3d) viz3d.showRaw = $showRawCheckbox.checked;

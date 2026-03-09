@@ -89,7 +89,7 @@ All options are optional. The palette defaults to a random 20-color set.
 | `distanceMetric` | `string`                     | `'oklab'`          | Distance function for nearest-color matching (see [Distance metrics](#distance-metrics))                     |
 | `axis`           | `'x' \| 'y' \| 'z'`          | `'y'`              | Which axis the `position` value controls                                                                     |
 | `position`       | `number`                     | `0`                | 0–1 position along the chosen axis                                                                           |
-| `invertZ`        | `boolean`                    | `false`            | Flip the lightness/value axis                                                                                |
+| `invertAxes`     | `('x' \| 'y' \| 'z')[]`      | `[]`               | Invert one or more axes, for example `['z']` or `['x', 'z']`. In 2-D polar views, `y` inversion is resolved as a vertical view flip to avoid the mirrored center seam. |
 | `showRaw`        | `boolean`                    | `false`            | Bypass nearest-color matching (shows the raw color space)                                                    |
 | `outlineWidth`   | `number`                     | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead). |
 | `gamutClip`      | `boolean`                    | `false`            | Discard out-of-sRGB-gamut pixels instead of clamping. Reveals the true gamut boundary of the color model.    |
@@ -109,7 +109,7 @@ viz.palette = [
 viz.position = 0.5;
 viz.colorModel = 'okhslPolar';
 viz.distanceMetric = 'deltaE2000';
-viz.invertZ = true;
+viz.invertAxes = ['z'];
 viz.showRaw = true;
 viz.outlineWidth = 2; // transparent border between regions, in physical pixels
 viz.gamutClip = true; // discard out-of-gamut pixels
@@ -386,7 +386,7 @@ new PaletteViz3D(options?: PaletteViz3DOptions)
 | `colorModel`     | `string`                     | `'okhsv'`             | Color model (see [Color models](#color-models)). Polar → cylinder mesh       |
 | `distanceMetric` | `string`                     | `'oklab'`             | Distance metric (see [Distance metrics](#distance-metrics))                  |
 | `position`       | `number`                     | `1`                   | 0–1 slice position. `1` shows the full volume; `0` slices it completely away |
-| `invertZ`        | `boolean`                    | `false`               | Flip the lightness/value axis                                                |
+| `invertAxes`     | `('x' \| 'y' \| 'z')[]`      | `[]`                  | Invert one or more axes, for example `['z']` or `['x', 'z']`               |
 | `showRaw`        | `boolean`                    | `false`               | Bypass nearest-color matching                                                |
 | `outlineWidth`   | `number`                     | `0`                   | Transparent outline width (physical px). `0` disables                        |
 | `gamutClip`      | `boolean`                    | `false`               | Discard out-of-sRGB-gamut pixels instead of clamping                         |

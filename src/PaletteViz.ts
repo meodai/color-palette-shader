@@ -28,7 +28,7 @@ export class PaletteViz {
   #axis: Axis = 'y';
   #colorModel: SupportedColorModels = 'okhsv';
   #distanceMetric: DistanceMetric = 'oklab';
-  #invertZ = false;
+  #invertAxes: Axis[] = [];
   #showRaw = false;
   #outlineWidth = 0;
   #gamutClip = false;
@@ -115,7 +115,7 @@ export class PaletteViz {
     distanceMetric = 'oklab',
     axis = 'y',
     position = 0.0,
-    invertZ = false,
+    invertAxes = [],
     showRaw = false,
     outlineWidth = 0,
     gamutClip = false,
@@ -128,7 +128,7 @@ export class PaletteViz {
     this.#distanceMetric = distanceMetric;
     this.#axis = axis;
     this.#position = position;
-    this.#invertZ = invertZ;
+    this.#invertAxes = this.#normalizeInvertAxes(invertAxes);
     this.#showRaw = showRaw;
     this.#outlineWidth = outlineWidth;
     this.#gamutClip = gamutClip;
@@ -168,14 +168,27 @@ export class PaletteViz {
   }
 
   #defines(): Defines {
+    const useImplicitPolarFlipY = this.#colorModel.endsWith('Polar') && this.#invertAxes.includes('y');
     return {
       DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
       COLOR_MODEL: this.#colorModelMap[this.#colorModel],
       PROGRESS_AXIS: this.#axisMap[this.#axis],
-      INVERT_Z: this.#invertZ ? 1 : false,
+      INVERT_X: this.#invertAxes.includes('x') ? 1 : false,
+      INVERT_Y: this.#invertAxes.includes('y') && !useImplicitPolarFlipY ? 1 : false,
+      INVERT_Z: this.#invertAxes.includes('z') ? 1 : false,
+      AUTO_FLIP_Y: useImplicitPolarFlipY ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
       GAMUT_CLIP: this.#gamutClip ? 1 : false,
     };
+  }
+
+  #normalizeInvertAxes(axes: Axis[]): Axis[] {
+    const uniqueAxes = new Set<Axis>();
+    axes.forEach((axis) => {
+      if (!(axis in this.#axisMap)) throw new Error("invertAxes entries must be 'x', 'y', or 'z'");
+      uniqueAxes.add(axis);
+    });
+    return [...uniqueAxes];
   }
 
   #rebuildProgram(): void {
@@ -447,13 +460,13 @@ export class PaletteViz {
     return this.#distanceMetric;
   }
 
-  set invertZ(value: boolean) {
-    this.#invertZ = value;
+  set invertAxes(value: Axis[]) {
+    this.#invertAxes = this.#normalizeInvertAxes(value);
     this.#programDirty = true;
     this.#paint();
   }
-  get invertZ() {
-    return this.#invertZ;
+  get invertAxes() {
+    return this.#invertAxes.slice();
   }
 
   set showRaw(value: boolean) {
