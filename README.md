@@ -16,6 +16,19 @@ So if one of your palette colors only claims a tiny sliver, it lives very close 
 - **How balanced** the palette is overall — even regions mean even coverage
 - **Whether a new color is worth adding** — if it doesn't carve out its own space, it's probably not pulling its weight
 
+### Common questions → recommended settings
+
+| I want to know… | Color model | Distance metric |
+| --- | --- | --- |
+| How my hue distribution looks | `okhslPolar` | `oklab` |
+| Which two colors are most similar | `okhsl` or `oklab` | `deltaE2000` |
+| Whether a new color is worth adding | `okhslPolar` | `oklab` |
+| How my palette reads on print | `cielabD50` or `cielchD50Polar` | `cielabD50` |
+| How close the colors look to a human eye | `oklchPolar` | `deltaE2000` |
+| What the palette looks like to a developer | `hslPolar` or `rgb` | `rgb` |
+
+For a deeper breakdown of every color model and metric, see [docs/use-cases.md](docs/use-cases.md).
+
 ---
 
 ## Install
