@@ -348,6 +348,11 @@ $colorModel.innerHTML = `
     <option value="hwbPolar">HWB Polar</option>
     <option value="hwb">HWB</option>
     <option value="rgb">RGB</option>
+    <option value="rgb6bit">RGB 6-bit</option>
+    <option value="rgb8bit">RGB 8-bit · CGA</option>
+    <option value="rgb12bit">RGB 12-bit · NTSC / Amiga</option>
+    <option value="rgb15bit">RGB 15-bit · SVGA HiColor</option>
+    <option value="rgb18bit">RGB 18-bit · VGA</option>
   </optgroup>
 `;
 $colorModel.addEventListener('change', (e) => {

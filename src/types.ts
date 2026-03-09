@@ -3,6 +3,11 @@ export type ColorList = ColorRGB[];
 
 export type SupportedColorModels =
   | 'rgb'
+  | 'rgb12bit'
+  | 'rgb8bit'
+  | 'rgb18bit'
+  | 'rgb6bit'
+  | 'rgb15bit'
   | 'oklab'
   | 'okhsv'
   | 'okhsvPolar'
