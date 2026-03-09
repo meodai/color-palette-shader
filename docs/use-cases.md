@@ -15,7 +15,7 @@ No single combination is universally best — different questions call for diffe
 | How my palette distributes lightness | `oklch` or `okhsl`, axis `z` | `oklab` | Slice along the lightness axis; uneven coverage = contrast gaps. |
 | How the palette reads in print workflows | `cielchD50Polar` | `cielabD50` | D50 is the ICC/print reference illuminant. |
 | How close colors look to a human eye | `oklchPolar` | `deltaE2000` | LCH polar + ΔE2000 is the closest pair to real perceptual experience. |
-| What the palette looks like in CSS terms | `hslPolar` | `rgb` | HSL and RGB are the coordinate systems most designers already think in. |
+| What the palette looks like to a computer | `hslPolar` | `rgb` | HSL and RGB are the coordinate systems most designers already think in. |
 | Where gamut boundaries fall | any model + `gamutClip: true` | any | Out-of-gamut pixels are discarded, revealing the sRGB shell of the color space. |
 
 ---
@@ -61,7 +61,7 @@ Familiar, but not perceptually uniform — equal steps in HSL/HSV look unequal t
 
 | Model | Best for | Notes |
 | --- | --- | --- |
-| `hslPolar` / `hsl` | Audience who thinks in CSS/HSL | Good for communicating results to developers. |
+| `hslPolar` / `hsl` | Audience who thinks in CSS/HSL | Good for communicating results to computers/external tools. |
 | `hsvPolar` / `hsv` | Artists used to traditional color wheels | — |
 | `hwbPolar` / `hwb` | CSS Color 4 / web-standard context | — |
 | `rgb` | Raw baseline, debugging | No perceptual weighting at all. |
@@ -93,6 +93,6 @@ The distance metric controls how "nearest palette color" is decided per pixel. I
 | `deltaE2000` | slow | Most perceptually accurate CIE formula | GPU-heavy, may affect framerate on large palettes |
 | `cielabD50` | medium | Print / ICC workflows | Screen-only contexts |
 | `kotsarenkoRamos` | fastest | Quick cheap approximation | Any accuracy-sensitive use |
-| `rgb` | fastest | Debugging, developer context | Perceptual quality matters |
+| `rgb` | fastest | Debugging, computer/external tool context | Perceptual quality matters |
 
 For most use-cases `oklab` is the right default. Upgrade to `deltaE2000` when you specifically need the closest match to how a human observer perceives color differences.

@@ -25,7 +25,7 @@ So if one of your palette colors only claims a tiny sliver, it lives very close 
 | Whether a new color is worth adding | `okhslPolar` | `oklab` |
 | How my palette reads on print | `cielabD50` or `cielchD50Polar` | `cielabD50` |
 | How close the colors look to a human eye | `oklchPolar` | `deltaE2000` |
-| What the palette looks like to a developer | `hslPolar` or `rgb` | `rgb` |
+| What the palette looks like to a computer | `hslPolar` or `rgb` | `rgb` |
 
 For a deeper breakdown of every color model and metric, see [docs/use-cases.md](docs/use-cases.md).
 

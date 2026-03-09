@@ -546,6 +546,61 @@ input[type='checkbox']:focus {
   margin-top: 0.75em;
 }
 
+.about table {
+  margin-top: 1.5em;
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.85em;
+}
+
+.about table caption {
+  text-align: left;
+  font-size: 0.8em;
+  color: var(--c-surface-on-alt);
+  margin-bottom: 0.4em;
+  caption-side: top;
+}
+
+.about table th {
+  font-weight: 400;
+  color: var(--c-surface-on-alt);
+  padding: 0.3em 0.75em 0.3em 0;
+  border-bottom: var(--s-line) solid var(--c-border);
+}
+
+.about table td {
+  padding: 0.35em 0.75em 0.35em 0;
+  border-bottom: var(--s-line) solid var(--c-border);
+  vertical-align: top;
+}
+
+.about table tr[data-color-model] {
+  cursor: pointer;
+}
+
+.about table tr[data-color-model] td:last-child {
+  position: relative;
+}
+
+.about table tr[data-color-model]:hover td:last-child::after,
+.about table tr[data-color-model]:focus td:last-child::after {
+  content: '→';
+  position: absolute;
+  right: 0.5em;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.about table tr[data-color-model]:hover td,
+.about table tr[data-color-model]:focus td {
+  background: var(--c-border);
+}
+
+.about table tr[data-color-model]:focus {
+  outline: none;
+}
+
 .about figure {
   margin: 0;
 }

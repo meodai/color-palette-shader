@@ -944,6 +944,25 @@ window.addEventListener('resize', () => {
   }
 });
 
+// preset rows in the about section
+document.querySelector('.about').addEventListener('click', (e) => {
+  const row = e.target.closest('tr[data-color-model]');
+  if (!row) return;
+  $colorModel.value = row.dataset.colorModel;
+  $distanceMetric.value = row.dataset.metric;
+  $colorModel.dispatchEvent(new Event('change'));
+  $distanceMetric.dispatchEvent(new Event('change'));
+  scheduleHashUpdate();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+document.querySelector('.about').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('tr[data-color-model]');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
+});
+
 // async load from hash — after first paint so it never blocks rendering
 requestAnimationFrame(() => {
   setTimeout(() => {
