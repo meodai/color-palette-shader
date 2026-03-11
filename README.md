@@ -18,14 +18,14 @@ So if one of your palette colors only claims a tiny sliver, it lives very close 
 
 ### Common questions → recommended settings
 
-| I want to know… | Color model | Distance metric |
-| --- | --- | --- |
-| How my hue distribution looks | `okhslPolar` | `oklab` |
-| Which two colors are most similar | `okhsl` or `oklab` | `deltaE2000` |
-| Whether a new color is worth adding | `okhslPolar` | `oklab` |
-| How my palette reads on print | `cielabD50` or `cielchD50Polar` | `cielabD50` |
-| How close the colors look to a human eye | `oklchPolar` | `deltaE2000` |
-| What the palette looks like to a computer | `hslPolar` or `rgb` | `rgb` |
+| I want to know…                           | Color model                     | Distance metric |
+| ----------------------------------------- | ------------------------------- | --------------- |
+| How my hue distribution looks             | `okhslPolar`                    | `oklab`         |
+| Which two colors are most similar         | `okhsl` or `oklab`              | `deltaE2000`    |
+| Whether a new color is worth adding       | `okhslPolar`                    | `oklab`         |
+| How my palette reads on print             | `cielabD50` or `cielchD50Polar` | `cielabD50`     |
+| How close the colors look to a human eye  | `oklchPolar`                    | `deltaE2000`    |
+| What the palette looks like to a computer | `hslPolar` or `rgb`             | `rgb`           |
 
 For a deeper breakdown of every color model and metric, see [docs/use-cases.md](docs/use-cases.md).
 
@@ -78,21 +78,21 @@ new PaletteViz(options?: PaletteVizOptions)
 
 All options are optional. The palette defaults to a random 20-color set.
 
-| Option           | Type                         | Default            | Description                                                                                                  |
-| ---------------- | ---------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------ |
-| `palette`        | `[number, number, number][]` | random             | sRGB colors as `[r, g, b]` arrays, each component in the `0–1` range                                         |
-| `container`      | `HTMLElement`                | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself                            |
-| `width`          | `number`                     | `512`              | Canvas width in CSS pixels                                                                                   |
-| `height`         | `number`                     | `512`              | Canvas height in CSS pixels                                                                                  |
-| `pixelRatio`     | `number`                     | `devicePixelRatio` | Renderer pixel ratio                                                                                         |
-| `colorModel`     | `string`                     | `'okhsv'`          | Color space for the visualization (see [Color models](#color-models))                                        |
-| `distanceMetric` | `string`                     | `'oklab'`          | Distance function for nearest-color matching (see [Distance metrics](#distance-metrics))                     |
-| `axis`           | `'x' \| 'y' \| 'z'`          | `'y'`              | Which axis the `position` value controls                                                                     |
-| `position`       | `number`                     | `0`                | 0–1 position along the chosen axis                                                                           |
+| Option           | Type                         | Default            | Description                                                                                                                                                            |
+| ---------------- | ---------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `palette`        | `[number, number, number][]` | random             | sRGB colors as `[r, g, b]` arrays, each component in the `0–1` range                                                                                                   |
+| `container`      | `HTMLElement`                | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself                                                                                      |
+| `width`          | `number`                     | `512`              | Canvas width in CSS pixels                                                                                                                                             |
+| `height`         | `number`                     | `512`              | Canvas height in CSS pixels                                                                                                                                            |
+| `pixelRatio`     | `number`                     | `devicePixelRatio` | Renderer pixel ratio                                                                                                                                                   |
+| `colorModel`     | `string`                     | `'okhsv'`          | Color space for the visualization (see [Color models](#color-models))                                                                                                  |
+| `distanceMetric` | `string`                     | `'oklab'`          | Distance function for nearest-color matching (see [Distance metrics](#distance-metrics))                                                                               |
+| `axis`           | `'x' \| 'y' \| 'z'`          | `'y'`              | Which axis the `position` value controls                                                                                                                               |
+| `position`       | `number`                     | `0`                | 0–1 position along the chosen axis                                                                                                                                     |
 | `invertAxes`     | `('x' \| 'y' \| 'z')[]`      | `[]`               | Invert one or more axes, for example `['z']` or `['x', 'z']`. In 2-D polar views, `y` inversion is resolved as a vertical view flip to avoid the mirrored center seam. |
-| `showRaw`        | `boolean`                    | `false`            | Bypass nearest-color matching (shows the raw color space)                                                    |
-| `outlineWidth`   | `number`                     | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead). |
-| `gamutClip`      | `boolean`                    | `false`            | Discard out-of-sRGB-gamut pixels instead of clamping. Reveals the true gamut boundary of the color model.    |
+| `showRaw`        | `boolean`                    | `false`            | Bypass nearest-color matching (shows the raw color space)                                                                                                              |
+| `outlineWidth`   | `number`                     | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead).                                                           |
+| `gamutClip`      | `boolean`                    | `false`            | Discard out-of-sRGB-gamut pixels instead of clamping. Reveals the true gamut boundary of the color model.                                                              |
 
 ---
 
@@ -386,7 +386,7 @@ new PaletteViz3D(options?: PaletteViz3DOptions)
 | `colorModel`     | `string`                     | `'okhsv'`             | Color model (see [Color models](#color-models)). Polar → cylinder mesh       |
 | `distanceMetric` | `string`                     | `'oklab'`             | Distance metric (see [Distance metrics](#distance-metrics))                  |
 | `position`       | `number`                     | `1`                   | 0–1 slice position. `1` shows the full volume; `0` slices it completely away |
-| `invertAxes`     | `('x' \| 'y' \| 'z')[]`      | `[]`                  | Invert one or more axes, for example `['z']` or `['x', 'z']`               |
+| `invertAxes`     | `('x' \| 'y' \| 'z')[]`      | `[]`                  | Invert one or more axes, for example `['z']` or `['x', 'z']`                 |
 | `showRaw`        | `boolean`                    | `false`               | Bypass nearest-color matching                                                |
 | `outlineWidth`   | `number`                     | `0`                   | Transparent outline width (physical px). `0` disables                        |
 | `gamutClip`      | `boolean`                    | `false`               | Discard out-of-sRGB-gamut pixels instead of clamping                         |

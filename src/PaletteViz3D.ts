@@ -1,4 +1,10 @@
-import { ColorList, PaletteViz3DOptions, SupportedColorModels, DistanceMetric, Axis } from './types.ts';
+import {
+  ColorList,
+  PaletteViz3DOptions,
+  SupportedColorModels,
+  DistanceMetric,
+  Axis,
+} from './types.ts';
 import { randomPalette } from './palette.ts';
 import {
   Defines,

@@ -168,7 +168,8 @@ export class PaletteViz {
   }
 
   #defines(): Defines {
-    const useImplicitPolarFlipY = this.#colorModel.endsWith('Polar') && this.#invertAxes.includes('y');
+    const useImplicitPolarFlipY =
+      this.#colorModel.endsWith('Polar') && this.#invertAxes.includes('y');
     return {
       DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
       COLOR_MODEL: this.#colorModelMap[this.#colorModel],
