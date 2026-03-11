@@ -74,6 +74,7 @@ export class PaletteViz {
     deltaE94: 5,
     oklrab: 6,
     cielabD50: 7,
+    okLightness: 8,
   } as const;
 
   // WebGL

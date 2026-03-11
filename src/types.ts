@@ -39,7 +39,8 @@ export type DistanceMetric =
   | 'deltaE2000'
   | 'kotsarenkoRamos'
   | 'oklrab'
-  | 'cielabD50';
+  | 'cielabD50'
+  | 'okLightness';
 
 export type PaletteVizOptions = {
   palette?: ColorList;
