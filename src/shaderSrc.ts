@@ -50,12 +50,15 @@ void main() {
 
 // modelToRGB and main are separated so the selective assembler can reuse them.
 export const modelToRGBSrc = `
+#if COLOR_MODEL == 1
 vec3 quantizeRGB444(vec3 colorCoords) {
   vec3 rgb = clamp(colorCoords, 0.0, 1.0);
   vec3 levels = min(floor(rgb * 16.0), vec3(15.0));
   return levels / 15.0;
 }
+#endif
 
+#if COLOR_MODEL == 2
 vec3 quantizeRGB332(vec3 colorCoords) {
   vec3 rgb = clamp(colorCoords, 0.0, 1.0);
   float r = min(floor(rgb.r * 8.0), 7.0) / 7.0;
@@ -63,24 +66,31 @@ vec3 quantizeRGB332(vec3 colorCoords) {
   float b = min(floor(rgb.b * 4.0), 3.0) / 3.0;
   return vec3(r, g, b);
 }
+#endif
 
+#if COLOR_MODEL == 25
 vec3 quantizeRGB666(vec3 colorCoords) {
   vec3 rgb = clamp(colorCoords, 0.0, 1.0);
   vec3 levels = min(floor(rgb * 64.0), vec3(63.0));
   return levels / 63.0;
 }
+#endif
 
+#if COLOR_MODEL == 26
 vec3 quantizeRGB222(vec3 colorCoords) {
   vec3 rgb = clamp(colorCoords, 0.0, 1.0);
   vec3 levels = min(floor(rgb * 4.0), vec3(3.0));
   return levels / 3.0;
 }
+#endif
 
+#if COLOR_MODEL == 27
 vec3 quantizeRGB555(vec3 colorCoords) {
   vec3 rgb = clamp(colorCoords, 0.0, 1.0);
   vec3 levels = min(floor(rgb * 32.0), vec3(31.0));
   return levels / 31.0;
 }
+#endif
 
 vec3 modelToRGB(vec3 colorCoords) {
   #if COLOR_MODEL == 0

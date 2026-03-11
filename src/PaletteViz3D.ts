@@ -117,6 +117,7 @@ export class PaletteViz3D {
   #programDirty = false;
   #meshDirty = false;
   #metricPaletteDirty = true;
+  #destroyed = false;
   #isPolar = false;
   #sliceCount = 0;
   #interactiveUntil = 0;
@@ -658,6 +659,8 @@ export class PaletteViz3D {
   }
 
   destroy(): void {
+    if (this.#destroyed) return;
+    this.#destroyed = true;
     if (this.#animationFrame !== null) {
       cancelAnimationFrame(this.#animationFrame);
       this.#animationFrame = null;

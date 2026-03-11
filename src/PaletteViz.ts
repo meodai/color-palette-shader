@@ -88,6 +88,7 @@ export class PaletteViz {
   #animationFrame: number | null = null;
   #programDirty = false;
   #metricPaletteDirty = true;
+  #destroyed = false;
 
   // cached uniform locations (re-queried after each program rebuild)
   #uProgress: WebGLUniformLocation | null = null;
@@ -331,6 +332,8 @@ export class PaletteViz {
   }
 
   destroy(): void {
+    if (this.#destroyed) return;
+    this.#destroyed = true;
     if (this.#animationFrame !== null) {
       cancelAnimationFrame(this.#animationFrame);
       this.#animationFrame = null;
@@ -383,7 +386,10 @@ export class PaletteViz {
       typeof indexOrColor === 'number'
         ? indexOrColor
         : this.#palette.findIndex(
-            (c) => c[0] === indexOrColor[0] && c[1] === indexOrColor[1] && c[2] === indexOrColor[2],
+            (c) =>
+              Math.abs(c[0] - indexOrColor[0]) < 1e-9 &&
+              Math.abs(c[1] - indexOrColor[1]) < 1e-9 &&
+              Math.abs(c[2] - indexOrColor[2]) < 1e-9,
           );
     if (index === -1) throw new Error('Color not found in palette');
     if (index < 0 || index >= this.#palette.length) throw new Error(`Index ${index} out of range`);
