@@ -534,7 +534,9 @@ input[type='checkbox']:focus {
   line-height: 1;
   color: var(--c-surface-on);
   opacity: 0;
-  transition: transform 0.3s cubic-bezier(0.3, 0.7, 0, 1), opacity 0.3s ease;
+  transition:
+    transform 0.3s cubic-bezier(0.3, 0.7, 0, 1),
+    opacity 0.3s ease;
 }
 
 .viz-cell:hover .axis-line {
@@ -581,11 +583,21 @@ input[type='checkbox']:focus {
   background: currentColor;
 }
 
-.axis-line--x::before { order: 1; }
-.axis-line--x::after { order: 3; }
-.axis-line--x .axis-line__min { order: 0; }
-.axis-line--x .axis-line__label { order: 2; }
-.axis-line--x .axis-line__max { order: 4; }
+.axis-line--x::before {
+  order: 1;
+}
+.axis-line--x::after {
+  order: 3;
+}
+.axis-line--x .axis-line__min {
+  order: 0;
+}
+.axis-line--x .axis-line__label {
+  order: 2;
+}
+.axis-line--x .axis-line__max {
+  order: 4;
+}
 
 /* vertical axis — along left edge */
 .axis-line--y {
@@ -605,11 +617,21 @@ input[type='checkbox']:focus {
   background: currentColor;
 }
 
-.axis-line--y::before { order: 1; }
-.axis-line--y::after { order: 3; }
-.axis-line--y .axis-line__min { order: 0; }
-.axis-line--y .axis-line__label { order: 2; }
-.axis-line--y .axis-line__max { order: 4; }
+.axis-line--y::before {
+  order: 1;
+}
+.axis-line--y::after {
+  order: 3;
+}
+.axis-line--y .axis-line__min {
+  order: 0;
+}
+.axis-line--y .axis-line__label {
+  order: 2;
+}
+.axis-line--y .axis-line__max {
+  order: 4;
+}
 
 /* ── Polar axis labels ─────────────────────────────────────────────────── */
 
