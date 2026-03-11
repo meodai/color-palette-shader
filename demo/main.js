@@ -227,6 +227,123 @@ const vizzes = [
 
 const defaultInvertAxesByViz = [[], [], [], ['z'], ['z'], ['z']];
 
+// ── Axis labels ──────────────────────────────────────────────────────────────
+
+const AXIS_NAMES = {
+  rgb:           ['R', 'G', 'B'],
+  rgb6bit:       ['R', 'G', 'B'],
+  rgb8bit:       ['R', 'G', 'B'],
+  rgb12bit:      ['R', 'G', 'B'],
+  rgb15bit:      ['R', 'G', 'B'],
+  rgb18bit:      ['R', 'G', 'B'],
+  oklab:         ['a', 'b', 'L'],
+  okhsv:         ['H', 'S', 'V'],
+  okhsvPolar:    ['H', 'S', 'V'],
+  okhsl:         ['H', 'S', 'L'],
+  okhslPolar:    ['H', 'S', 'L'],
+  oklch:         ['H', 'C', 'L'],
+  oklchPolar:    ['H', 'C', 'L'],
+  oklrab:        ['a', 'b', 'Lr'],
+  oklrch:        ['H', 'C', 'Lr'],
+  oklrchPolar:   ['H', 'C', 'Lr'],
+  hsv:           ['H', 'S', 'V'],
+  hsvPolar:      ['H', 'S', 'V'],
+  hsl:           ['H', 'S', 'L'],
+  hslPolar:      ['H', 'S', 'L'],
+  hwb:           ['H', 'W', 'B'],
+  hwbPolar:      ['H', 'W', 'B'],
+  cielab:        ['a*', 'b*', 'L*'],
+  cielch:        ['H', 'C', 'L*'],
+  cielchPolar:   ['H', 'C', 'L*'],
+  cielabD50:     ['a*', 'b*', 'L*'],
+  cielchD50:     ['H', 'C', 'L*'],
+  cielchD50Polar:['H', 'C', 'L*'],
+};
+
+// axis='x' → PROGRESS_AXIS=0 → colorCoords = (progress, uv.x, uv.y) → horiz=y, vert=z
+// axis='y' → PROGRESS_AXIS=1 → colorCoords = (uv.x, progress, uv.y) → horiz=x, vert=z
+// axis='z' → PROGRESS_AXIS=2 → colorCoords = (uv.x, uv.y, 1-progress) → horiz=x, vert=y
+const VISIBLE_AXES = { x: [1, 2], y: [0, 2], z: [0, 1] };
+
+const vizAxes = ['x', 'y', 'z', 'x', 'y', 'z'];
+const overlayEls = [];
+
+function createAxisLine(cls) {
+  const line = document.createElement('div');
+  line.className = `axis-line ${cls}`;
+  line.innerHTML =
+    '<span class="axis-line__min"></span>' +
+    '<span class="axis-line__label"></span>' +
+    '<span class="axis-line__max"></span>';
+  return line;
+}
+
+vizzes.forEach((viz, i) => {
+  const canvas = viz.canvas;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'viz-cell';
+  canvas.parentNode.insertBefore(wrapper, canvas);
+  wrapper.appendChild(canvas);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'axis-overlay';
+
+  const $xLine = createAxisLine('axis-line--x');
+  const $yLine = createAxisLine('axis-line--y');
+
+  overlay.appendChild($xLine);
+  overlay.appendChild($yLine);
+  wrapper.appendChild(overlay);
+
+  overlayEls.push({
+    viz,
+    $wrapper: wrapper,
+    $xLabel: $xLine.querySelector('.axis-line__label'),
+    $xMin: $xLine.querySelector('.axis-line__min'),
+    $xMax: $xLine.querySelector('.axis-line__max'),
+    $yLabel: $yLine.querySelector('.axis-line__label'),
+    $yMin: $yLine.querySelector('.axis-line__min'),
+    $yMax: $yLine.querySelector('.axis-line__max'),
+    axis: vizAxes[i],
+  });
+});
+
+function axisRange(name) {
+  return name === 'H' ? ['0°', '360°'] : ['0', '1'];
+}
+
+function updateAxisLabels(colorModel) {
+  const names = AXIS_NAMES[colorModel] || ['x', 'y', 'z'];
+  const axisKeys = ['x', 'y', 'z'];
+  const isPolar = colorModel.endsWith('Polar');
+  overlayEls.forEach(({ viz, $wrapper, $xLabel, $xMin, $xMax, $yLabel, $yMin, $yMax, axis }) => {
+    const [hIdx, vIdx] = VISIBLE_AXES[axis];
+    const hName = names[hIdx];
+    const vName = names[vIdx];
+    const hInverted = viz.invertAxes.includes(axisKeys[hIdx]);
+    const vInverted = viz.invertAxes.includes(axisKeys[vIdx]);
+    const cellPolar = isPolar && (axis === 'y' || axis === 'z');
+    $wrapper.classList.toggle('viz-cell--polar', cellPolar);
+    if (cellPolar) {
+      $xLabel.textContent = hName;
+      $xMin.textContent = '';
+      $xMax.textContent = '';
+      $yLabel.textContent = vName;
+      $yMin.textContent = vInverted ? '0' : '1';
+      $yMax.textContent = vInverted ? '1' : '0';
+    } else {
+      const [hMin, hMax] = axisRange(hName);
+      const [vMin, vMax] = axisRange(vName);
+      $xLabel.textContent = hName;
+      $xMin.textContent = hInverted ? hMax : hMin;
+      $xMax.textContent = hInverted ? hMin : hMax;
+      $yLabel.textContent = vName;
+      $yMin.textContent = vInverted ? vMin : vMax; // top
+      $yMax.textContent = vInverted ? vMax : vMin; // bottom
+    }
+  });
+}
+
 function setInvertAxis(viz, axis, enabled) {
   const nextAxes = viz.invertAxes.filter((currentAxis) => currentAxis !== axis);
   if (enabled) nextAxes.push(axis);
@@ -238,6 +355,7 @@ function restoreDefaultInvertZ() {
     v.invertAxes = [...defaultInvertAxesByViz[index]];
   });
   if (viz3d) viz3d.invertAxes = [];
+  updateAxisLabels($colorModel.value);
 }
 
 function setInvertZ(enabled) {
@@ -246,6 +364,7 @@ function setInvertZ(enabled) {
     v.invertAxes = enabled ? [...keepAxes, 'z'] : keepAxes;
   });
   if (viz3d) viz3d.invertAxes = enabled ? ['z'] : [];
+  updateAxisLabels($colorModel.value);
 }
 
 function toggleInvertZ() {
@@ -256,6 +375,7 @@ function toggleInvertZ() {
     setInvertAxis(viz3d, 'z', !viz3d.invertAxes.includes('z'));
   }
   syncInvertZCheckbox();
+  updateAxisLabels($colorModel.value);
 }
 
 function syncInvertZCheckbox() {
@@ -404,12 +524,14 @@ $colorModel.addEventListener('change', (e) => {
   vizzes.forEach((v) => {
     v.colorModel = e.target.value;
   });
+  updateAxisLabels(e.target.value);
 });
 $tools.appendChild(labeled('Color model', $colorModel));
 // Set initial color model
 vizzes.forEach((v) => {
   v.colorModel = $colorModel.value;
 });
+updateAxisLabels($colorModel.value);
 
 // Distance metric
 const $distanceMetric = document.createElement('select');
@@ -744,6 +866,7 @@ function applyState(state) {
     v.gamutClip = state.gamutClip;
     v.outlineWidth = state.outlineWidth;
   });
+  updateAxisLabels(state.colorModel);
   if (state.invertZMode === 'all') {
     setInvertZ(true);
   } else if (state.invertZMode === 'none') {
@@ -944,20 +1067,20 @@ $palettePaste.addEventListener('input', () => sync3DPalette());
 function toggle3DView(enable) {
   is3D = enable;
   if (enable) {
-    // hide 2D canvases
+    // hide 2D cells (canvas + overlay wrappers)
     vizzes.forEach((v) => {
-      v.canvas.style.display = 'none';
+      v.canvas.parentNode.style.display = 'none';
     });
     create3DViz();
     $app.appendChild(viz3d.canvas);
   } else {
-    // restore 2D canvases
+    // restore 2D cells
     if (viz3d) {
       viz3d.destroy();
       viz3d = null;
     }
     vizzes.forEach((v) => {
-      v.canvas.style.display = '';
+      v.canvas.parentNode.style.display = '';
     });
     applyPosition(parseFloat($positionSlider.value));
   }
