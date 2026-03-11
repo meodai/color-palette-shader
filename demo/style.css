@@ -483,12 +483,19 @@ input[type='checkbox']:focus {
   overflow: hidden;
   margin-left: clamp(200px, 35vw, 320px);
 
-  .palette-viz {
-    width: calc(33.3333%) !important;
+  .viz-cell {
+    position: relative;
+    overflow: hidden;
+    width: calc(33.3333%);
     aspect-ratio: 1;
-    height: auto !important;
     border-right: var(--s-line) solid var(--c-surface-on);
     border-bottom: var(--s-line) solid var(--c-surface-on);
+  }
+
+  .viz-cell .palette-viz {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
   }
 
   .palette-viz-3d {
@@ -502,13 +509,164 @@ input[type='checkbox']:focus {
     cursor: grabbing;
   }
 
-  .palette-viz:nth-child(3n) {
+  .viz-cell:nth-child(3n) {
     border-right: none;
   }
 
-  .palette-viz:nth-child(n + 4) {
+  .viz-cell:nth-child(n + 4) {
     border-bottom: none;
   }
+}
+
+/* ── Axis labels ────────────────────────────────────────────────────────── */
+
+.axis-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.axis-line {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  font-size: 0.55em;
+  line-height: 1;
+  color: var(--c-surface-on);
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.3, 0.7, 0, 1), opacity 0.3s ease;
+}
+
+.viz-cell:hover .axis-line {
+  transform: translate(0, 0);
+  opacity: 1;
+}
+
+.axis-line__min,
+.axis-line__max {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.axis-line__label {
+  flex: 0 0 auto;
+  width: 1.6em;
+  height: 1.6em;
+  border-radius: 50%;
+  background: var(--c-surface-on);
+  color: var(--c-surface);
+  border: var(--s-line) solid currentColor;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 400;
+  z-index: 1;
+}
+
+/* horizontal axis — along bottom edge */
+.axis-line--x {
+  bottom: 0.5rem;
+  left: 2rem;
+  right: 0.5rem;
+  flex-direction: row;
+  gap: 0.3em;
+  transform: translateY(200%);
+}
+
+.axis-line--x::before,
+.axis-line--x::after {
+  content: '';
+  flex: 1 1 0;
+  height: var(--s-line);
+  background: currentColor;
+}
+
+.axis-line--x::before { order: 1; }
+.axis-line--x::after { order: 3; }
+.axis-line--x .axis-line__min { order: 0; }
+.axis-line--x .axis-line__label { order: 2; }
+.axis-line--x .axis-line__max { order: 4; }
+
+/* vertical axis — along left edge */
+.axis-line--y {
+  top: 0.5rem;
+  bottom: 2rem;
+  left: 0.5rem;
+  flex-direction: column;
+  gap: 0.3em;
+  transform: translateX(-200%);
+}
+
+.axis-line--y::before,
+.axis-line--y::after {
+  content: '';
+  flex: 1 1 0;
+  width: var(--s-line);
+  background: currentColor;
+}
+
+.axis-line--y::before { order: 1; }
+.axis-line--y::after { order: 3; }
+.axis-line--y .axis-line__min { order: 0; }
+.axis-line--y .axis-line__label { order: 2; }
+.axis-line--y .axis-line__max { order: 4; }
+
+/* ── Polar axis labels ─────────────────────────────────────────────────── */
+
+/* radius axis: starts from center, goes up */
+.viz-cell--polar .axis-line--y {
+  bottom: 50%;
+  left: 50%;
+  transform: translateX(-50%) translateY(-200%);
+}
+
+.viz-cell--polar:hover .axis-line--y {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* hue axis: hide the line, show just the label as an arc indicator */
+.viz-cell--polar .axis-line--x {
+  bottom: auto;
+  left: 50%;
+  top: 50%;
+  right: auto;
+  flex-direction: column;
+  align-items: center;
+  transform: translateX(-50%) translateY(3rem);
+  z-index: 2;
+}
+
+.viz-cell--polar:hover .axis-line--x {
+  transform: translateX(-50%) translateY(-50%);
+  opacity: 1;
+}
+
+.viz-cell--polar .axis-line--x::before,
+.viz-cell--polar .axis-line--x::after {
+  display: none;
+}
+
+.viz-cell--polar .axis-line--x .axis-line__min,
+.viz-cell--polar .axis-line--x .axis-line__max {
+  display: none;
+}
+
+.viz-cell--polar .axis-line--x .axis-line__label {
+  position: relative;
+  width: 2em;
+  height: 2em;
+  z-index: 2;
+}
+
+/* quarter-circle arc suggesting angular/hue axis */
+.viz-cell--polar .axis-line--x .axis-line__label::before {
+  content: '';
+  position: absolute;
+  inset: -0.6em;
+  border-radius: 50%;
+  border: var(--s-line) solid currentColor;
+  clip-path: inset(0 0 50% 50%);
 }
 
 .shader-select,
@@ -770,23 +928,23 @@ code {
   }
 
   /* 2 columns × 3 rows */
-  .viz .palette-viz {
-    width: 50% !important;
+  .viz .viz-cell {
+    width: 50%;
   }
 
-  .viz .palette-viz:nth-child(3n) {
+  .viz .viz-cell:nth-child(3n) {
     border-right: var(--s-line) solid var(--c-surface-on);
   }
 
-  .viz .palette-viz:nth-child(2n) {
+  .viz .viz-cell:nth-child(2n) {
     border-right: none !important;
   }
 
-  .viz .palette-viz:nth-child(n + 4) {
+  .viz .viz-cell:nth-child(n + 4) {
     border-bottom: var(--s-line) solid var(--c-surface-on);
   }
 
-  .viz .palette-viz:nth-child(n + 5) {
+  .viz .viz-cell:nth-child(n + 5) {
     border-bottom: none;
   }
 }
