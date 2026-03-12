@@ -1,4 +1,4 @@
-// DISTANCE_METRIC define: 0=rgb, 1=oklab, 2=deltaE76, 3=deltaE2000, 4=kotsarenkoRamos, 5=deltaE94, 6=oklrab, 7=cielabD50, 8=okLightness
+// DISTANCE_METRIC define: 0=rgb, 1=oklab, 2=deltaE76, 3=deltaE2000, 4=kotsarenkoRamos, 5=deltaE94, 6=oklrab, 7=cielabD50, 8=okLightness, 9=liMatch
 
 uniform sampler2D paletteMetricTexture;
 uniform int uPaletteSize;
@@ -15,7 +15,7 @@ vec3 closestColor(vec3 color, sampler2D paletteTexture) {
     vec3 colorConverted = vec3(toe(_lab6.x), _lab6.y, _lab6.z);
   #elif DISTANCE_METRIC == 7
     vec3 colorConverted = srgb_to_cielab_d50(color);
-  #elif DISTANCE_METRIC == 8
+  #elif DISTANCE_METRIC == 8 || DISTANCE_METRIC == 9
     vec3 colorConverted = linear_srgb_to_oklab(srgb2rgb(color));
   #elif DISTANCE_METRIC == 2 || DISTANCE_METRIC == 3 || DISTANCE_METRIC == 5
     vec3 colorConverted = srgb_to_cielab(color);
@@ -35,6 +35,10 @@ vec3 closestColor(vec3 color, sampler2D paletteTexture) {
       dist = deltaE94(colorConverted, texelFetch(paletteMetricTexture, ivec2(i, 0), 0).rgb);
     #elif DISTANCE_METRIC == 8
       dist = abs(colorConverted.x - texelFetch(paletteMetricTexture, ivec2(i, 0), 0).x);
+    #elif DISTANCE_METRIC == 9
+      vec3 _pm9 = texelFetch(paletteMetricTexture, ivec2(i, 0), 0).rgb;
+      float _t9 = vUv.x;
+      dist = distance(colorConverted, _pm9) * (1.0 - _t9) + abs(colorConverted.x - _pm9.x) * _t9;
     #else
       dist = distance(colorConverted, texelFetch(paletteMetricTexture, ivec2(i, 0), 0).rgb);
     #endif

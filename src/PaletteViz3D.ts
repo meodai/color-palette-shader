@@ -101,6 +101,7 @@ export class PaletteViz3D {
     oklrab: 6,
     cielabD50: 7,
     okLightness: 8,
+    liMatch: 9,
   } as const;
 
   #canvas: HTMLCanvasElement;

@@ -25,7 +25,7 @@ import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { t
 //   closestColor – branches on DISTANCE_METRIC define; uses everything above
 //
 // Defines (compile-time, prepended to shader source — trigger recompile, no runtime branching):
-//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76(=cielabD65) 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94 6=oklrab 7=cielabD50 8=okLightness
+//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76(=cielabD65) 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94 6=oklrab 7=cielabD50 8=okLightness 9=liMatch
 //   COLOR_MODEL      int  0=rgb 1=rgb12bit 2=rgb8bit 3=oklab 4=okhsv 5=okhsvPolar
 //                         6=okhsl 7=okhslPolar 8=oklch 9=oklchPolar 10=hsv 11=hsvPolar
 //                         12=hsl 13=hslPolar 14=hwb 15=hwbPolar 16=oklrab 17=oklrch
@@ -310,7 +310,8 @@ function shaderNeedsForMetric(metric: number): Partial<ShaderNeeds> {
     case 1:
     case 6:
     case 8:
-      return { oklab: true, srgb2rgb: true }; // oklab, oklrab, okLightness
+    case 9:
+      return { oklab: true, srgb2rgb: true }; // oklab, oklrab, okLightness, liMatch
     case 2:
     case 3:
     case 5: // deltaE76, deltaE2000, deltaE94

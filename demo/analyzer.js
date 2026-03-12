@@ -942,6 +942,15 @@ function renderSpectrumPanel($panel, state) {
 function renderLiMatch($panel, state) {
   clearPanel($panel, 'Li-match greyscale');
   $panel.appendChild(drawLiMatchCanvas(state));
+
+  subTitle($panel, 'PaletteViz liMatch');
+  const entry = createVizEntry(
+    { id: 'li-viz', colorModel: 'oklrch', label: 'Li-match', axis: 'y', controlLabel: '', position: 0 },
+    40, 92, true,
+  );
+  entry.viz.distanceMetric = 'liMatch';
+  entry.viz.canvas.style.cssText = 'width:40px!important;height:92px!important;image-rendering:pixelated';
+  $panel.appendChild(entry.viz.canvas);
 }
 
 function renderIsocubes($panel, state) {

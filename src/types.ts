@@ -40,7 +40,8 @@ export type DistanceMetric =
   | 'kotsarenkoRamos'
   | 'oklrab'
   | 'cielabD50'
-  | 'okLightness';
+  | 'okLightness'
+  | 'liMatch';
 
 export type PaletteVizOptions = {
   palette?: ColorList;

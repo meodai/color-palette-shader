@@ -540,6 +540,7 @@ $distanceMetric.innerHTML = `
     <option value="oklab">OKLab</option>
     <option value="oklrab">OKLrab</option>
     <option value="okLightness">OK Lightness</option>
+    <option value="liMatch">Li-match</option>
   </optgroup>
   <optgroup label="CIE — D65">
     <option value="deltaE76">Euclidean / ΔE76</option>
