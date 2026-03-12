@@ -73,6 +73,50 @@
             space, it's probably not pulling its weight
           </li>
         </ul>
+        <table>
+          <caption>
+            Common questions &rarr; click a row to apply settings
+          </caption>
+          <thead>
+            <tr>
+              <th>I want to know&hellip;</th>
+              <th>Color model</th>
+              <th>Distance metric</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr data-color-model="okhslPolar" data-metric="oklab" tabindex="0" role="button">
+              <td>How my hue distribution looks</td>
+              <td>OKHsl Polar</td>
+              <td>OKLab</td>
+            </tr>
+            <tr data-color-model="okhsl" data-metric="deltaE2000" tabindex="0" role="button">
+              <td>Which two colors are most similar</td>
+              <td>OKHsl</td>
+              <td>&Delta;E2000</td>
+            </tr>
+            <tr data-color-model="okhslPolar" data-metric="oklab" tabindex="0" role="button">
+              <td>Whether a new color is worth adding</td>
+              <td>OKHsl Polar</td>
+              <td>OKLab</td>
+            </tr>
+            <tr data-color-model="cielabD50" data-metric="cielabD50" tabindex="0" role="button">
+              <td>How my palette reads on print</td>
+              <td>CIELab D50</td>
+              <td>CIELab D50</td>
+            </tr>
+            <tr data-color-model="oklchPolar" data-metric="deltaE2000" tabindex="0" role="button">
+              <td>How close the colors look to a human eye</td>
+              <td>OKLch Polar</td>
+              <td>&Delta;E2000</td>
+            </tr>
+            <tr data-color-model="hslPolar" data-metric="rgb" tabindex="0" role="button">
+              <td>What the palette looks like to a computer</td>
+              <td>HSL Polar</td>
+              <td>RGB</td>
+            </tr>
+          </tbody>
+        </table>
       </aside>
 
       <aside>
@@ -99,7 +143,7 @@ const viz = new PaletteViz({
   distanceMetric: 'oklab',  // 'oklab' | 'oklrab' | 'deltaE2000' | 'cielabD50' | …
   axis: 'y',                // which axis the position slider controls
   position: 0,              // 0–1 slice position (0 = one extreme, 1 = other side)
-  invertZ: false,           // flip the Z axis
+  invertAxes: ['z'],        // invert one or more model axes
   outlineWidth: 0,          // transparent outline between regions (physical px). 0 = off
 });
 

@@ -25,14 +25,18 @@ import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { t
 //   closestColor – branches on DISTANCE_METRIC define; uses everything above
 //
 // Defines (compile-time, prepended to shader source — trigger recompile, no runtime branching):
-//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76(=cielabD65) 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94 6=oklrab 7=cielabD50
-//   COLOR_MODEL      int  0=rgb 1=oklab 2=okhsv 3=okhsvPolar 4=okhsl 5=okhslPolar
-//                         6=oklch 7=oklchPolar 8=hsv 9=hsvPolar 10=hsl 11=hslPolar
-//                         12=hwb 13=hwbPolar 14=oklrab 15=oklrch 16=oklrchPolar
-//                         17=cielab 18=cielch 19=cielchPolar
-//                         20=cielabD50 21=cielchD50 22=cielchD50Polar
+//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76(=cielabD65) 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94 6=oklrab 7=cielabD50 8=okLightness
+//   COLOR_MODEL      int  0=rgb 1=rgb12bit 2=rgb8bit 3=oklab 4=okhsv 5=okhsvPolar
+//                         6=okhsl 7=okhslPolar 8=oklch 9=oklchPolar 10=hsv 11=hsvPolar
+//                         12=hsl 13=hslPolar 14=hwb 15=hwbPolar 16=oklrab 17=oklrch
+//                         18=oklrchPolar 19=cielab 20=cielch 21=cielchPolar
+//                         22=cielabD50 23=cielchD50 24=cielchD50Polar
+//                         25=rgb18bit 26=rgb6bit 27=rgb15bit
 //   PROGRESS_AXIS    int  0=x 1=y 2=z
+//   INVERT_X         flag (defined = true)
+//   INVERT_Y         flag (defined = true)
 //   INVERT_Z         flag (defined = true)
+//   AUTO_FLIP_Y      flag (defined = true)
 //   SHOW_RAW         flag (defined = true)
 
 export const vertexShaderSrc = `
@@ -46,37 +50,89 @@ void main() {
 
 // modelToRGB and main are separated so the selective assembler can reuse them.
 export const modelToRGBSrc = `
+#if COLOR_MODEL == 1
+vec3 quantizeRGB444(vec3 colorCoords) {
+  vec3 rgb = clamp(colorCoords, 0.0, 1.0);
+  vec3 levels = min(floor(rgb * 16.0), vec3(15.0));
+  return levels / 15.0;
+}
+#endif
+
+#if COLOR_MODEL == 2
+vec3 quantizeRGB332(vec3 colorCoords) {
+  vec3 rgb = clamp(colorCoords, 0.0, 1.0);
+  float r = min(floor(rgb.r * 8.0), 7.0) / 7.0;
+  float g = min(floor(rgb.g * 8.0), 7.0) / 7.0;
+  float b = min(floor(rgb.b * 4.0), 3.0) / 3.0;
+  return vec3(r, g, b);
+}
+#endif
+
+#if COLOR_MODEL == 25
+vec3 quantizeRGB666(vec3 colorCoords) {
+  vec3 rgb = clamp(colorCoords, 0.0, 1.0);
+  vec3 levels = min(floor(rgb * 64.0), vec3(63.0));
+  return levels / 63.0;
+}
+#endif
+
+#if COLOR_MODEL == 26
+vec3 quantizeRGB222(vec3 colorCoords) {
+  vec3 rgb = clamp(colorCoords, 0.0, 1.0);
+  vec3 levels = min(floor(rgb * 4.0), vec3(3.0));
+  return levels / 3.0;
+}
+#endif
+
+#if COLOR_MODEL == 27
+vec3 quantizeRGB555(vec3 colorCoords) {
+  vec3 rgb = clamp(colorCoords, 0.0, 1.0);
+  vec3 levels = min(floor(rgb * 32.0), vec3(31.0));
+  return levels / 31.0;
+}
+#endif
+
 vec3 modelToRGB(vec3 colorCoords) {
   #if COLOR_MODEL == 0
     return colorCoords;
   #elif COLOR_MODEL == 1
+    return quantizeRGB444(colorCoords);
+  #elif COLOR_MODEL == 2
+    return quantizeRGB332(colorCoords);
+  #elif COLOR_MODEL == 3
     vec3 linear = oklab_to_linear_srgb(vec3(colorCoords.z, colorCoords.x - 0.5, colorCoords.y - 0.5));
     return vec3(srgb_transfer_function(linear.r), srgb_transfer_function(linear.g), srgb_transfer_function(linear.b));
-  #elif COLOR_MODEL == 2 || COLOR_MODEL == 3
-    return okhsv_to_srgb(colorCoords);
   #elif COLOR_MODEL == 4 || COLOR_MODEL == 5
-    return okhsl_to_srgb(colorCoords);
+    return okhsv_to_srgb(colorCoords);
   #elif COLOR_MODEL == 6 || COLOR_MODEL == 7
-    return lch2rgb(vec3(colorCoords.z, colorCoords.y, colorCoords.x));
+    return okhsl_to_srgb(colorCoords);
   #elif COLOR_MODEL == 8 || COLOR_MODEL == 9
-    return hsv2rgb(colorCoords);
+    return lch2rgb(vec3(colorCoords.z, colorCoords.y, colorCoords.x));
   #elif COLOR_MODEL == 10 || COLOR_MODEL == 11
-    return hsl2rgb(colorCoords);
+    return hsv2rgb(colorCoords);
   #elif COLOR_MODEL == 12 || COLOR_MODEL == 13
+    return hsl2rgb(colorCoords);
+  #elif COLOR_MODEL == 14 || COLOR_MODEL == 15
     return hwb2rgb(colorCoords);
-  #elif COLOR_MODEL == 14
+  #elif COLOR_MODEL == 16
     vec3 linear14 = oklab_to_linear_srgb(vec3(toe_inv(colorCoords.z), colorCoords.x - 0.5, colorCoords.y - 0.5));
     return vec3(srgb_transfer_function(linear14.r), srgb_transfer_function(linear14.g), srgb_transfer_function(linear14.b));
-  #elif COLOR_MODEL == 15 || COLOR_MODEL == 16
+  #elif COLOR_MODEL == 17 || COLOR_MODEL == 18
     return lch2rgb(vec3(toe_inv(colorCoords.z), colorCoords.y, colorCoords.x));
-  #elif COLOR_MODEL == 17
+  #elif COLOR_MODEL == 19
     return cielab_d65_to_rgb(vec3(colorCoords.z * 100.0, (colorCoords.x - 0.5) * 256.0, (colorCoords.y - 0.5) * 256.0));
-  #elif COLOR_MODEL == 18 || COLOR_MODEL == 19
+  #elif COLOR_MODEL == 20 || COLOR_MODEL == 21
     return cielab_d65_to_rgb(vec3(colorCoords.z * 100.0, colorCoords.y * 150.0 * cos(colorCoords.x * TWO_PI), colorCoords.y * 150.0 * sin(colorCoords.x * TWO_PI)));
-  #elif COLOR_MODEL == 20
+  #elif COLOR_MODEL == 22
     return cielab_d50_to_rgb(vec3(colorCoords.z * 100.0, (colorCoords.x - 0.5) * 256.0, (colorCoords.y - 0.5) * 256.0));
-  #elif COLOR_MODEL == 21 || COLOR_MODEL == 22
+  #elif COLOR_MODEL == 23 || COLOR_MODEL == 24
     return cielab_d50_to_rgb(vec3(colorCoords.z * 100.0, colorCoords.y * 150.0 * cos(colorCoords.x * TWO_PI), colorCoords.y * 150.0 * sin(colorCoords.x * TWO_PI)));
+  #elif COLOR_MODEL == 25
+    return quantizeRGB666(colorCoords);
+  #elif COLOR_MODEL == 26
+    return quantizeRGB222(colorCoords);
+  #elif COLOR_MODEL == 27
+    return quantizeRGB555(colorCoords);
   #else
     return colorCoords;
   #endif
@@ -85,16 +141,21 @@ vec3 modelToRGB(vec3 colorCoords) {
 
 const mainSrc = `
 void main(){
-  #if PROGRESS_AXIS == 1
-    vec3 colorCoords = vec3(vUv.x, progress, vUv.y);
-  #elif PROGRESS_AXIS == 2
-    vec3 colorCoords = vec3(vUv.x, vUv.y, 1. - progress);
-  #else
-    vec3 colorCoords = vec3(progress, vUv.x, vUv.y);
+  vec2 uv = vUv;
+  #ifdef AUTO_FLIP_Y
+    uv.y = 1. - uv.y;
   #endif
 
-  #if COLOR_MODEL == 3 || COLOR_MODEL == 5 || COLOR_MODEL == 7 || COLOR_MODEL == 9 || COLOR_MODEL == 11 || COLOR_MODEL == 16 || COLOR_MODEL == 19 || COLOR_MODEL == 22
-    vec2 toCenter = vUv - 0.5;
+  #if PROGRESS_AXIS == 1
+    vec3 colorCoords = vec3(uv.x, progress, uv.y);
+  #elif PROGRESS_AXIS == 2
+    vec3 colorCoords = vec3(uv.x, uv.y, 1. - progress);
+  #else
+    vec3 colorCoords = vec3(progress, uv.x, uv.y);
+  #endif
+
+  #if COLOR_MODEL == 5 || COLOR_MODEL == 7 || COLOR_MODEL == 9 || COLOR_MODEL == 11 || COLOR_MODEL == 13 || COLOR_MODEL == 18 || COLOR_MODEL == 21 || COLOR_MODEL == 24
+    vec2 toCenter = uv - 0.5;
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
 
@@ -106,11 +167,11 @@ void main(){
       if (radius > 1.0) { discard; }
     #else
       float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
-      if (vUv.x > 0.5) { hue += 0.5; }
-      colorCoords = vec3(hue, abs(0.5 - vUv.x) * 2.0, vUv.y);
+      if (uv.x > 0.5) { hue += 0.5; }
+      colorCoords = vec3(hue, abs(0.5 - uv.x) * 2.0, uv.y);
     #endif
-  #elif COLOR_MODEL == 13
-    vec2 toCenter = vUv - 0.5;
+  #elif COLOR_MODEL == 15
+    vec2 toCenter = uv - 0.5;
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
 
@@ -122,9 +183,17 @@ void main(){
       colorCoords = vec3(angle / TWO_PI, radius, progress);
     #else
       float hue = 1.0 - abs(0.5 - progress * .5) * 2.0;
-      if (vUv.x > 0.5) { hue += 0.5; }
-      colorCoords = vec3(hue, 1.0 - abs(0.5 - vUv.x) * 2.0, vUv.y);
+      if (uv.x > 0.5) { hue += 0.5; }
+      colorCoords = vec3(hue, 1.0 - abs(0.5 - uv.x) * 2.0, uv.y);
     #endif
+  #endif
+
+  #ifdef INVERT_X
+    colorCoords.x = 1. - colorCoords.x;
+  #endif
+
+  #ifdef INVERT_Y
+    colorCoords.y = 1. - colorCoords.y;
   #endif
 
   #ifdef INVERT_Z
@@ -192,37 +261,42 @@ type ShaderNeeds = {
 function shaderNeedsForModel(model: number): Partial<ShaderNeeds> {
   switch (model) {
     case 0:
-      return {}; // rgb
     case 1:
-    case 14:
-      return { oklab: true }; // oklab, oklrab
     case 2:
+    case 25:
+    case 26:
+    case 27:
+      return {}; // rgb, rgb12bit, rgb8bit, rgb18bit, rgb6bit, rgb15bit, rgb16bit
     case 3:
-      return { oklab: true }; // okhsv, okhsvPolar
+    case 16:
+      return { oklab: true }; // oklab, oklrab
     case 4:
     case 5:
-      return { oklab: true }; // okhsl, okhslPolar
+      return { oklab: true }; // okhsv, okhsvPolar
     case 6:
     case 7:
-    case 15:
-    case 16:
-      return { oklab: true, lch2rgb: true }; // oklch/oklrch + polar
+      return { oklab: true }; // okhsl, okhslPolar
     case 8:
     case 9:
-      return { hsv2rgb: true }; // hsv, hsvPolar
-    case 10:
-    case 11:
-      return { hsl2rgb: true }; // hsl, hslPolar
-    case 12:
-    case 13:
-      return { hwb2rgb: true }; // hwb, hwbPolar
     case 17:
     case 18:
-    case 19: // cielab, cielch, cielchPolar
-      return { oklab: true, srgb2rgb: true, cielab2rgb: true };
+      return { oklab: true, lch2rgb: true }; // oklch/oklrch + polar
+    case 10:
+    case 11:
+      return { hsv2rgb: true }; // hsv, hsvPolar
+    case 12:
+    case 13:
+      return { hsl2rgb: true }; // hsl, hslPolar
+    case 14:
+    case 15:
+      return { hwb2rgb: true }; // hwb, hwbPolar
+    case 19:
     case 20:
-    case 21:
-    case 22: // cielabD50, cielchD50, cielchD50Polar
+    case 21: // cielab, cielch, cielchPolar
+      return { oklab: true, srgb2rgb: true, cielab2rgb: true };
+    case 22:
+    case 23:
+    case 24: // cielabD50, cielchD50, cielchD50Polar
       return { oklab: true, srgb2rgb: true, cielab2rgb: true };
     default:
       return {};
@@ -235,7 +309,8 @@ function shaderNeedsForMetric(metric: number): Partial<ShaderNeeds> {
       return {}; // rgb
     case 1:
     case 6:
-      return { oklab: true, srgb2rgb: true }; // oklab, oklrab
+    case 8:
+      return { oklab: true, srgb2rgb: true }; // oklab, oklrab, okLightness
     case 2:
     case 3:
     case 5: // deltaE76, deltaE2000, deltaE94
@@ -374,6 +449,14 @@ void main() {
     if (cc.x > uPosition) discard;
   #endif
 
+  #ifdef INVERT_X
+    cc.x = 1.0 - cc.x;
+  #endif
+
+  #ifdef INVERT_Y
+    cc.y = 1.0 - cc.y;
+  #endif
+
   #ifdef INVERT_Z
     cc.z = 1.0 - cc.z;
   #endif
@@ -415,6 +498,14 @@ void main() {
       if (any(lessThan(cc, vec3(0.0))) || any(greaterThan(cc, vec3(1.0)))) discard;
     #endif
     if (cc.x > uPosition) discard;
+  #endif
+
+  #ifdef INVERT_X
+    cc.x = 1.0 - cc.x;
+  #endif
+
+  #ifdef INVERT_Y
+    cc.y = 1.0 - cc.y;
   #endif
 
   #ifdef INVERT_Z

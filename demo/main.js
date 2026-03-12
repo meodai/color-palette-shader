@@ -215,17 +215,182 @@ const sharedOptions = {
   pixelRatio: devicePixelRatio * 2,
 };
 
-const viz = new PaletteViz({ ...sharedOptions, axis: 'x', position: 0 });
-
 const vizzes = [
-  viz,
+  new PaletteViz({ ...sharedOptions, axis: 'x', position: 0 }),
   new PaletteViz({ ...sharedOptions, axis: 'y', position: 0 }),
   new PaletteViz({ ...sharedOptions, axis: 'z', position: 0 }),
-  new PaletteViz({ ...sharedOptions, axis: 'x', position: 1 }),
-  new PaletteViz({ ...sharedOptions, axis: 'y', position: 1 }),
-  new PaletteViz({ ...sharedOptions, axis: 'z', position: 1 }),
+  new PaletteViz({ ...sharedOptions, axis: 'x', position: 0, invertAxes: ['z'] }),
+  new PaletteViz({ ...sharedOptions, axis: 'y', position: 0, invertAxes: ['z'] }),
+  new PaletteViz({ ...sharedOptions, axis: 'z', position: 0, invertAxes: ['z'] }),
 ];
-// t=0 default: first row at 0 (one extreme), second row at 1 (other side)
+// t=0 default: both rows show the same slice; the second row flips Z.
+
+const defaultInvertAxesByViz = [[], [], [], ['z'], ['z'], ['z']];
+
+// ── Axis labels ──────────────────────────────────────────────────────────────
+
+const AXIS_NAMES = {
+  rgb: ['R', 'G', 'B'],
+  rgb6bit: ['R', 'G', 'B'],
+  rgb8bit: ['R', 'G', 'B'],
+  rgb12bit: ['R', 'G', 'B'],
+  rgb15bit: ['R', 'G', 'B'],
+  rgb18bit: ['R', 'G', 'B'],
+  oklab: ['a', 'b', 'L'],
+  okhsv: ['H', 'S', 'V'],
+  okhsvPolar: ['H', 'S', 'V'],
+  okhsl: ['H', 'S', 'L'],
+  okhslPolar: ['H', 'S', 'L'],
+  oklch: ['H', 'C', 'L'],
+  oklchPolar: ['H', 'C', 'L'],
+  oklrab: ['a', 'b', 'Lr'],
+  oklrch: ['H', 'C', 'Lr'],
+  oklrchPolar: ['H', 'C', 'Lr'],
+  hsv: ['H', 'S', 'V'],
+  hsvPolar: ['H', 'S', 'V'],
+  hsl: ['H', 'S', 'L'],
+  hslPolar: ['H', 'S', 'L'],
+  hwb: ['H', 'W', 'B'],
+  hwbPolar: ['H', 'W', 'B'],
+  cielab: ['a*', 'b*', 'L*'],
+  cielch: ['H', 'C', 'L*'],
+  cielchPolar: ['H', 'C', 'L*'],
+  cielabD50: ['a*', 'b*', 'L*'],
+  cielchD50: ['H', 'C', 'L*'],
+  cielchD50Polar: ['H', 'C', 'L*'],
+};
+
+// axis='x' → PROGRESS_AXIS=0 → colorCoords = (progress, uv.x, uv.y) → horiz=y, vert=z
+// axis='y' → PROGRESS_AXIS=1 → colorCoords = (uv.x, progress, uv.y) → horiz=x, vert=z
+// axis='z' → PROGRESS_AXIS=2 → colorCoords = (uv.x, uv.y, 1-progress) → horiz=x, vert=y
+const VISIBLE_AXES = { x: [1, 2], y: [0, 2], z: [0, 1] };
+
+const vizAxes = ['x', 'y', 'z', 'x', 'y', 'z'];
+const overlayEls = [];
+
+function createAxisLine(cls) {
+  const line = document.createElement('div');
+  line.className = `axis-line ${cls}`;
+  line.innerHTML =
+    '<span class="axis-line__min"></span>' +
+    '<span class="axis-line__label"></span>' +
+    '<span class="axis-line__max"></span>';
+  return line;
+}
+
+vizzes.forEach((viz, i) => {
+  const canvas = viz.canvas;
+  const wrapper = document.createElement('div');
+  wrapper.className = 'viz-cell';
+  canvas.parentNode.insertBefore(wrapper, canvas);
+  wrapper.appendChild(canvas);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'axis-overlay';
+
+  const $xLine = createAxisLine('axis-line--x');
+  const $yLine = createAxisLine('axis-line--y');
+
+  overlay.appendChild($xLine);
+  overlay.appendChild($yLine);
+  wrapper.appendChild(overlay);
+
+  overlayEls.push({
+    viz,
+    $wrapper: wrapper,
+    $xLabel: $xLine.querySelector('.axis-line__label'),
+    $xMin: $xLine.querySelector('.axis-line__min'),
+    $xMax: $xLine.querySelector('.axis-line__max'),
+    $yLabel: $yLine.querySelector('.axis-line__label'),
+    $yMin: $yLine.querySelector('.axis-line__min'),
+    $yMax: $yLine.querySelector('.axis-line__max'),
+    axis: vizAxes[i],
+  });
+});
+
+function axisRange(name) {
+  return name === 'H' ? ['0°', '360°'] : ['0', '1'];
+}
+
+function updateAxisLabels(colorModel) {
+  const names = AXIS_NAMES[colorModel] || ['x', 'y', 'z'];
+  const axisKeys = ['x', 'y', 'z'];
+  const isPolar = colorModel.endsWith('Polar');
+  overlayEls.forEach(({ viz, $wrapper, $xLabel, $xMin, $xMax, $yLabel, $yMin, $yMax, axis }) => {
+    const [hIdx, vIdx] = VISIBLE_AXES[axis];
+    const hName = names[hIdx];
+    const vName = names[vIdx];
+    const hInverted = viz.invertAxes.includes(axisKeys[hIdx]);
+    const vInverted = viz.invertAxes.includes(axisKeys[vIdx]);
+    const cellPolar = isPolar && (axis === 'y' || axis === 'z');
+    $wrapper.classList.toggle('viz-cell--polar', cellPolar);
+    if (cellPolar) {
+      $xLabel.textContent = hName;
+      $xMin.textContent = '';
+      $xMax.textContent = '';
+      $yLabel.textContent = vName;
+      $yMin.textContent = vInverted ? '0' : '1';
+      $yMax.textContent = vInverted ? '1' : '0';
+    } else {
+      const [hMin, hMax] = axisRange(hName);
+      const [vMin, vMax] = axisRange(vName);
+      $xLabel.textContent = hName;
+      $xMin.textContent = hInverted ? hMax : hMin;
+      $xMax.textContent = hInverted ? hMin : hMax;
+      $yLabel.textContent = vName;
+      $yMin.textContent = vInverted ? vMin : vMax; // top
+      $yMax.textContent = vInverted ? vMax : vMin; // bottom
+    }
+  });
+}
+
+function setInvertAxis(viz, axis, enabled) {
+  const nextAxes = viz.invertAxes.filter((currentAxis) => currentAxis !== axis);
+  if (enabled) nextAxes.push(axis);
+  viz.invertAxes = nextAxes;
+}
+
+function restoreDefaultInvertZ() {
+  vizzes.forEach((v, index) => {
+    v.invertAxes = [...defaultInvertAxesByViz[index]];
+  });
+  if (viz3d) viz3d.invertAxes = [];
+  updateAxisLabels($colorModel.value);
+}
+
+function setInvertZ(enabled) {
+  vizzes.forEach((v, index) => {
+    const keepAxes = defaultInvertAxesByViz[index].filter((axis) => axis !== 'z');
+    v.invertAxes = enabled ? [...keepAxes, 'z'] : keepAxes;
+  });
+  if (viz3d) viz3d.invertAxes = enabled ? ['z'] : [];
+  updateAxisLabels($colorModel.value);
+}
+
+function toggleInvertZ() {
+  vizzes.forEach((v) => {
+    setInvertAxis(v, 'z', !v.invertAxes.includes('z'));
+  });
+  if (viz3d) {
+    setInvertAxis(viz3d, 'z', !viz3d.invertAxes.includes('z'));
+  }
+  syncInvertZCheckbox();
+  updateAxisLabels($colorModel.value);
+}
+
+function syncInvertZCheckbox() {
+  const targets = viz3d ? [viz3d] : vizzes;
+  const zStates = targets.map((viz) => viz.invertAxes.includes('z'));
+  const allInverted = zStates.every(Boolean);
+  const noneInverted = zStates.every((state) => !state);
+  $invertZCheckbox.checked = allInverted;
+  $invertZCheckbox.indeterminate = !allInverted && !noneInverted;
+}
+
+function getInvertZMode() {
+  if ($invertZCheckbox.indeterminate) return 'default';
+  return $invertZCheckbox.checked ? 'all' : 'none';
+}
 
 const $cursorProbe = document.createElement('div');
 $cursorProbe.className = 'cursor-probe';
@@ -348,18 +513,25 @@ $colorModel.innerHTML = `
     <option value="hwbPolar">HWB Polar</option>
     <option value="hwb">HWB</option>
     <option value="rgb">RGB</option>
+    <option value="rgb6bit">RGB 6-bit</option>
+    <option value="rgb8bit">RGB 8-bit · CGA</option>
+    <option value="rgb12bit">RGB 12-bit · NTSC / Amiga</option>
+    <option value="rgb15bit">RGB 15-bit · SVGA HiColor</option>
+    <option value="rgb18bit">RGB 18-bit · VGA</option>
   </optgroup>
 `;
 $colorModel.addEventListener('change', (e) => {
   vizzes.forEach((v) => {
     v.colorModel = e.target.value;
   });
+  updateAxisLabels(e.target.value);
 });
 $tools.appendChild(labeled('Color model', $colorModel));
 // Set initial color model
 vizzes.forEach((v) => {
   v.colorModel = $colorModel.value;
 });
+updateAxisLabels($colorModel.value);
 
 // Distance metric
 const $distanceMetric = document.createElement('select');
@@ -367,6 +539,7 @@ $distanceMetric.innerHTML = `
   <optgroup label="OK">
     <option value="oklab">OKLab</option>
     <option value="oklrab">OKLrab</option>
+    <option value="okLightness">OK Lightness</option>
   </optgroup>
   <optgroup label="CIE — D65">
     <option value="deltaE76">Euclidean / ΔE76</option>
@@ -410,7 +583,7 @@ function applyPosition(t) {
       v.position = t;
     });
     vizzes.slice(3, 6).forEach((v) => {
-      v.position = 1 - t;
+      v.position = t;
     });
   } else {
     viz3d.position = 1 - t;
@@ -496,10 +669,8 @@ $tools.appendChild(labeled('Outline width', $outlineSlider));
 const $invertZCheckbox = document.createElement('input');
 $invertZCheckbox.type = 'checkbox';
 $invertZCheckbox.checked = false;
-$invertZCheckbox.addEventListener('change', (e) => {
-  vizzes.forEach((v) => {
-    v.invertZ = e.target.checked;
-  });
+$invertZCheckbox.addEventListener('change', () => {
+  toggleInvertZ();
 });
 $tools.appendChild(labeled('Invert Z', $invertZCheckbox));
 
@@ -620,7 +791,7 @@ function encodeHash(colors, settings) {
     model: settings.colorModel,
     metric: settings.distanceMetric,
     pos: settings.pos.toFixed(4),
-    ...(settings.invertZ && { invert: '1' }),
+    ...(settings.invertZMode !== 'default' && { invert: settings.invertZMode }),
     ...(settings.showRaw && { raw: '1' }),
     ...(settings.gamutClip && { gamut: '1' }),
     ...(settings.outlineWidth > 0 && { outline: settings.outlineWidth.toString() }),
@@ -647,7 +818,12 @@ function decodeHash(hash) {
     colorModel: params.get('model') || 'okhsl',
     distanceMetric: params.get('metric') || 'oklab',
     pos: parseFloat(params.get('pos') ?? '0'),
-    invertZ: params.get('invert') === '1',
+    invertZMode:
+      params.get('invert') === 'all' || params.get('invert') === 'z'
+        ? 'all'
+        : params.get('invert') === 'none'
+          ? 'none'
+          : 'default',
     showRaw: params.get('raw') === '1',
     gamutClip: params.get('gamut') === '1',
     outlineWidth: parseFloat(params.get('outline') ?? '0'),
@@ -660,7 +836,7 @@ function getSettings() {
     colorModel: $colorModel.value,
     distanceMetric: $distanceMetric.value,
     pos: parseFloat($positionSlider.value),
-    invertZ: $invertZCheckbox.checked,
+    invertZMode: getInvertZMode(),
     showRaw: $showRawCheckbox.checked,
     gamutClip: $gamutClipCheckbox.checked,
     outlineWidth: parseFloat($outlineSlider.value),
@@ -680,7 +856,6 @@ function applyState(state) {
   $colorModel.value = state.colorModel;
   $distanceMetric.value = state.distanceMetric;
   $positionSlider.value = String(state.pos);
-  $invertZCheckbox.checked = state.invertZ;
   $showRawCheckbox.checked = state.showRaw;
   $gamutClipCheckbox.checked = state.gamutClip;
   $outlineSlider.value = String(state.outlineWidth);
@@ -688,12 +863,20 @@ function applyState(state) {
   vizzes.forEach((v) => {
     v.colorModel = state.colorModel;
     v.distanceMetric = state.distanceMetric;
-    v.invertZ = state.invertZ;
     v.showRaw = state.showRaw;
     v.gamutClip = state.gamutClip;
     v.outlineWidth = state.outlineWidth;
   });
+  updateAxisLabels(state.colorModel);
+  if (state.invertZMode === 'all') {
+    setInvertZ(true);
+  } else if (state.invertZMode === 'none') {
+    setInvertZ(false);
+  } else {
+    restoreDefaultInvertZ();
+  }
   applyPosition(state.pos);
+  syncInvertZCheckbox();
 
   // 3D toggle
   if (state.is3D !== is3D) {
@@ -725,6 +908,8 @@ $palette.addEventListener('click', (e) => {
   if (e.target.classList.contains('color-picker__remove')) scheduleHashUpdate();
 });
 $palettePaste.addEventListener('input', scheduleHashUpdate);
+
+syncInvertZCheckbox();
 
 // ── Token Beam receiver ──────────────────────────────────────────────────────
 
@@ -827,7 +1012,7 @@ function create3DViz() {
     pixelRatio: devicePixelRatio * 2,
     colorModel: $colorModel.value,
     distanceMetric: $distanceMetric.value,
-    invertZ: $invertZCheckbox.checked,
+    invertAxes: getInvertZMode() === 'all' ? ['z'] : [],
     showRaw: $showRawCheckbox.checked,
     gamutClip: $gamutClipCheckbox.checked,
     outlineWidth: parseFloat($outlineSlider.value),
@@ -883,20 +1068,20 @@ $palettePaste.addEventListener('input', () => sync3DPalette());
 function toggle3DView(enable) {
   is3D = enable;
   if (enable) {
-    // hide 2D canvases
+    // hide 2D cells (canvas + overlay wrappers)
     vizzes.forEach((v) => {
-      v.canvas.style.display = 'none';
+      v.canvas.parentNode.style.display = 'none';
     });
     create3DViz();
     $app.appendChild(viz3d.canvas);
   } else {
-    // restore 2D canvases
+    // restore 2D cells
     if (viz3d) {
       viz3d.destroy();
       viz3d = null;
     }
     vizzes.forEach((v) => {
-      v.canvas.style.display = '';
+      v.canvas.parentNode.style.display = '';
     });
     applyPosition(parseFloat($positionSlider.value));
   }
@@ -916,7 +1101,7 @@ $distanceMetric.addEventListener('change', () => {
   if (viz3d) viz3d.distanceMetric = $distanceMetric.value;
 });
 $invertZCheckbox.addEventListener('change', () => {
-  if (viz3d) viz3d.invertZ = $invertZCheckbox.checked;
+  if (viz3d) viz3d.invertAxes = getInvertZMode() === 'all' ? ['z'] : [];
 });
 $showRawCheckbox.addEventListener('change', () => {
   if (viz3d) viz3d.showRaw = $showRawCheckbox.checked;
@@ -937,6 +1122,25 @@ window.addEventListener('resize', () => {
     const rows = portrait ? 3 : 2;
     viz3d.resize(s * cols, s * rows);
   }
+});
+
+// preset rows in the about section
+document.querySelector('.about').addEventListener('click', (e) => {
+  const row = e.target.closest('tr[data-color-model]');
+  if (!row) return;
+  $colorModel.value = row.dataset.colorModel;
+  $distanceMetric.value = row.dataset.metric;
+  $colorModel.dispatchEvent(new Event('change'));
+  $distanceMetric.dispatchEvent(new Event('change'));
+  scheduleHashUpdate();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+document.querySelector('.about').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const row = e.target.closest('tr[data-color-model]');
+  if (!row) return;
+  e.preventDefault();
+  row.click();
 });
 
 // async load from hash — after first paint so it never blocks rendering

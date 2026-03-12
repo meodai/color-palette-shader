@@ -28,7 +28,7 @@ export class PaletteViz {
   #axis: Axis = 'y';
   #colorModel: SupportedColorModels = 'okhsv';
   #distanceMetric: DistanceMetric = 'oklab';
-  #invertZ = false;
+  #invertAxes: Axis[] = [];
   #showRaw = false;
   #outlineWidth = 0;
   #gamutClip = false;
@@ -37,28 +37,33 @@ export class PaletteViz {
   readonly #axisMap = { x: 0, y: 1, z: 2 } as const;
   readonly #colorModelMap = {
     rgb: 0,
-    oklab: 1,
-    okhsv: 2,
-    okhsvPolar: 3,
-    okhsl: 4,
-    okhslPolar: 5,
-    oklch: 6,
-    oklchPolar: 7,
-    hsv: 8,
-    hsvPolar: 9,
-    hsl: 10,
-    hslPolar: 11,
-    hwb: 12,
-    hwbPolar: 13,
-    oklrab: 14,
-    oklrch: 15,
-    oklrchPolar: 16,
-    cielab: 17,
-    cielch: 18,
-    cielchPolar: 19,
-    cielabD50: 20,
-    cielchD50: 21,
-    cielchD50Polar: 22,
+    rgb12bit: 1,
+    rgb8bit: 2,
+    rgb18bit: 25,
+    rgb6bit: 26,
+    rgb15bit: 27,
+    oklab: 3,
+    okhsv: 4,
+    okhsvPolar: 5,
+    okhsl: 6,
+    okhslPolar: 7,
+    oklch: 8,
+    oklchPolar: 9,
+    hsv: 10,
+    hsvPolar: 11,
+    hsl: 12,
+    hslPolar: 13,
+    hwb: 14,
+    hwbPolar: 15,
+    oklrab: 16,
+    oklrch: 17,
+    oklrchPolar: 18,
+    cielab: 19,
+    cielch: 20,
+    cielchPolar: 21,
+    cielabD50: 22,
+    cielchD50: 23,
+    cielchD50Polar: 24,
   } as const;
   readonly #distanceMetricMap = {
     rgb: 0,
@@ -69,6 +74,7 @@ export class PaletteViz {
     deltaE94: 5,
     oklrab: 6,
     cielabD50: 7,
+    okLightness: 8,
   } as const;
 
   // WebGL
@@ -82,6 +88,7 @@ export class PaletteViz {
   #animationFrame: number | null = null;
   #programDirty = false;
   #metricPaletteDirty = true;
+  #destroyed = false;
 
   // cached uniform locations (re-queried after each program rebuild)
   #uProgress: WebGLUniformLocation | null = null;
@@ -110,7 +117,7 @@ export class PaletteViz {
     distanceMetric = 'oklab',
     axis = 'y',
     position = 0.0,
-    invertZ = false,
+    invertAxes = [],
     showRaw = false,
     outlineWidth = 0,
     gamutClip = false,
@@ -123,7 +130,7 @@ export class PaletteViz {
     this.#distanceMetric = distanceMetric;
     this.#axis = axis;
     this.#position = position;
-    this.#invertZ = invertZ;
+    this.#invertAxes = this.#normalizeInvertAxes(invertAxes);
     this.#showRaw = showRaw;
     this.#outlineWidth = outlineWidth;
     this.#gamutClip = gamutClip;
@@ -163,14 +170,28 @@ export class PaletteViz {
   }
 
   #defines(): Defines {
+    const useImplicitPolarFlipY =
+      this.#colorModel.endsWith('Polar') && this.#invertAxes.includes('y');
     return {
       DISTANCE_METRIC: this.#distanceMetricMap[this.#distanceMetric],
       COLOR_MODEL: this.#colorModelMap[this.#colorModel],
       PROGRESS_AXIS: this.#axisMap[this.#axis],
-      INVERT_Z: this.#invertZ ? 1 : false,
+      INVERT_X: this.#invertAxes.includes('x') ? 1 : false,
+      INVERT_Y: this.#invertAxes.includes('y') && !useImplicitPolarFlipY ? 1 : false,
+      INVERT_Z: this.#invertAxes.includes('z') ? 1 : false,
+      AUTO_FLIP_Y: useImplicitPolarFlipY ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
       GAMUT_CLIP: this.#gamutClip ? 1 : false,
     };
+  }
+
+  #normalizeInvertAxes(axes: Axis[]): Axis[] {
+    const uniqueAxes = new Set<Axis>();
+    axes.forEach((axis) => {
+      if (!(axis in this.#axisMap)) throw new Error("invertAxes entries must be 'x', 'y', or 'z'");
+      uniqueAxes.add(axis);
+    });
+    return [...uniqueAxes];
   }
 
   #rebuildProgram(): void {
@@ -311,6 +332,8 @@ export class PaletteViz {
   }
 
   destroy(): void {
+    if (this.#destroyed) return;
+    this.#destroyed = true;
     if (this.#animationFrame !== null) {
       cancelAnimationFrame(this.#animationFrame);
       this.#animationFrame = null;
@@ -363,7 +386,10 @@ export class PaletteViz {
       typeof indexOrColor === 'number'
         ? indexOrColor
         : this.#palette.findIndex(
-            (c) => c[0] === indexOrColor[0] && c[1] === indexOrColor[1] && c[2] === indexOrColor[2],
+            (c) =>
+              Math.abs(c[0] - indexOrColor[0]) < 1e-9 &&
+              Math.abs(c[1] - indexOrColor[1]) < 1e-9 &&
+              Math.abs(c[2] - indexOrColor[2]) < 1e-9,
           );
     if (index === -1) throw new Error('Color not found in palette');
     if (index < 0 || index >= this.#palette.length) throw new Error(`Index ${index} out of range`);
@@ -442,13 +468,13 @@ export class PaletteViz {
     return this.#distanceMetric;
   }
 
-  set invertZ(value: boolean) {
-    this.#invertZ = value;
+  set invertAxes(value: Axis[]) {
+    this.#invertAxes = this.#normalizeInvertAxes(value);
     this.#programDirty = true;
     this.#paint();
   }
-  get invertZ() {
-    return this.#invertZ;
+  get invertAxes() {
+    return this.#invertAxes.slice();
   }
 
   set showRaw(value: boolean) {

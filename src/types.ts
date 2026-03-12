@@ -3,6 +3,11 @@ export type ColorList = ColorRGB[];
 
 export type SupportedColorModels =
   | 'rgb'
+  | 'rgb12bit'
+  | 'rgb8bit'
+  | 'rgb18bit'
+  | 'rgb6bit'
+  | 'rgb15bit'
   | 'oklab'
   | 'okhsv'
   | 'okhsvPolar'
@@ -34,7 +39,8 @@ export type DistanceMetric =
   | 'deltaE2000'
   | 'kotsarenkoRamos'
   | 'oklrab'
-  | 'cielabD50';
+  | 'cielabD50'
+  | 'okLightness';
 
 export type PaletteVizOptions = {
   palette?: ColorList;
@@ -47,7 +53,7 @@ export type PaletteVizOptions = {
   distanceMetric?: DistanceMetric;
   axis?: Axis;
   position?: number;
-  invertZ?: boolean;
+  invertAxes?: Axis[];
   showRaw?: boolean;
   outlineWidth?: number;
   gamutClip?: boolean;
@@ -61,7 +67,7 @@ export type PaletteViz3DOptions = {
   container?: HTMLElement;
   colorModel?: SupportedColorModels;
   distanceMetric?: DistanceMetric;
-  invertZ?: boolean;
+  invertAxes?: Axis[];
   showRaw?: boolean;
   outlineWidth?: number;
   gamutClip?: boolean;
