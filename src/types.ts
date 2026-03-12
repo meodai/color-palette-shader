@@ -29,7 +29,8 @@ export type SupportedColorModels =
   | 'cielchPolar'
   | 'cielabD50'
   | 'cielchD50'
-  | 'cielchD50Polar';
+  | 'cielchD50Polar'
+  | 'spectrum';
 export type Axis = 'x' | 'y' | 'z';
 export type DistanceMetric =
   | 'rgb'

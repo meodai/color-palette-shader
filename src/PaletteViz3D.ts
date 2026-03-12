@@ -90,6 +90,7 @@ export class PaletteViz3D {
     cielabD50: 22,
     cielchD50: 23,
     cielchD50Polar: 24,
+    spectrum: 28,
   } as const;
   readonly #distanceMetricMap = {
     rgb: 0,

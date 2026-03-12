@@ -258,6 +258,7 @@ const AXIS_NAMES = {
   cielabD50: ['a*', 'b*', 'L*'],
   cielchD50: ['H', 'C', 'L*'],
   cielchD50Polar: ['H', 'C', 'L*'],
+  spectrum: ['λ', 'L', 'C'],
 };
 
 // axis='x' → PROGRESS_AXIS=0 → colorCoords = (progress, uv.x, uv.y) → horiz=y, vert=z
@@ -518,6 +519,9 @@ $colorModel.innerHTML = `
     <option value="rgb12bit">RGB 12-bit · NTSC / Amiga</option>
     <option value="rgb15bit">RGB 15-bit · SVGA HiColor</option>
     <option value="rgb18bit">RGB 18-bit · VGA</option>
+  </optgroup>
+  <optgroup label="Spectral">
+    <option value="spectrum">Visible Spectrum</option>
   </optgroup>
 `;
 $colorModel.addEventListener('change', (e) => {

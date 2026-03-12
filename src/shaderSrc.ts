@@ -31,7 +31,7 @@ import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { t
 //                         12=hsl 13=hslPolar 14=hwb 15=hwbPolar 16=oklrab 17=oklrch
 //                         18=oklrchPolar 19=cielab 20=cielch 21=cielchPolar
 //                         22=cielabD50 23=cielchD50 24=cielchD50Polar
-//                         25=rgb18bit 26=rgb6bit 27=rgb15bit
+//                         25=rgb18bit 26=rgb6bit 27=rgb15bit 28=spectrum
 //   PROGRESS_AXIS    int  0=x 1=y 2=z
 //   INVERT_X         flag (defined = true)
 //   INVERT_Y         flag (defined = true)
@@ -92,6 +92,38 @@ vec3 quantizeRGB555(vec3 colorCoords) {
 }
 #endif
 
+#if COLOR_MODEL == 28
+// CIE 1931 XYZ color matching function approximation (Wyman et al. 2013)
+float cie_x(float w) {
+  float t1 = (w - 442.0) * ((w < 442.0) ? 0.0624 : 0.0374);
+  float t2 = (w - 599.8) * ((w < 599.8) ? 0.0264 : 0.0323);
+  float t3 = (w - 501.1) * ((w < 501.1) ? 0.0490 : 0.0382);
+  return 0.362 * exp(-0.5*t1*t1) + 1.056 * exp(-0.5*t2*t2) - 0.065 * exp(-0.5*t3*t3);
+}
+float cie_y(float w) {
+  float t1 = (w - 568.8) * ((w < 568.8) ? 0.0213 : 0.0247);
+  float t2 = (w - 530.9) * ((w < 530.9) ? 0.0613 : 0.0322);
+  return 0.821 * exp(-0.5*t1*t1) + 0.286 * exp(-0.5*t2*t2);
+}
+float cie_z(float w) {
+  float t1 = (w - 437.0) * ((w < 437.0) ? 0.0845 : 0.0278);
+  float t2 = (w - 459.0) * ((w < 459.0) ? 0.0385 : 0.0725);
+  return 1.217 * exp(-0.5*t1*t1) + 0.681 * exp(-0.5*t2*t2);
+}
+// Wavelength → OKLab (via XYZ → linear sRGB → OKLab)
+vec3 wavelength_to_oklab(float nm) {
+  float x = cie_x(nm), y = cie_y(nm), z = cie_z(nm);
+  // XYZ → linear sRGB (D65)
+  vec3 lin = vec3(
+     3.2404542 * x - 1.5371385 * y - 0.4985314 * z,
+    -0.9692660 * x + 1.8760108 * y + 0.0415560 * z,
+     0.0556434 * x - 0.2040259 * y + 1.0572252 * z
+  );
+  lin = max(lin, vec3(0.0));
+  return linear_srgb_to_oklab(lin);
+}
+#endif
+
 vec3 modelToRGB(vec3 colorCoords) {
   #if COLOR_MODEL == 0
     return colorCoords;
@@ -133,6 +165,36 @@ vec3 modelToRGB(vec3 colorCoords) {
     return quantizeRGB222(colorCoords);
   #elif COLOR_MODEL == 27
     return quantizeRGB555(colorCoords);
+  #elif COLOR_MODEL == 28
+    // X = spectral position, Y = lightness modulation, Z = chroma scale
+    // All modulation in OKLab for perceptually uniform results (like censor's CAM16UCS approach)
+    float sx = colorCoords.x;
+    vec3 labSpec;
+    if (sx < 0.8) {
+      // 0..0.8 → wavelengths 410..665nm (visible range)
+      labSpec = wavelength_to_oklab(410.0 + (sx / 0.8) * 255.0);
+    } else {
+      // 0.8..1.0 → purple line (red to violet, mixed in OKLab)
+      float pt = (sx - 0.8) / 0.2;
+      labSpec = mix(wavelength_to_oklab(665.0), wavelength_to_oklab(410.0), pt);
+    }
+    // Y: t in [-1,1] — center = natural lightness, bottom = black, top = white
+    float st = 2.0 * colorCoords.y - 1.0;
+    // Modulate L toward 0 (black) or 1 (white)
+    float L = (st < 0.0)
+      ? mix(labSpec.x, 0.0, -st)
+      : mix(labSpec.x, 1.0,  st);
+    // Chroma fades parabolically toward extremes, scaled by Z
+    float chromaScale = (1.0 - st * st) * colorCoords.z;
+    float a = labSpec.y * chromaScale;
+    float b = labSpec.z * chromaScale;
+    // OKLab → linear sRGB → sRGB
+    vec3 linOut = oklab_to_linear_srgb(vec3(L, a, b));
+    return vec3(
+      srgb_transfer_function(max(linOut.r, 0.0)),
+      srgb_transfer_function(max(linOut.g, 0.0)),
+      srgb_transfer_function(max(linOut.b, 0.0))
+    );
   #else
     return colorCoords;
   #endif
@@ -298,6 +360,8 @@ function shaderNeedsForModel(model: number): Partial<ShaderNeeds> {
     case 23:
     case 24: // cielabD50, cielchD50, cielchD50Polar
       return { oklab: true, srgb2rgb: true, cielab2rgb: true };
+    case 28: // spectrum (uses srgb_transfer_function from oklab)
+      return { oklab: true };
     default:
       return {};
   }

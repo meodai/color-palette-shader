@@ -300,11 +300,11 @@ const hueSideConfigs = [
 
 const specBoxConfig = {
   id: 'specbox',
-  colorModel: 'oklch',
-  label: 'OKLch specbox',
-  axis: 'y',
+  colorModel: 'spectrum',
+  label: 'Spectrum',
+  axis: 'z',
   controlLabel: 'C',
-  position: 0.35,
+  position: 1,
 };
 
 const TILE_SIZE = 100;
