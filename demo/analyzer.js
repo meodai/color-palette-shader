@@ -12,45 +12,6 @@ const toHex = (value) => Math.round(clamp01(value) * 255).toString(16).padStart(
 const rgbToHex = (rgb) => `#${toHex(rgb[0])}${toHex(rgb[1])}${toHex(rgb[2])}`;
 const rgbToObject = (rgb) => ({ mode: 'rgb', r: rgb[0], g: rgb[1], b: rgb[2] });
 const mixRGB = (a, b, t) => [a[0] * (1 - t) + b[0] * t, a[1] * (1 - t) + b[1] * t, a[2] * (1 - t) + b[2] * t];
-const LI_MATCH_MAX_COLORS = 64;
-
-const LI_MATCH_VERT = `#version 300 es
-precision highp float;
-layout(location = 0) in vec2 a_position;
-out vec2 v_uv;
-void main() {
-  v_uv = a_position * 0.5 + 0.5;
-  gl_Position = vec4(a_position, 0.0, 1.0);
-}`;
-
-const LI_MATCH_FRAG = `#version 300 es
-precision highp float;
-in vec2 v_uv;
-out vec4 fragColor;
-uniform int u_paletteCount;
-uniform vec4 u_palette[${LI_MATCH_MAX_COLORS}];
-uniform vec3 u_lab[${LI_MATCH_MAX_COLORS}];
-
-void main() {
-  float l = 1.0 - v_uv.y;
-  float t = v_uv.x;
-  vec3 neutral = vec3(l, 0.0, 0.0);
-  float bestScore = 1e9;
-  vec3 bestRgb = vec3(0.0);
-
-  for (int i = 0; i < ${LI_MATCH_MAX_COLORS}; i++) {
-    if (i >= u_paletteCount) break;
-    vec3 sampleLab = u_lab[i];
-    float dist = length(neutral - sampleLab);
-    float score = dist * (1.0 - t) + abs(l - sampleLab.x) * t;
-    if (score < bestScore) {
-      bestScore = score;
-      bestRgb = u_palette[i].rgb;
-    }
-  }
-
-  fragColor = vec4(bestRgb, 1.0);
-}`;
 
 let $metric;
 let $outline;
@@ -464,7 +425,6 @@ function buildGrid() {
 
   const $left = document.createElement('div');
   $left.className = 'section-stack stack-left';
-  $left.appendChild(makePanel('rgb12', '12-bit RGB', 'cell-rgb12'));
   $left.appendChild(makePanel('hue-polar', 'Polar hue-chroma', 'cell-huepolar'));
 
   $bottom.appendChild($left);
@@ -575,111 +535,6 @@ function drawSpectrumStrip(mode, state) {
   ctx.strokeStyle = themeVar('--c-grid', '#bbb');
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
   return canvas;
-}
-
-function drawLiMatchCanvasCPU(state) {
-  const { canvas, ctx, width, height } = makeCanvas(40, 92);
-  const plotWidth = 28;
-  const image = ctx.createImageData(width, height);
-
-  for (let y = 0; y < height; y++) {
-    const l = 1 - y / Math.max(1, height - 1);
-    for (let x = 0; x < plotWidth; x++) {
-      const t = x / Math.max(1, plotWidth - 1);
-      const neutral = { l, a: 0, b: 0 };
-      let best = state.data[0];
-      let bestScore = Infinity;
-      for (const entry of state.data) {
-        const score = okDistLiMatchLab(neutral, entry.lab, t);
-        if (score < bestScore) {
-          bestScore = score;
-          best = entry;
-        }
-      }
-      const offset = (y * width + x) * 4;
-      image.data[offset] = Math.round(best.rgb[0] * 255);
-      image.data[offset + 1] = Math.round(best.rgb[1] * 255);
-      image.data[offset + 2] = Math.round(best.rgb[2] * 255);
-      image.data[offset + 3] = 255;
-    }
-  }
-
-  for (let y = 0; y < height; y++) {
-    for (let x = plotWidth; x < width; x++) {
-      const offset = (y * width + x) * 4;
-      image.data[offset] = 236;
-      image.data[offset + 1] = 231;
-      image.data[offset + 2] = 220;
-      image.data[offset + 3] = 255;
-    }
-  }
-
-  ctx.putImageData(image, 0, 0);
-  const marks = new Array(height).fill(0);
-  const markWidth = state.data.length <= 64 ? 2 : 1;
-  const markStep = state.data.length <= 64 ? 3 : 2;
-  for (const entry of state.data) {
-    const yy = clamp(Math.round((1 - entry.lab.l) * (height - 1)), 0, height - 1);
-    const x = plotWidth + 2 + marks[yy] * markStep;
-    ctx.fillStyle = entry.hex;
-    ctx.fillRect(x, yy, markWidth, 1);
-    marks[yy] += 1;
-  }
-  ctx.strokeStyle = themeVar('--c-grid', '#bbb');
-  ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
-  return canvas;
-}
-
-function drawLiMatchCanvas(state) {
-  const width = 40;
-  const height = 92;
-  const dpr = devicePixelRatio;
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(width * dpr);
-  canvas.height = Math.round(height * dpr);
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
-  canvas.className = 'canvas-box';
-
-  const gl = canvas.getContext('webgl2', { antialias: false, preserveDrawingBuffer: true });
-  if (!gl || state.data.length > LI_MATCH_MAX_COLORS) return drawLiMatchCanvasCPU(state);
-
-  try {
-    const program = buildProgram(gl, LI_MATCH_VERT, LI_MATCH_FRAG);
-    const buffer = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
-
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.useProgram(program);
-
-    const positionLoc = gl.getAttribLocation(program, 'a_position');
-    gl.enableVertexAttribArray(positionLoc);
-    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
-
-    const rgbData = new Float32Array(LI_MATCH_MAX_COLORS * 4);
-    const labData = new Float32Array(LI_MATCH_MAX_COLORS * 3);
-    state.data.slice(0, LI_MATCH_MAX_COLORS).forEach((entry, index) => {
-      rgbData[index * 4] = entry.rgb[0];
-      rgbData[index * 4 + 1] = entry.rgb[1];
-      rgbData[index * 4 + 2] = entry.rgb[2];
-      rgbData[index * 4 + 3] = 1;
-      labData[index * 3] = entry.lab.l;
-      labData[index * 3 + 1] = entry.lab.a;
-      labData[index * 3 + 2] = entry.lab.b;
-    });
-
-    gl.uniform1i(gl.getUniformLocation(program, 'u_paletteCount'), Math.min(state.data.length, LI_MATCH_MAX_COLORS));
-    gl.uniform4fv(gl.getUniformLocation(program, 'u_palette'), rgbData);
-    gl.uniform3fv(gl.getUniformLocation(program, 'u_lab'), labData);
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
-    gl.deleteBuffer(buffer);
-    gl.deleteProgram(program);
-    return canvas;
-  } catch {
-    return drawLiMatchCanvasCPU(state);
-  }
 }
 
 function drawIsoCube(state, rotate) {
@@ -853,21 +708,6 @@ function drawHuePolar(state) {
 
 function renderOverview($panel, state) {
   clearPanel($panel, 'Indexed palette');
-  const $gridEl = document.createElement('div');
-  $gridEl.className = 'idx-grid';
-  const slots = Math.max(32, state.data.length);
-  for (let index = 0; index < slots; index++) {
-    const $slot = document.createElement('span');
-    if (index < state.data.length) {
-      $slot.style.background = state.data[index].hex;
-      $slot.title = `${index}: ${state.data[index].hex}`;
-      if (index === state.darkest) $slot.style.outline = `1px solid ${themeVar('--c-border', '#111')}`;
-    } else {
-      $slot.className = 'empty';
-    }
-    $gridEl.appendChild($slot);
-  }
-  $panel.appendChild($gridEl);
   addCloseColorsRow($panel, 'Close cols: 10% li-match', state.closePairs10, 10);
   addCloseColorsRow($panel, 'Close cols: 70% li-match', state.closePairs70, 10);
 
@@ -941,9 +781,6 @@ function renderSpectrumPanel($panel, state) {
 
 function renderLiMatch($panel, state) {
   clearPanel($panel, 'Li-match greyscale');
-  $panel.appendChild(drawLiMatchCanvas(state));
-
-  subTitle($panel, 'PaletteViz liMatch');
   const entry = createVizEntry(
     { id: 'li-viz', colorModel: 'oklrch', label: 'Li-match', axis: 'y', controlLabel: '', position: 0 },
     40, 92, true,
@@ -1089,44 +926,6 @@ function renderHueSideviews($panel) {
   $panel.appendChild($gridEl);
 }
 
-function renderRGB12($panel, state) {
-  clearPanel($panel, '12-bit RGB');
-  const { canvas, ctx, width, height } = makeCanvas(92, 44);
-  const image = new ImageData(128, 32);
-  for (let green = 0; green < 16; green++) {
-    const offsetX = (green % 8) * 16;
-    const offsetY = Math.floor(green / 8) * 16;
-    for (let red = 0; red < 16; red++) {
-      for (let blue = 0; blue < 16; blue++) {
-        const lab = okLab({ mode: 'rgb', r: red / 15, g: green / 15, b: blue / 15 });
-        let best = state.data[0];
-        let bestScore = Infinity;
-        for (const entry of state.data) {
-          const score = labDistance(lab, entry.lab);
-          if (score < bestScore) {
-            bestScore = score;
-            best = entry;
-          }
-        }
-        const pixel = ((offsetY + red) * 128 + offsetX + blue) * 4;
-        image.data[pixel] = Math.round(best.rgb[0] * 255);
-        image.data[pixel + 1] = Math.round(best.rgb[1] * 255);
-        image.data[pixel + 2] = Math.round(best.rgb[2] * 255);
-        image.data[pixel + 3] = 255;
-      }
-    }
-  }
-  const source = document.createElement('canvas');
-  source.width = 128;
-  source.height = 32;
-  source.getContext('2d').putImageData(image, 0, 0);
-  ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(source, 0, 0, width, height);
-  ctx.strokeStyle = themeVar('--c-grid', '#bbb');
-  ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
-  $panel.appendChild(canvas);
-}
-
 function renderBars($panel, title, items, accessor, max) {
   clearPanel($panel, title);
   const $bars = document.createElement('div');
@@ -1160,7 +959,6 @@ function renderAnalysis() {
   renderUsefulMixes($grid.querySelector('[data-role="mixes"]'), state);
   renderPolarGroup($grid.querySelector('[data-role="polars"]'));
   renderHueSideviews($grid.querySelector('[data-role="hue-sides"]'));
-  renderRGB12($grid.querySelector('[data-role="rgb12"]'), state);
 }
 
 function updateHeader() {

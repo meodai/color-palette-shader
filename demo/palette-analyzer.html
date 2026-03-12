@@ -39,7 +39,7 @@
       }
 
       .dash {
-        width: 704px;
+        width: 800px;
         border: var(--s-line) solid var(--c-border);
         background: var(--c-paper);
       }
@@ -331,9 +331,7 @@
         grid-area: left;
         grid-template-columns: 1fr;
         grid-template-areas:
-          'rgb12'
           'huepolar';
-        grid-template-rows: auto 1fr;
       }
 
       .stack-cubes {
@@ -355,7 +353,7 @@
       .cell-mixes { grid-area: mixes; }
       .cell-sides { grid-area: sides; }
       .cell-polars { grid-area: polars; }
-      .cell-rgb12 { grid-area: rgb12; }
+
 
       .g {
         position: relative;
@@ -405,27 +403,6 @@
       .pnl__t--sub {
         margin-top: 4px;
         margin-bottom: 2px;
-      }
-
-      .idx-grid {
-        display: grid;
-        grid-template-columns: repeat(8, 1fr);
-        gap: 1px;
-        padding: 1px;
-        border: var(--s-line) solid var(--c-grid);
-        background: var(--c-grid);
-      }
-
-      .idx-grid span {
-        aspect-ratio: 3 / 2;
-        min-height: 10px;
-      }
-
-      .idx-grid span.empty {
-        background:
-          linear-gradient(45deg, transparent 42%, var(--c-grid) 42%, var(--c-grid) 58%, transparent 58%),
-          linear-gradient(-45deg, transparent 42%, var(--c-grid) 42%, var(--c-grid) 58%, transparent 58%),
-          var(--c-surface);
       }
 
       .close-row {
