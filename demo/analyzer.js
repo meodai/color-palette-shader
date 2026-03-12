@@ -290,12 +290,12 @@ const polarTileConfigs = [
 ];
 
 const hueSideConfigs = [
-  { id: 'side-0', colorModel: 'oklch', label: 'Purple / seaweed', axis: 'x', controlLabel: 'H', position: 0 / 6 },
-  { id: 'side-1', colorModel: 'oklch', label: 'Red / cyan', axis: 'x', controlLabel: 'H', position: 1 / 6 },
-  { id: 'side-2', colorModel: 'oklch', label: 'Orange / blue', axis: 'x', controlLabel: 'H', position: 2 / 6 },
-  { id: 'side-3', colorModel: 'oklch', label: 'Olive / ultramarine', axis: 'x', controlLabel: 'H', position: 3 / 6 },
-  { id: 'side-4', colorModel: 'oklch', label: 'Lime / violet', axis: 'x', controlLabel: 'H', position: 4 / 6 },
-  { id: 'side-5', colorModel: 'oklch', label: 'Emerald / rose', axis: 'x', controlLabel: 'H', position: 5 / 6 },
+  { id: 'side-0', colorModel: 'oklchDiag', label: 'Purple / seaweed', axis: 'x', controlLabel: 'H', position: 0 / 6 },
+  { id: 'side-1', colorModel: 'oklchDiag', label: 'Red / cyan', axis: 'x', controlLabel: 'H', position: 1 / 6 },
+  { id: 'side-2', colorModel: 'oklchDiag', label: 'Orange / blue', axis: 'x', controlLabel: 'H', position: 2 / 6 },
+  { id: 'side-3', colorModel: 'oklchDiag', label: 'Olive / ultramarine', axis: 'x', controlLabel: 'H', position: 3 / 6 },
+  { id: 'side-4', colorModel: 'oklchDiag', label: 'Lime / violet', axis: 'x', controlLabel: 'H', position: 4 / 6 },
+  { id: 'side-5', colorModel: 'oklchDiag', label: 'Emerald / rose', axis: 'x', controlLabel: 'H', position: 5 / 6 },
 ];
 
 const specBoxConfig = {

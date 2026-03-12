@@ -31,7 +31,7 @@ import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { t
 //                         12=hsl 13=hslPolar 14=hwb 15=hwbPolar 16=oklrab 17=oklrch
 //                         18=oklrchPolar 19=cielab 20=cielch 21=cielchPolar
 //                         22=cielabD50 23=cielchD50 24=cielchD50Polar
-//                         25=rgb18bit 26=rgb6bit 27=rgb15bit 28=spectrum
+//                         25=rgb18bit 26=rgb6bit 27=rgb15bit 28=spectrum 29=oklchDiag
 //   PROGRESS_AXIS    int  0=x 1=y 2=z
 //   INVERT_X         flag (defined = true)
 //   INVERT_Y         flag (defined = true)
@@ -138,7 +138,7 @@ vec3 modelToRGB(vec3 colorCoords) {
     return okhsv_to_srgb(colorCoords);
   #elif COLOR_MODEL == 6 || COLOR_MODEL == 7
     return okhsl_to_srgb(colorCoords);
-  #elif COLOR_MODEL == 8 || COLOR_MODEL == 9
+  #elif COLOR_MODEL == 8 || COLOR_MODEL == 9 || COLOR_MODEL == 29
     return lch2rgb(vec3(colorCoords.z, colorCoords.y, colorCoords.x));
   #elif COLOR_MODEL == 10 || COLOR_MODEL == 11
     return hsv2rgb(colorCoords);
@@ -248,6 +248,29 @@ void main(){
       if (uv.x > 0.5) { hue += 0.5; }
       colorCoords = vec3(hue, 1.0 - abs(0.5 - uv.x) * 2.0, uv.y);
     #endif
+  #elif COLOR_MODEL == 29
+    // Diagonal complementary: 3D cube is (hue, diagA, diagB) where
+    // L = (diagA+diagB)/2, signed chroma = diagB-diagA, hue wraps at 0.5.
+    // Each axis slices a different plane of that cube.
+    #if PROGRESS_AXIS == 0
+      // axis='x': slider=hue, uv shows diagA×diagB → complementary diagonal
+      float compHue29 = progress * 0.5;
+      float compL29 = (uv.x + uv.y) * 0.5;
+      float compD29 = uv.y - uv.x;
+    #elif PROGRESS_AXIS == 1
+      // axis='y': slider=diagA, uv.x=hue, uv.y=diagB → hue vs chroma/lightness
+      float compHue29 = uv.x * 0.5;
+      float compL29 = (progress + uv.y) * 0.5;
+      float compD29 = uv.y - progress;
+    #else
+      // axis='z': slider=diagB, uv.x=hue, uv.y=diagA → hue vs chroma/lightness
+      float compHue29 = uv.x * 0.5;
+      float compL29 = (uv.y + (1.0 - progress)) * 0.5;
+      float compD29 = (1.0 - progress) - uv.y;
+    #endif
+    float compC29 = abs(compD29);
+    if (compD29 < 0.0) compHue29 += 0.5;
+    colorCoords = vec3(compHue29, compC29, compL29);
   #endif
 
   #ifdef INVERT_X
@@ -362,6 +385,8 @@ function shaderNeedsForModel(model: number): Partial<ShaderNeeds> {
       return { oklab: true, srgb2rgb: true, cielab2rgb: true };
     case 28: // spectrum (uses srgb_transfer_function from oklab)
       return { oklab: true };
+    case 29: // oklchDiag (same conversion as oklch)
+      return { oklab: true, lch2rgb: true };
     default:
       return {};
   }
@@ -514,6 +539,16 @@ void main() {
     if (cc.x > uPosition) discard;
   #endif
 
+  #if COLOR_MODEL == 29
+    // Diagonal complementary: cc.x = hue axis, cc.y/cc.z form the diagonal
+    float dL3 = (cc.y + cc.z) * 0.5;
+    float dD3 = cc.z - cc.y;
+    float dC3 = abs(dD3);
+    float dH3 = cc.x * 0.5;
+    if (dD3 < 0.0) dH3 += 0.5;
+    cc = vec3(dH3, dC3, dL3);
+  #endif
+
   #ifdef INVERT_X
     cc.x = 1.0 - cc.x;
   #endif
@@ -563,6 +598,15 @@ void main() {
       if (any(lessThan(cc, vec3(0.0))) || any(greaterThan(cc, vec3(1.0)))) discard;
     #endif
     if (cc.x > uPosition) discard;
+  #endif
+
+  #if COLOR_MODEL == 29
+    float dL3p = (cc.y + cc.z) * 0.5;
+    float dD3p = cc.z - cc.y;
+    float dC3p = abs(dD3p);
+    float dH3p = cc.x * 0.5;
+    if (dD3p < 0.0) dH3p += 0.5;
+    cc = vec3(dH3p, dC3p, dL3p);
   #endif
 
   #ifdef INVERT_X

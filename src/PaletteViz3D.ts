@@ -91,6 +91,7 @@ export class PaletteViz3D {
     cielchD50: 23,
     cielchD50Polar: 24,
     spectrum: 28,
+    oklchDiag: 29,
   } as const;
   readonly #distanceMetricMap = {
     rgb: 0,

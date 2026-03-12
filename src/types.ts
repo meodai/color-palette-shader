@@ -30,7 +30,8 @@ export type SupportedColorModels =
   | 'cielabD50'
   | 'cielchD50'
   | 'cielchD50Polar'
-  | 'spectrum';
+  | 'spectrum'
+  | 'oklchDiag';
 export type Axis = 'x' | 'y' | 'z';
 export type DistanceMetric =
   | 'rgb'
