@@ -249,28 +249,12 @@ void main(){
       colorCoords = vec3(hue, 1.0 - abs(0.5 - uv.x) * 2.0, uv.y);
     #endif
   #elif COLOR_MODEL == 29
-    // Diagonal complementary: 3D cube is (hue, diagA, diagB) where
-    // L = (diagA+diagB)/2, signed chroma = diagB-diagA, hue wraps at 0.5.
-    // Each axis slices a different plane of that cube.
-    #if PROGRESS_AXIS == 0
-      // axis='x': slider=hue, uv shows diagA×diagB → complementary diagonal
-      float compHue29 = progress * 0.5;
-      float compL29 = (uv.x + uv.y) * 0.5;
-      float compD29 = uv.y - uv.x;
-    #elif PROGRESS_AXIS == 1
-      // axis='y': slider=diagA, uv.x=hue, uv.y=diagB → hue vs chroma/lightness
-      float compHue29 = uv.x * 0.5;
-      float compL29 = (progress + uv.y) * 0.5;
-      float compD29 = uv.y - progress;
-    #else
-      // axis='z': slider=diagB, uv.x=hue, uv.y=diagA → hue vs chroma/lightness
-      float compHue29 = uv.x * 0.5;
-      float compL29 = (uv.y + (1.0 - progress)) * 0.5;
-      float compD29 = (1.0 - progress) - uv.y;
-    #endif
-    float compC29 = abs(compD29);
+    // Diagonal complementary: x=hue, y&z form the diagonal.
+    // colorCoords already handles the axis permutation.
+    float compD29 = colorCoords.z - colorCoords.y;
+    float compHue29 = colorCoords.x * 0.5;
     if (compD29 < 0.0) compHue29 += 0.5;
-    colorCoords = vec3(compHue29, compC29, compL29);
+    colorCoords = vec3(compHue29, abs(compD29), (colorCoords.y + colorCoords.z) * 0.5);
   #endif
 
   #ifdef INVERT_X
