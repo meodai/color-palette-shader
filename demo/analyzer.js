@@ -216,18 +216,6 @@ function makeCanvas(width, height) {
   return { canvas, ctx, width, height };
 }
 
-function nearestPaletteColorForLab(lab, state) {
-  let best = state.data[0];
-  let bestScore = Infinity;
-  for (const entry of state.data) {
-    const score = labDistance(lab, entry.lab);
-    if (score < bestScore) {
-      bestScore = score;
-      best = entry;
-    }
-  }
-  return best;
-}
 
 function buildShader(gl, type, source) {
   const shader = gl.createShader(type);
@@ -491,7 +479,7 @@ function buildGrid() {
 
   $top.appendChild($rects);
   $top.appendChild($meta);
-  $top.appendChild(makePanel('limatch', 'Li-match greyscale', 'cell-limatch'));
+  $top.appendChild(makePanel('limatch', 'Li-match', 'cell-limatch'));
   $top.appendChild(makePanel('cubes', 'OKLab colourspace', 'cell-cubes'));
 
   const $strips = document.createElement('div');
@@ -565,61 +553,6 @@ function addPairRow($panel, pair, state) {
   $panel.appendChild($row);
 }
 
-function drawDistribution(state, mode) {
-  const { canvas, ctx, width, height } = makeCanvas(92, 30);
-  const border = themeVar('--c-grid', '#bbb');
-  const ink = themeVar('--c-border', '#111');
-  const fill = themeVar('--c-paper', '#eee');
-  ctx.fillStyle = fill;
-  ctx.fillRect(0, 0, width, height);
-  ctx.strokeStyle = border;
-  ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
-
-  const buckets = new Array(20).fill(0);
-  for (const entry of state.data) {
-    const chromaWeight = 0.25 + 0.75 * (entry.lch.c / state.maxC);
-    let index = 0;
-    if (mode === 'spectral') {
-      index = clamp(Math.round((entry.lch.h / 360) * (buckets.length - 1)), 0, buckets.length - 1);
-    } else {
-      const temperature = 0.5 + 0.5 * Math.cos(((entry.lch.h - 70) * Math.PI) / 180);
-      index = clamp(Math.round(temperature * (buckets.length - 1)), 0, buckets.length - 1);
-    }
-    buckets[index] += chromaWeight;
-  }
-
-  const maxValue = Math.max(...buckets, 1);
-  const barWidth = width / buckets.length;
-  ctx.fillStyle = ink;
-  for (let index = 0; index < buckets.length; index++) {
-    const barHeight = Math.round((buckets[index] / maxValue) * (height - 5));
-    ctx.fillRect(
-      index * barWidth + 1,
-      height - 2 - barHeight,
-      Math.max(1, barWidth - 1),
-      barHeight,
-    );
-  }
-
-  return canvas;
-}
-
-function drawSpectrumStrip(mode, state) {
-  const { canvas, ctx, width, height } = makeCanvas(168, 8);
-  for (let x = 0; x < width; x++) {
-    const hue = (x / Math.max(1, width - 1)) * 360;
-    let lightness = 0.72;
-    let chroma = 0.19;
-    if (mode === 'c50') chroma = 0.1;
-    if (mode === 'j50') lightness = 0.5;
-    const sampleLab = okLab({ mode: 'oklch', l: lightness, c: chroma, h: hue });
-    ctx.fillStyle = nearestPaletteColorForLab(sampleLab, state).hex;
-    ctx.fillRect(x, 0, 1, height);
-  }
-  ctx.strokeStyle = themeVar('--c-grid', '#bbb');
-  ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
-  return canvas;
-}
 
 function drawIsoCube(state, rotate) {
   const { canvas, ctx, width, height } = makeCanvas(104, 104);
@@ -834,32 +767,10 @@ function renderStats($panel, state) {
     $row.innerHTML = `<span>${key}</span><span class="st__v">${value}</span>`;
     $panel.appendChild($row);
   });
-  subTitle($panel, 'Spectral distribution');
-  $panel.appendChild(drawDistribution(state, 'spectral'));
-  subTitle($panel, 'Temperature distribution');
-  $panel.appendChild(drawDistribution(state, 'temperature'));
 }
 
 function renderSpectrumPanel($panel, state) {
-  clearPanel($panel, 'Spectrum & box');
-  const $stack = document.createElement('div');
-  $stack.className = 'mini-stack';
-  [
-    ['Spec', 'spec'],
-    ['C50', 'c50'],
-    ['J50', 'j50'],
-  ].forEach(([label, mode]) => {
-    const $row = document.createElement('div');
-    $row.className = 'mini-row';
-    const $label = document.createElement('div');
-    $label.className = 'mini-label';
-    $label.textContent = label;
-    $row.appendChild($label);
-    $row.appendChild(drawSpectrumStrip(mode, state));
-    $stack.appendChild($row);
-  });
-  $panel.appendChild($stack);
-  subTitle($panel, 'Specbox');
+  clearPanel($panel, 'Specbox');
   $panel.appendChild(makePanelShader(specBoxConfig, 188, 82));
 }
 
@@ -875,12 +786,12 @@ function renderLiMatch($panel, state) {
       position: 0,
     },
     40,
-    92,
+    200,
     true,
   );
   entry.viz.distanceMetric = 'liMatch';
   entry.viz.canvas.style.cssText =
-    'width:40px!important;height:92px!important;image-rendering:pixelated';
+    'image-rendering:pixelated;height:180px!important;width:40px!important;display:block;';
   $panel.appendChild(entry.viz.canvas);
 }
 
@@ -902,7 +813,7 @@ function renderLCBars($panel, state) {
 
   const $wrap = document.createElement('div');
   $wrap.className = 'lc-wrap';
-  for (const entry of state.sortedByL) {
+  for (const entry of state.data) {
     const $row = document.createElement('div');
     $row.className = 'lc-row';
     $row.title = `${entry.hex}  L=${entry.lab.l.toFixed(3)} C=${entry.lch.c.toFixed(3)}`;
@@ -920,7 +831,7 @@ function renderLCBars($panel, state) {
     $right.style.cssText = 'flex:1;display:flex;border-left:1px solid var(--c-grid)';
     const $rightBar = document.createElement('div');
     $rightBar.className = 'lc-bar';
-    $rightBar.style.width = `${(entry.lch.c / state.maxC) * 100}%`;
+    $rightBar.style.width = `${(entry.lch.c / 0.322) * 100}%`;
     $rightBar.style.background = entry.hex;
     $right.appendChild($rightBar);
 
