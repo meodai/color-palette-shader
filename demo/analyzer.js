@@ -278,15 +278,15 @@ const palettes = [
 let palette = decodeHash(location.hash) ?? palettes[Math.floor(Math.random() * palettes.length)];
 
 const rectTileConfigs = [
-  { id: 'rect-hc', colorModel: 'oklch', label: 'Rect hue-lightness', axis: 'y', controlLabel: 'C', position: 0.35 },
-  { id: 'rect-lc', colorModel: 'oklch', label: 'Rect hue-lightness', axis: 'y', controlLabel: 'C', position: 0.08 },
+  { id: 'rect-hc', colorModel: 'oklch', label: 'Rect hue-lightness', axis: 'y', controlLabel: 'C', position: 1 },
+  { id: 'rect-lc', colorModel: 'oklch', label: 'Rect hue-lightness', axis: 'y', controlLabel: 'C', position: 0.2 },
 ];
 
 const polarTileConfigs = [
-  { id: 'polar-okhsl', colorModel: 'okhslPolar', label: 'Polar hue-chroma', axis: 'z', controlLabel: 'L', position: 0.5 },
-  { id: 'polar-oklch', colorModel: 'oklchPolar', label: 'Polar hue-lightness', axis: 'z', controlLabel: 'L', position: 0.5 },
-  { id: 'polar-lc', colorModel: 'oklchPolar', label: 'Hue-lightness', axis: 'y', controlLabel: 'C', position: 0.08 },
-  { id: 'polar-hc', colorModel: 'oklchPolar', label: 'Hue-lightness', axis: 'y', controlLabel: 'C', position: 0.35 },
+  { id: 'polar-lc1', colorModel: 'oklchPolar', label: 'Hue-lightness C=0.08', axis: 'y', controlLabel: 'C', position: 0.8 },
+  { id: 'polar-lc2', colorModel: 'oklchPolar', label: 'Hue-lightness C=0.20', axis: 'y', controlLabel: 'C', position: 0.5 },
+  { id: 'polar-lc3', colorModel: 'oklchPolar', label: 'Hue-lightness C=0.35', axis: 'y', controlLabel: 'C', position: 0.3 },
+  { id: 'polar-lc4', colorModel: 'oklchPolar', label: 'Hue-lightness C=0', axis: 'y', controlLabel: 'C', position: 0 },
 ];
 
 const hueSideConfigs = [
@@ -304,7 +304,7 @@ const specBoxConfig = {
   label: 'Spectrum',
   axis: 'z',
   controlLabel: 'C',
-  position: 0.5,
+  position: 0,
 };
 
 const TILE_SIZE = 100;
@@ -943,7 +943,10 @@ function renderBars($panel, title, items, accessor, max) {
 
 function renderAnalysis() {
   for (let index = vizzes.length - 1; index >= 0; index--) {
-    if (vizzes[index].dynamic) vizzes.splice(index, 1);
+    if (vizzes[index].dynamic) {
+      vizzes[index].viz.destroy();
+      vizzes.splice(index, 1);
+    }
   }
 
   const state = stateForPalette(palette);
