@@ -304,7 +304,7 @@ const specBoxConfig = {
   label: 'Spectrum',
   axis: 'z',
   controlLabel: 'C',
-  position: 1,
+  position: 0.5,
 };
 
 const TILE_SIZE = 100;
