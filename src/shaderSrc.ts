@@ -31,7 +31,7 @@ import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { t
 //                         12=hsl 13=hslPolar 14=hwb 15=hwbPolar 16=oklrab 17=oklrch
 //                         18=oklrchPolar 19=cielab 20=cielch 21=cielchPolar
 //                         22=cielabD50 23=cielchD50 24=cielchD50Polar
-//                         25=rgb18bit 26=rgb6bit 27=rgb15bit 28=spectrum 29=oklchDiag
+//                         25=rgb18bit 26=rgb6bit 27=rgb15bit 28=spectrum 29=oklchDiag 30=oklrchDiag
 //   PROGRESS_AXIS    int  0=x 1=y 2=z
 //   INVERT_X         flag (defined = true)
 //   INVERT_Y         flag (defined = true)
@@ -140,6 +140,8 @@ vec3 modelToRGB(vec3 colorCoords) {
     return okhsl_to_srgb(colorCoords);
   #elif COLOR_MODEL == 8 || COLOR_MODEL == 9 || COLOR_MODEL == 29
     return lch2rgb(vec3(colorCoords.z, colorCoords.y, colorCoords.x));
+  #elif COLOR_MODEL == 30
+    return lch2rgb(vec3(toe_inv(colorCoords.z), colorCoords.y, colorCoords.x));
   #elif COLOR_MODEL == 10 || COLOR_MODEL == 11
     return hsv2rgb(colorCoords);
   #elif COLOR_MODEL == 12 || COLOR_MODEL == 13
@@ -248,7 +250,7 @@ void main(){
       if (uv.x > 0.5) { hue += 0.5; }
       colorCoords = vec3(hue, 1.0 - abs(0.5 - uv.x) * 2.0, uv.y);
     #endif
-  #elif COLOR_MODEL == 29
+  #elif COLOR_MODEL == 29 || COLOR_MODEL == 30
     // Diagonal complementary: x=hue, y&z form the diagonal.
     // colorCoords already handles the axis permutation.
     float compD29 = colorCoords.z - colorCoords.y;
@@ -370,6 +372,7 @@ function shaderNeedsForModel(model: number): Partial<ShaderNeeds> {
     case 28: // spectrum (uses srgb_transfer_function from oklab)
       return { oklab: true };
     case 29: // oklchDiag (same conversion as oklch)
+    case 30: // oklrchDiag (same conversion as oklrch)
       return { oklab: true, lch2rgb: true };
     default:
       return {};
@@ -523,14 +526,11 @@ void main() {
     if (cc.x > uPosition) discard;
   #endif
 
-  #if COLOR_MODEL == 29
-    // Diagonal complementary: cc.x = hue axis, cc.y/cc.z form the diagonal
-    float dL3 = (cc.y + cc.z) * 0.5;
+  #if COLOR_MODEL == 29 || COLOR_MODEL == 30
     float dD3 = cc.z - cc.y;
-    float dC3 = abs(dD3);
     float dH3 = cc.x * 0.5;
     if (dD3 < 0.0) dH3 += 0.5;
-    cc = vec3(dH3, dC3, dL3);
+    cc = vec3(dH3, abs(dD3), (cc.y + cc.z) * 0.5);
   #endif
 
   #ifdef INVERT_X
@@ -584,13 +584,11 @@ void main() {
     if (cc.x > uPosition) discard;
   #endif
 
-  #if COLOR_MODEL == 29
-    float dL3p = (cc.y + cc.z) * 0.5;
+  #if COLOR_MODEL == 29 || COLOR_MODEL == 30
     float dD3p = cc.z - cc.y;
-    float dC3p = abs(dD3p);
     float dH3p = cc.x * 0.5;
     if (dD3p < 0.0) dH3p += 0.5;
-    cc = vec3(dH3p, dC3p, dL3p);
+    cc = vec3(dH3p, abs(dD3p), (cc.y + cc.z) * 0.5);
   #endif
 
   #ifdef INVERT_X

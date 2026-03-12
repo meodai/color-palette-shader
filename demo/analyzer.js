@@ -7,11 +7,18 @@ const toOKLch = converter('oklch');
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
-const normHue = (value) => ((value ?? 0) % 360 + 360) % 360;
-const toHex = (value) => Math.round(clamp01(value) * 255).toString(16).padStart(2, '0');
+const normHue = (value) => (((value ?? 0) % 360) + 360) % 360;
+const toHex = (value) =>
+  Math.round(clamp01(value) * 255)
+    .toString(16)
+    .padStart(2, '0');
 const rgbToHex = (rgb) => `#${toHex(rgb[0])}${toHex(rgb[1])}${toHex(rgb[2])}`;
 const rgbToObject = (rgb) => ({ mode: 'rgb', r: rgb[0], g: rgb[1], b: rgb[2] });
-const mixRGB = (a, b, t) => [a[0] * (1 - t) + b[0] * t, a[1] * (1 - t) + b[1] * t, a[2] * (1 - t) + b[2] * t];
+const mixRGB = (a, b, t) => [
+  a[0] * (1 - t) + b[0] * t,
+  a[1] * (1 - t) + b[1] * t,
+  a[2] * (1 - t) + b[2] * t,
+];
 
 let $metric;
 let $outline;
@@ -127,14 +134,19 @@ function stateForPalette(colors) {
   const distances = pairs.map((pair) => pair.dist);
   const minDist = distances.length ? Math.min(...distances) : 0;
   const maxDist = distances.length ? Math.max(...distances) : 0;
-  const meanDist = distances.length ? distances.reduce((sum, value) => sum + value, 0) / distances.length : 0;
-  const iss = data.length > 1 ? (meanDist / Math.max(minDist, 1e-6)) / Math.pow(data.length, 2 / 3) : 0;
+  const meanDist = distances.length
+    ? distances.reduce((sum, value) => sum + value, 0) / distances.length
+    : 0;
+  const iss =
+    data.length > 1 ? meanDist / Math.max(minDist, 1e-6) / Math.pow(data.length, 2 / 3) : 0;
 
   const sortedByL = [...data].sort((a, b) => a.lab.l - b.lab.l);
   const lightnesses = data.map((entry) => entry.lab.l);
   const minL = lightnesses.length ? Math.min(...lightnesses) : 0;
   const maxL = lightnesses.length ? Math.max(...lightnesses) : 0;
-  const meanL = lightnesses.length ? lightnesses.reduce((sum, value) => sum + value, 0) / lightnesses.length : 0;
+  const meanL = lightnesses.length
+    ? lightnesses.reduce((sum, value) => sum + value, 0) / lightnesses.length
+    : 0;
   const maxC = Math.max(...data.map((entry) => entry.lch.c), 0.001);
   const acyclic = isAcyclic(data.length, pairs);
   const darkest = sortedByL[0]?.index ?? 0;
@@ -144,7 +156,9 @@ function stateForPalette(colors) {
     let bestScore = Infinity;
     for (const candidate of data) {
       if (candidate.index === source.index) continue;
-      const score = Math.hypot((source.lab.a + candidate.lab.a) * 0.5, (source.lab.b + candidate.lab.b) * 0.5) + Math.abs(source.lab.l - candidate.lab.l) * 0.12;
+      const score =
+        Math.hypot((source.lab.a + candidate.lab.a) * 0.5, (source.lab.b + candidate.lab.b) * 0.5) +
+        Math.abs(source.lab.l - candidate.lab.l) * 0.12;
       if (score < bestScore) {
         bestScore = score;
         best = candidate;
@@ -254,7 +268,7 @@ const $probeDot = $probe.querySelector('.cursor-probe__dot');
 const $probeLabel = $probe.querySelector('.cursor-probe__label');
 
 const palettes = [
-  ['#f0dab1', '#e39aac', '#c45d9f', '#634b7d', '#6461c2', '#2ba9b4', '#93d4b5', '#f0f6e8'],
+  /*  ['#f0dab1', '#e39aac', '#c45d9f', '#634b7d', '#6461c2', '#2ba9b4', '#93d4b5', '#f0f6e8'],
   [
     '#be4a2f', '#d77643', '#ead4aa', '#e4a672', '#b86f50', '#733e39', '#3e2731',
     '#a22633', '#e43b44', '#f77622', '#feae34', '#fee761', '#63c74d', '#3e8948',
@@ -272,14 +286,78 @@ const palettes = [
     '#a593a5', '#666092', '#9a4f50', '#c28d75', '#7ca1c0', '#416aa3',
     '#8d6268', '#be955c', '#68aca9', '#387080', '#6e6962', '#93a167',
     '#6eaa78', '#557064', '#9d9f7f', '#7e9e99', '#5d6872', '#433455',
+  ],*/
+  [
+    '#f2f0e5',
+    '#b8b5b9',
+    '#868188',
+    '#646365',
+    '#45444f',
+    '#3a3858',
+    '#212123',
+    '#352b42',
+    '#43436a',
+    '#4b80ca',
+    '#68c2d3',
+    '#a2dcc7',
+    '#ede19e',
+    '#d3a068',
+    '#b45252',
+    '#6a536e',
+    '#4b4158',
+    '#80493a',
+    '#a77b5b',
+    '#e5ceb4',
+    '#c2d368',
+    '#8ab060',
+    '#567b79',
+    '#4e584a',
+    '#7b7243',
+    '#b2b47e',
+    '#edc8c4',
+    '#cf8acb',
+    '#5f556a',
   ],
 ];
 
 let palette = decodeHash(location.hash) ?? palettes[Math.floor(Math.random() * palettes.length)];
 
 const rectTileConfigs = [
-  { id: 'rect-hc', colorModel: 'oklch', label: 'Rect hue-lightness', axis: 'y', controlLabel: 'C', position: 1 },
-  { id: 'rect-lc', colorModel: 'oklch', label: 'Rect hue-lightness', axis: 'y', controlLabel: 'C', position: 0.2 },
+  {
+    id: 'rect-hc',
+    colorModel: 'oklch',
+    label: 'Rect hue-lightness',
+    axis: 'y',
+    controlLabel: 'C',
+    position: 1,
+    invertAxes: ['z'],
+  },
+  {
+    id: 'rect-hc-inv',
+    colorModel: 'oklch',
+    label: 'Rect hue-lightness',
+    axis: 'y',
+    controlLabel: 'C',
+    position: 0.3,
+    invertAxes: ['z'],
+  },
+  {
+    id: 'rect-lc',
+    colorModel: 'oklch',
+    label: 'Rect hue-lightness',
+    axis: 'y',
+    controlLabel: 'C',
+    position: 0.2,
+  },
+  {
+    id: 'rect-lc-inv',
+    colorModel: 'oklch',
+    label: 'Rect hue-lightness',
+    axis: 'y',
+    controlLabel: 'C',
+    position: 0.2,
+    invertAxes: ['z'],
+  },
 ];
 
 const polarTileConfigs = [
@@ -290,12 +368,12 @@ const polarTileConfigs = [
 ];
 
 const hueSideConfigs = [
-  { id: 'side-0', colorModel: 'oklchDiag', label: 'Purple / seaweed', axis: 'x', controlLabel: 'H', position: 0 / 6 },
-  { id: 'side-1', colorModel: 'oklchDiag', label: 'Red / cyan', axis: 'x', controlLabel: 'H', position: 1 / 6 },
-  { id: 'side-2', colorModel: 'oklchDiag', label: 'Orange / blue', axis: 'x', controlLabel: 'H', position: 2 / 6 },
-  { id: 'side-3', colorModel: 'oklchDiag', label: 'Olive / ultramarine', axis: 'x', controlLabel: 'H', position: 3 / 6 },
-  { id: 'side-4', colorModel: 'oklchDiag', label: 'Lime / violet', axis: 'x', controlLabel: 'H', position: 4 / 6 },
-  { id: 'side-5', colorModel: 'oklchDiag', label: 'Emerald / rose', axis: 'x', controlLabel: 'H', position: 5 / 6 },
+  { id: 'side-0', colorModel: 'oklchDiag', label: 'Purple / seaweed', axis: 'x', controlLabel: 'H', position: 0.805 },
+  { id: 'side-1', colorModel: 'oklchDiag', label: 'Red / cyan', axis: 'x', controlLabel: 'H', position: 0.224 },
+  { id: 'side-2', colorModel: 'oklchDiag', label: 'Orange / blue', axis: 'x', controlLabel: 'H', position: 0.406 },
+  { id: 'side-3', colorModel: 'oklchDiag', label: 'Olive / ultramarine', axis: 'x', controlLabel: 'H', position: 0.635 },
+  { id: 'side-4', colorModel: 'oklchDiag', label: 'Lime / violet', axis: 'x', controlLabel: 'H', position: 0.699 },
+  { id: 'side-5', colorModel: 'oklchDiag', label: 'Emerald / rose', axis: 'x', controlLabel: 'H', position: 1 },
 ];
 
 const specBoxConfig = {
@@ -320,6 +398,7 @@ function createVizEntry(cfg, width, height, dynamic = false) {
     distanceMetric: $metric?.value ?? 'oklab',
     axis: cfg.axis,
     position: cfg.position,
+    invertAxes: cfg.invertAxes ?? [],
     outlineWidth: parseFloat($outline?.value ?? '0'),
   });
   if ($raw?.checked) viz.showRaw = true;
@@ -514,7 +593,12 @@ function drawDistribution(state, mode) {
   ctx.fillStyle = ink;
   for (let index = 0; index < buckets.length; index++) {
     const barHeight = Math.round((buckets[index] / maxValue) * (height - 5));
-    ctx.fillRect(index * barWidth + 1, height - 2 - barHeight, Math.max(1, barWidth - 1), barHeight);
+    ctx.fillRect(
+      index * barWidth + 1,
+      height - 2 - barHeight,
+      Math.max(1, barWidth - 1),
+      barHeight,
+    );
   }
 
   return canvas;
@@ -782,11 +866,21 @@ function renderSpectrumPanel($panel, state) {
 function renderLiMatch($panel, state) {
   clearPanel($panel, 'Li-match greyscale');
   const entry = createVizEntry(
-    { id: 'li-viz', colorModel: 'oklrch', label: 'Li-match', axis: 'y', controlLabel: '', position: 0 },
-    40, 92, true,
+    {
+      id: 'li-viz',
+      colorModel: 'oklrch',
+      label: 'Li-match',
+      axis: 'y',
+      controlLabel: '',
+      position: 0,
+    },
+    40,
+    92,
+    true,
   );
   entry.viz.distanceMetric = 'liMatch';
-  entry.viz.canvas.style.cssText = 'width:40px!important;height:92px!important;image-rendering:pixelated';
+  entry.viz.canvas.style.cssText =
+    'width:40px!important;height:92px!important;image-rendering:pixelated';
   $panel.appendChild(entry.viz.canvas);
 }
 
@@ -814,7 +908,8 @@ function renderLCBars($panel, state) {
     $row.title = `${entry.hex}  L=${entry.lab.l.toFixed(3)} C=${entry.lch.c.toFixed(3)}`;
 
     const $left = document.createElement('div');
-    $left.style.cssText = 'flex:1;display:flex;justify-content:flex-end;border-right:1px solid var(--c-grid)';
+    $left.style.cssText =
+      'flex:1;display:flex;justify-content:flex-end;border-right:1px solid var(--c-grid)';
     const $leftBar = document.createElement('div');
     $leftBar.className = 'lc-bar lc-bar--l';
     $leftBar.style.width = `${entry.lab.l * 100}%`;
@@ -1053,8 +1148,17 @@ function updateProbe() {
   const v = (probeEvent.clientY - rect.top) / rect.height;
   if (u < 0 || u > 1 || v < 0 || v > 1) return hideProbe();
   const color = entry.viz.getColorAtUV(u, 1 - v);
-  $probeDot.style.background = color;
-  $probeLabel.textContent = color;
+  const hex =
+    '#' +
+    color
+      .map((c) =>
+        Math.min(255, Math.max(0, Math.round(c * 255)))
+          .toString(16)
+          .padStart(2, '0'),
+      )
+      .join('');
+  $probeDot.style.background = hex;
+  $probeLabel.textContent = hex;
   $probe.style.left = `${probeEvent.clientX + 10}px`;
   $probe.style.top = `${probeEvent.clientY + 10}px`;
   $probe.classList.add('is-visible');

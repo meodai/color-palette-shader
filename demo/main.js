@@ -260,6 +260,7 @@ const AXIS_NAMES = {
   cielchD50Polar: ['H', 'C', 'L*'],
   spectrum: ['λ', 'L', 'C'],
   oklchDiag: ['H', 'C↔', 'L'],
+  oklrchDiag: ['H', 'C↔', 'Lr'],
 };
 
 // axis='x' → PROGRESS_AXIS=0 → colorCoords = (progress, uv.x, uv.y) → horiz=y, vert=z
@@ -497,6 +498,7 @@ $colorModel.innerHTML = `
     <option value="oklrch">OKLrch</option>
     <option value="oklrchPolar">OKLrch Polar</option>
     <option value="oklchDiag">OKLch Complementary</option>
+    <option value="oklrchDiag">OKLrch Complementary</option>
   </optgroup>
   <optgroup label="CIE Lab / LCH — D65">
     <option value="cielab">CIELab</option>
