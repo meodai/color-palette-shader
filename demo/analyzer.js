@@ -255,7 +255,7 @@ const $probeDot = $probe.querySelector('.cursor-probe__dot');
 const $probeLabel = $probe.querySelector('.cursor-probe__label');
 
 const palettes = [
-  /*  ['#f0dab1', '#e39aac', '#c45d9f', '#634b7d', '#6461c2', '#2ba9b4', '#93d4b5', '#f0f6e8'],
+  ['#f0dab1', '#e39aac', '#c45d9f', '#634b7d', '#6461c2', '#2ba9b4', '#93d4b5', '#f0f6e8'],
   [
     '#be4a2f', '#d77643', '#ead4aa', '#e4a672', '#b86f50', '#733e39', '#3e2731',
     '#a22633', '#e43b44', '#f77622', '#feae34', '#fee761', '#63c74d', '#3e8948',
@@ -273,7 +273,7 @@ const palettes = [
     '#a593a5', '#666092', '#9a4f50', '#c28d75', '#7ca1c0', '#416aa3',
     '#8d6268', '#be955c', '#68aca9', '#387080', '#6e6962', '#93a167',
     '#6eaa78', '#557064', '#9d9f7f', '#7e9e99', '#5d6872', '#433455',
-  ],*/
+  ],
   [
     '#f2f0e5',
     '#b8b5b9',
