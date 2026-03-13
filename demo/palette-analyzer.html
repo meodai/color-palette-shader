@@ -364,7 +364,7 @@
 
       .section-top {
         grid-area: top;
-        grid-template-columns: 193px 124px 48px minmax(0, 1fr);
+        grid-template-columns: 193px 124px 48px minmax(0, 1.5fr);
         grid-template-areas: 'rects meta limatch cubes';
       }
 
@@ -690,6 +690,7 @@
         display: flex;
         align-items: center;
         gap: 4px;
+        flex-wrap: wrap;
       }
 
       .iso-cube__modes {
@@ -721,8 +722,8 @@
 
       .iso-cube {
         display: block;
-        width: 104px;
-        height: 104px;
+        width: 156px;
+        height: 156px;
         border: var(--s-line) solid var(--c-grid);
         background: var(--c-paper);
         cursor: ew-resize;

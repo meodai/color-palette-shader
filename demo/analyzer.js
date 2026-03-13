@@ -21,7 +21,7 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const normHue = (value) => (((value ?? 0) % 360) + 360) % 360;
 const rgbToObject = (rgb) => ({ mode: 'rgb', r: rgb[0], g: rgb[1], b: rgb[2] });
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const ISO_PLOT_SIZE = 104;
+const ISO_PLOT_SIZE = 156;
 const ISO_PLOT_SCALE = 58;
 const DETAIL_PIXEL_RATIO = devicePixelRatio * 2;
 const MAX_PALETTE_COLORS = 128;
@@ -113,6 +113,7 @@ let $beamConnect;
 let $beamStatus;
 let isoCubeRotation = 0.72;
 let isoPlotMode = 'cube';
+let isoPlotView = 'front';
 let contrastSortMode = 'worst';
 let mainPaletteSortMode = 'original';
 let autoSortedPaletteHexes = null;
@@ -1470,19 +1471,10 @@ function renderIsoCubeSvg(svg, state, angle) {
     })
     .sort((a, b) => a.projected.z - b.projected.z);
 
-  let minDepth = Infinity;
-  let maxDepth = -Infinity;
-  points.forEach(({ projected }) => {
-    minDepth = Math.min(minDepth, projected.z);
-    maxDepth = Math.max(maxDepth, projected.z);
-  });
-  const depthSpan = Math.max(1e-6, maxDepth - minDepth);
-
   const dotsGroup = svgEl('g', { class: 'iso-cube__dots' });
   points.forEach(({ entry, projected }) => {
     const point = toSvgPoint(projected);
-    const depthT = (projected.z - minDepth) / depthSpan;
-    const radius = 2.4 + depthT * 2.4;
+    const radius = colourspaceDotRadius(state, clamp(entry.lch.c / 0.322, 0, 1));
     const circle = svgEl('circle', {
       class: 'iso-cube__dot',
       cx: point.x,
@@ -1571,27 +1563,18 @@ function renderIsoCylinderSvg(svg, state, angle) {
     })
     .sort((a, b) => a.projected.z - b.projected.z);
 
-  let minDepth = Infinity;
-  let maxDepth = -Infinity;
-  points.forEach(({ projected }) => {
-    minDepth = Math.min(minDepth, projected.z);
-    maxDepth = Math.max(maxDepth, projected.z);
-  });
-  const depthSpan = Math.max(1e-6, maxDepth - minDepth);
-
   const dotsGroup = svgEl('g', { class: 'iso-cube__dots' });
   points.forEach(({ entry, projected }) => {
     const point = {
       x: projected.x + cx,
       y: projected.y + cy - projectIsoPoint(0.5, 0, 0, cosY, sinY, ISO_PLOT_SCALE).y,
     };
-    const depthT = (projected.z - minDepth) / depthSpan;
     const radiusScale = clamp(entry.lch.c / 0.322, 0, 1);
     const circle = svgEl('circle', {
       class: 'iso-cube__dot',
       cx: point.x,
       cy: point.y,
-      r: 2.2 + depthT * 1.8 + radiusScale * 0.8,
+      r: colourspaceDotRadius(state, radiusScale),
       fill: entry.hex,
     });
     dotsGroup.appendChild(circle);
@@ -1654,7 +1637,7 @@ function makeIsoCubeSvg(state) {
 }
 
 function drawSpaceScatter(state, xAccessor, yAccessor, xLabel, yLabel) {
-  const { canvas, ctx, width, height } = makeCanvas(104, 104);
+  const { canvas, ctx, width, height } = makeCanvas(ISO_PLOT_SIZE, ISO_PLOT_SIZE);
   const border = themeVar('--c-grid', '#bbb');
   const ink = themeVar('--c-border', '#111');
   const fill = themeVar('--c-paper', '#eee');
@@ -1697,6 +1680,153 @@ function drawSpaceScatter(state, xAccessor, yAccessor, xLabel, yLabel) {
   });
 
   return canvas;
+}
+
+function colourspaceDotRadius(state, chromaNorm = 0.5) {
+  const count = state.data.length;
+  const minRadius = count <= 24 ? 1 : 0.5;
+  const maxRadius = count <= 64 ? 2.5 : count <= 128 ? 2 : 1.5;
+  return 1 + minRadius + Math.round(clamp(chromaNorm, 0, 1) * (maxRadius - minRadius));
+}
+
+function drawOkLabTop(state) {
+  const width = ISO_PLOT_SIZE;
+  const height = ISO_PLOT_SIZE;
+  const border = themeVar('--c-grid', '#bbb');
+  const ink = themeVar('--c-border', '#111');
+  const fill = themeVar('--c-paper', '#eee');
+  const plotWidth = width;
+  const plotHeight = height;
+  const originX = 0;
+  const originY = height;
+  const mapX = (value) => originX + clamp(value, 0, 1) * plotWidth;
+  const mapY = (value) => originY - clamp(value, 0, 1) * plotHeight;
+
+  const svg = svgEl('svg', {
+    class: 'canvas-box polar-plot',
+    role: 'img',
+    'aria-label': 'OKLab top view',
+    viewBox: `0 0 ${width} ${height}`,
+    width,
+    height,
+  });
+
+  svg.appendChild(
+    svgEl('rect', {
+      x: 0,
+      y: 0,
+      width,
+      height,
+      fill,
+    }),
+  );
+
+  [0.25, 0.5, 0.75].forEach((factor) => {
+    svg.appendChild(
+      svgEl('line', {
+        x1: mapX(factor),
+        y1: mapY(0),
+        x2: mapX(factor),
+        y2: mapY(1),
+        stroke: border,
+        'stroke-width': 1,
+        'stroke-dasharray': '2 2',
+        opacity: 0.85,
+        'vector-effect': 'non-scaling-stroke',
+      }),
+    );
+    svg.appendChild(
+      svgEl('line', {
+        x1: mapX(0),
+        y1: mapY(factor),
+        x2: mapX(1),
+        y2: mapY(factor),
+        stroke: border,
+        'stroke-width': 1,
+        'stroke-dasharray': '2 2',
+        opacity: 0.85,
+        'vector-effect': 'non-scaling-stroke',
+      }),
+    );
+  });
+
+  svg.appendChild(
+    svgEl('rect', {
+      x: originX,
+      y: mapY(1),
+      width: plotWidth,
+      height: plotHeight,
+      fill: 'none',
+      stroke: border,
+      'stroke-width': 1,
+      'vector-effect': 'non-scaling-stroke',
+    }),
+  );
+  svg.appendChild(
+    svgEl('line', {
+      x1: mapX(0.5),
+      y1: mapY(0),
+      x2: mapX(0.5),
+      y2: mapY(1),
+      stroke: border,
+      'stroke-width': 1,
+      'vector-effect': 'non-scaling-stroke',
+    }),
+  );
+  svg.appendChild(
+    svgEl('line', {
+      x1: mapX(0),
+      y1: mapY(0.5),
+      x2: mapX(1),
+      y2: mapY(0.5),
+      stroke: border,
+      'stroke-width': 1,
+      'vector-effect': 'non-scaling-stroke',
+    }),
+  );
+
+  const axisX = svgEl('text', {
+    x: width - 8,
+    y: height - 8,
+    fill: border,
+    'font-size': 7,
+    'font-family': 'Iosevka Web, monospace',
+    'text-anchor': 'end',
+    'dominant-baseline': 'alphabetic',
+  });
+  axisX.textContent = 'a';
+  svg.appendChild(axisX);
+
+  const axisY = svgEl('text', {
+    x: 9,
+    y: 10,
+    fill: border,
+    'font-size': 7,
+    'font-family': 'Iosevka Web, monospace',
+    'text-anchor': 'middle',
+    transform: `rotate(-90 9 10)`,
+  });
+  axisY.textContent = 'b';
+  svg.appendChild(axisY);
+
+  state.data.forEach((entry) => {
+    const x = mapX((entry.lab.a + 0.45) / 0.9);
+    const y = mapY((entry.lab.b + 0.45) / 0.9);
+    const dotSize = colourspaceDotRadius(state, clamp(entry.lch.c / 0.322, 0, 1));
+    svg.appendChild(
+      svgEl('circle', {
+        cx: x,
+        cy: y,
+        r: dotSize,
+        fill: entry.hex,
+        stroke: ink,
+        'stroke-width': 1,
+        'vector-effect': 'non-scaling-stroke',
+      }),
+    );
+  });
+
+  return svg;
 }
 
 function drawHuePolar(state) {
@@ -1787,14 +1917,11 @@ function drawHuePolar(state) {
     svg.appendChild(text);
   });
 
-  const n = state.data.length;
-  const minDD = n <= 24 ? 1 : 0.5;
-  const maxDD = n <= 64 ? 2.5 : n <= 128 ? 2 : 1.5;
   state.data.forEach((entry) => {
     const angle = (entry.lch.h * Math.PI) / 180;
     const chromaNorm = clamp(entry.lch.c / 0.322, 0, 1);
     const r = chromaNorm * radius;
-    const dotSize = 1 + minDD + Math.round(chromaNorm * (maxDD - minDD));
+    const dotSize = colourspaceDotRadius(state, chromaNorm);
     const x = cx + Math.cos(angle) * r;
     const y = cy - Math.sin(angle) * r;
     svg.appendChild(
@@ -1908,29 +2035,47 @@ function renderIsocubes($panel, state) {
     $modes.appendChild($button);
   });
   $toolbar.appendChild($modes);
-  $wrap.appendChild($toolbar);
-  const $plots = document.createElement('div');
-  $plots.className = 'iso-cube__plots';
 
-  const $isoPanel = document.createElement('div');
-  $isoPanel.className = 'iso-cube__panel';
-  $isoPanel.appendChild(makeIsoCubeSvg(state));
+  const $views = document.createElement('div');
+  $views.className = 'iso-cube__modes';
+  [
+    ['front', 'Front'],
+    ['top', 'Top'],
+  ].forEach(([view, label]) => {
+    const $button = document.createElement('button');
+    $button.type = 'button';
+    $button.className = 'iso-cube__mode';
+    if (view === isoPlotView) $button.dataset.active = 'true';
+    $button.textContent = label;
+    $button.addEventListener('click', () => {
+      if (isoPlotView === view) return;
+      isoPlotView = view;
+      renderIsocubes($panel, state);
+    });
+    $views.appendChild($button);
+  });
+  $toolbar.appendChild($views);
+
+  $wrap.appendChild($toolbar);
+
+  const $plotPanel = document.createElement('div');
+  $plotPanel.className = 'iso-cube__panel';
+  if (isoPlotView === 'top') {
+    $plotPanel.appendChild(isoPlotMode === 'cylinder' ? drawHuePolar(state) : drawOkLabTop(state));
+  } else {
+    $plotPanel.appendChild(makeIsoCubeSvg(state));
+  }
+
   const $hint = document.createElement('div');
   $hint.className = 'iso-cube__hint';
-  $hint.textContent = isoPlotMode === 'cylinder' ? 'drag to rotate cylinder' : 'drag to rotate cube';
-  $isoPanel.appendChild($hint);
+  if (isoPlotView === 'top') {
+    $hint.textContent = isoPlotMode === 'cylinder' ? 'top view: polar hue-chroma' : 'top view: OKLab a/b';
+  } else {
+    $hint.textContent = isoPlotMode === 'cylinder' ? 'front view: drag to rotate cylinder' : 'front view: drag to rotate cube';
+  }
+  $plotPanel.appendChild($hint);
 
-  const $polarPanel = document.createElement('div');
-  $polarPanel.className = 'iso-cube__panel';
-  const $polarLabel = document.createElement('div');
-  $polarLabel.className = 'iso-cube__hint';
-  $polarLabel.textContent = 'polar hue-chroma';
-  $polarPanel.appendChild(drawHuePolar(state));
-  $polarPanel.appendChild($polarLabel);
-
-  $plots.appendChild($isoPanel);
-  $plots.appendChild($polarPanel);
-  $wrap.appendChild($plots);
+  $wrap.appendChild($plotPanel);
   $panel.appendChild($wrap);
 }
 
