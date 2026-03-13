@@ -296,8 +296,8 @@
 
       .section-bottom {
         grid-area: bottom;
-        grid-template-columns: 92px 48px 208px minmax(0, 1fr);
-        grid-template-areas: 'left mixes polars sides';
+        grid-template-columns: 48px 208px minmax(0, 1fr);
+        grid-template-areas: 'mixes polars sides';
       }
 
       .section-lc {
@@ -325,12 +325,6 @@
         grid-template-areas:
           'overview'
           'stats';
-      }
-
-      .stack-left {
-        grid-area: left;
-        grid-template-columns: 1fr;
-        grid-template-areas: 'huepolar';
       }
 
       .stack-cubes {
@@ -368,9 +362,6 @@
       }
       .cell-neutralisers {
         grid-area: neutral;
-      }
-      .cell-huepolar {
-        grid-area: huepolar;
       }
       .cell-mixes {
         grid-area: mixes;
@@ -540,6 +531,20 @@
       }
 
       .iso-cube-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+      }
+
+      .iso-cube__plots {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: flex-start;
+      }
+
+      .iso-cube__panel {
         display: flex;
         flex-direction: column;
         align-items: flex-start;

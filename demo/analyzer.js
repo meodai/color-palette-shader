@@ -565,12 +565,6 @@ function buildGrid() {
 
   const $bottom = document.createElement('div');
   $bottom.className = 'section section-bottom';
-
-  const $left = document.createElement('div');
-  $left.className = 'section-stack stack-left';
-  $left.appendChild(makePanel('hue-polar', 'Polar hue-chroma', 'cell-huepolar'));
-
-  $bottom.appendChild($left);
   $bottom.appendChild(makePanel('mixes', 'Useful mixes', 'cell-mixes'));
   $bottom.appendChild(makePanel('polars', 'Polar hue-lightness', 'cell-polars'));
   $bottom.appendChild(makePanel('hue-sides', 'OKHSL hue sideviews', 'cell-sides'));
@@ -983,8 +977,8 @@ function drawSpaceScatter(state, xAccessor, yAccessor, xLabel, yLabel) {
 }
 
 function drawHuePolar(state) {
-  const width = 92;
-  const height = 92;
+  const width = ISO_PLOT_SIZE;
+  const height = ISO_PLOT_SIZE;
   const cx = width / 2;
   const cy = height / 2;
   const radius = width / 2 - 8;
@@ -1191,11 +1185,28 @@ function renderIsocubes($panel, state) {
   });
   $toolbar.appendChild($modes);
   $wrap.appendChild($toolbar);
-  $wrap.appendChild(makeIsoCubeSvg(state));
+  const $plots = document.createElement('div');
+  $plots.className = 'iso-cube__plots';
+
+  const $isoPanel = document.createElement('div');
+  $isoPanel.className = 'iso-cube__panel';
+  $isoPanel.appendChild(makeIsoCubeSvg(state));
   const $hint = document.createElement('div');
   $hint.className = 'iso-cube__hint';
   $hint.textContent = isoPlotMode === 'cylinder' ? 'drag to rotate OKLCh' : 'drag to rotate OKLab';
-  $wrap.appendChild($hint);
+  $isoPanel.appendChild($hint);
+
+  const $polarPanel = document.createElement('div');
+  $polarPanel.className = 'iso-cube__panel';
+  const $polarLabel = document.createElement('div');
+  $polarLabel.className = 'iso-cube__hint';
+  $polarLabel.textContent = 'polar hue-chroma';
+  $polarPanel.appendChild(drawHuePolar(state));
+  $polarPanel.appendChild($polarLabel);
+
+  $plots.appendChild($isoPanel);
+  $plots.appendChild($polarPanel);
+  $wrap.appendChild($plots);
   $panel.appendChild($wrap);
 }
 
@@ -1275,11 +1286,6 @@ function renderNeutralisers($panel, state) {
   ctx.strokeStyle = themeVar('--c-grid', '#bbb');
   ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
   $panel.appendChild(canvas);
-}
-
-function renderHuePolar($panel, state) {
-  clearPanel($panel, 'Polar hue-chroma');
-  $panel.appendChild(drawHuePolar(state));
 }
 
 function renderUsefulMixes($panel, state) {
@@ -1366,7 +1372,6 @@ function renderAnalysis() {
   renderLCBars($grid.querySelector('[data-role="lc-bars"]'), state);
   renderMainPalette($grid.querySelector('[data-role="main"]'), state);
   renderNeutralisers($grid.querySelector('[data-role="neutralisers"]'), state);
-  renderHuePolar($grid.querySelector('[data-role="hue-polar"]'), state);
   renderUsefulMixes($grid.querySelector('[data-role="mixes"]'), state);
   renderPolarGroup($grid.querySelector('[data-role="polars"]'));
   renderHueSideviews($grid.querySelector('[data-role="hue-sides"]'));
