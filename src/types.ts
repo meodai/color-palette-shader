@@ -30,6 +30,8 @@ export type SupportedColorModels =
   | 'cielabD50'
   | 'cielchD50'
   | 'cielchD50Polar'
+  | 'cam16ucsD65'
+  | 'cam16ucsD65Polar'
   | 'spectrum'
   | 'oklchDiag'
   | 'oklrchDiag';
@@ -44,7 +46,8 @@ export type DistanceMetric =
   | 'oklrab'
   | 'cielabD50'
   | 'okLightness'
-  | 'liMatch';
+  | 'liMatch'
+  | 'cam16ucsD65';
 
 export type PaletteVizOptions = {
   palette?: ColorList;

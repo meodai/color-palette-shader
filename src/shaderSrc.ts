@@ -13,6 +13,8 @@ import shaderHWB2RGB from './shaders/hwb2rgb.frag.glsl?raw' assert { type: 'raw'
 // @ts-ignore
 import shaderCIELab2RGB from './shaders/cielab2rgb.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
+import shaderCAM16UCS from './shaders/cam16ucs.frag.glsl?raw' assert { type: 'raw' };
+// @ts-ignore
 import shaderDeltaE from './shaders/deltaE.frag.glsl?raw' assert { type: 'raw' };
 // @ts-ignore
 import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { type: 'raw' };
@@ -21,17 +23,18 @@ import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { t
 //   oklab        – M_PI, cbrt(), srgb_transfer_function(), srgb_transfer_function_inv(), okhsv/okhsl_to_srgb(), …
 //   srgb2rgb     – srgb2rgb() wraps srgb_transfer_function_inv from oklab
 //   hsl2rgb, hsv2rgb, lch2rgb – color model conversions (lch2rgb uses M_PI + srgb_transfer_function)
+//   cam16ucsD65  – srgb_to_cam16ucs() under fixed D65 CAT16 viewing conditions
 //   deltaE       – srgb_to_cielab(), deltaE76/94/2000() (uses srgb2rgb, cbrt, M_PI, TWO_PI)
 //   closestColor – branches on DISTANCE_METRIC define; uses everything above
 //
 // Defines (compile-time, prepended to shader source — trigger recompile, no runtime branching):
-//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76(=cielabD65) 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94 6=oklrab 7=cielabD50 8=okLightness 9=liMatch
+//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76(=cielabD65) 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94 6=oklrab 7=cielabD50 8=okLightness 9=liMatch 10=cam16ucsD65
 //   COLOR_MODEL      int  0=rgb 1=rgb12bit 2=rgb8bit 3=oklab 4=okhsv 5=okhsvPolar
 //                         6=okhsl 7=okhslPolar 8=oklch 9=oklchPolar 10=hsv 11=hsvPolar
 //                         12=hsl 13=hslPolar 14=hwb 15=hwbPolar 16=oklrab 17=oklrch
 //                         18=oklrchPolar 19=cielab 20=cielch 21=cielchPolar
-//                         22=cielabD50 23=cielchD50 24=cielchD50Polar
-//                         25=rgb18bit 26=rgb6bit 27=rgb15bit 28=spectrum 29=oklchDiag 30=oklrchDiag
+//                         22=cielabD50 23=cielchD50 24=cielchD50Polar 25=rgb18bit 26=rgb6bit
+//                         27=rgb15bit 28=spectrum 29=oklchDiag 30=oklrchDiag 31=cam16ucsD65 32=cam16ucsD65Polar
 //   PROGRESS_AXIS    int  0=x 1=y 2=z
 //   INVERT_X         flag (defined = true)
 //   INVERT_Y         flag (defined = true)
@@ -50,6 +53,33 @@ void main() {
 
 // modelToRGB and main are separated so the selective assembler can reuse them.
 export const modelToRGBSrc = `
+// CSS Color Level 4 reference ranges used as display bounds.
+// Intentionally slightly wider than sRGB to accommodate P3/Rec2020 and
+// match browser/colorjs conventions: https://www.w3.org/TR/css-color-4/
+const float OKLAB_MAX_AB = 0.5;   // CSS oklab() a/b reference range
+const float CIELAB_MAX_AB = 125.0; // CSS lab() a/b reference range
+const float CIELCH_MAX_C  = 150.0; // CSS lch() C reference range
+
+vec3 cam16D65CoordsToJab(vec3 colorCoords) {
+  #if COLOR_MODEL == 31
+    return vec3(
+      colorCoords.z * CAM16_MAX_JP,
+      (colorCoords.x - 0.5) * 2.0 * CAM16_MAX_AB,
+      (colorCoords.y - 0.5) * 2.0 * CAM16_MAX_AB
+    );
+  #elif COLOR_MODEL == 32
+    float angle31 = colorCoords.x * TWO_PI;
+    float radius31 = colorCoords.y * CAM16_MAX_AB;
+    return vec3(
+      colorCoords.z * CAM16_MAX_JP,
+      cos(angle31) * radius31,
+      sin(angle31) * radius31
+    );
+  #else
+    return vec3(0.0);
+  #endif
+}
+
 #if COLOR_MODEL == 1
 vec3 quantizeRGB444(vec3 colorCoords) {
   vec3 rgb = clamp(colorCoords, 0.0, 1.0);
@@ -132,7 +162,7 @@ vec3 modelToRGB(vec3 colorCoords) {
   #elif COLOR_MODEL == 2
     return quantizeRGB332(colorCoords);
   #elif COLOR_MODEL == 3
-    vec3 linear = oklab_to_linear_srgb(vec3(colorCoords.z, colorCoords.x - 0.5, colorCoords.y - 0.5));
+    vec3 linear = oklab_to_linear_srgb(vec3(colorCoords.z, (colorCoords.x - 0.5) * OKLAB_MAX_AB * 2.0, (colorCoords.y - 0.5) * OKLAB_MAX_AB * 2.0));
     return vec3(srgb_transfer_function(linear.r), srgb_transfer_function(linear.g), srgb_transfer_function(linear.b));
   #elif COLOR_MODEL == 4 || COLOR_MODEL == 5
     return okhsv_to_srgb(colorCoords);
@@ -149,18 +179,18 @@ vec3 modelToRGB(vec3 colorCoords) {
   #elif COLOR_MODEL == 14 || COLOR_MODEL == 15
     return hwb2rgb(colorCoords);
   #elif COLOR_MODEL == 16
-    vec3 linear14 = oklab_to_linear_srgb(vec3(toe_inv(colorCoords.z), colorCoords.x - 0.5, colorCoords.y - 0.5));
+    vec3 linear14 = oklab_to_linear_srgb(vec3(toe_inv(colorCoords.z), (colorCoords.x - 0.5) * OKLAB_MAX_AB * 2.0, (colorCoords.y - 0.5) * OKLAB_MAX_AB * 2.0));
     return vec3(srgb_transfer_function(linear14.r), srgb_transfer_function(linear14.g), srgb_transfer_function(linear14.b));
   #elif COLOR_MODEL == 17 || COLOR_MODEL == 18
     return lch2rgb(vec3(toe_inv(colorCoords.z), colorCoords.y, colorCoords.x));
   #elif COLOR_MODEL == 19
-    return cielab_d65_to_rgb(vec3(colorCoords.z * 100.0, (colorCoords.x - 0.5) * 256.0, (colorCoords.y - 0.5) * 256.0));
+    return cielab_d65_to_rgb(vec3(colorCoords.z * 100.0, (colorCoords.x - 0.5) * CIELAB_MAX_AB * 2.0, (colorCoords.y - 0.5) * CIELAB_MAX_AB * 2.0));
   #elif COLOR_MODEL == 20 || COLOR_MODEL == 21
-    return cielab_d65_to_rgb(vec3(colorCoords.z * 100.0, colorCoords.y * 150.0 * cos(colorCoords.x * TWO_PI), colorCoords.y * 150.0 * sin(colorCoords.x * TWO_PI)));
+    return cielab_d65_to_rgb(vec3(colorCoords.z * 100.0, colorCoords.y * CIELCH_MAX_C * cos(colorCoords.x * TWO_PI), colorCoords.y * CIELCH_MAX_C * sin(colorCoords.x * TWO_PI)));
   #elif COLOR_MODEL == 22
-    return cielab_d50_to_rgb(vec3(colorCoords.z * 100.0, (colorCoords.x - 0.5) * 256.0, (colorCoords.y - 0.5) * 256.0));
+    return cielab_d50_to_rgb(vec3(colorCoords.z * 100.0, (colorCoords.x - 0.5) * CIELAB_MAX_AB * 2.0, (colorCoords.y - 0.5) * CIELAB_MAX_AB * 2.0));
   #elif COLOR_MODEL == 23 || COLOR_MODEL == 24
-    return cielab_d50_to_rgb(vec3(colorCoords.z * 100.0, colorCoords.y * 150.0 * cos(colorCoords.x * TWO_PI), colorCoords.y * 150.0 * sin(colorCoords.x * TWO_PI)));
+    return cielab_d50_to_rgb(vec3(colorCoords.z * 100.0, colorCoords.y * CIELCH_MAX_C * cos(colorCoords.x * TWO_PI), colorCoords.y * CIELCH_MAX_C * sin(colorCoords.x * TWO_PI)));
   #elif COLOR_MODEL == 25
     return quantizeRGB666(colorCoords);
   #elif COLOR_MODEL == 26
@@ -197,6 +227,8 @@ vec3 modelToRGB(vec3 colorCoords) {
       srgb_transfer_function(max(linOut.g, 0.0)),
       srgb_transfer_function(max(linOut.b, 0.0))
     );
+  #elif COLOR_MODEL == 31 || COLOR_MODEL == 32
+    return cam16ucs_to_srgb(cam16D65CoordsToJab(colorCoords));
   #else
     return colorCoords;
   #endif
@@ -218,7 +250,7 @@ void main(){
     vec3 colorCoords = vec3(progress, uv.x, uv.y);
   #endif
 
-  #if COLOR_MODEL == 5 || COLOR_MODEL == 7 || COLOR_MODEL == 9 || COLOR_MODEL == 11 || COLOR_MODEL == 13 || COLOR_MODEL == 18 || COLOR_MODEL == 21 || COLOR_MODEL == 24
+  #if COLOR_MODEL == 5 || COLOR_MODEL == 7 || COLOR_MODEL == 9 || COLOR_MODEL == 11 || COLOR_MODEL == 13 || COLOR_MODEL == 18 || COLOR_MODEL == 21 || COLOR_MODEL == 24 || COLOR_MODEL == 32
     vec2 toCenter = uv - 0.5;
     float angle = atan(toCenter.y, toCenter.x);
     float radius = length(toCenter) * 2.0;
@@ -293,7 +325,10 @@ void main(){
 export const fragmentShader =
   `
 precision highp float;
+precision highp sampler2D;
+precision highp sampler3D;
 #define TWO_PI 6.28318530718
+#define LI_MATCH_T vUv.x
 in vec2 vUv;
 out vec4 fragColor;
 uniform float progress;
@@ -306,6 +341,7 @@ ${shaderHSV2RGB}
 ${shaderLCH2RGB}
 ${shaderHWB2RGB}
 ${shaderCIELab2RGB}
+${shaderCAM16UCS}
 ${shaderDeltaE}
 ${shaderClosestColor}
 ` +
@@ -325,6 +361,7 @@ type ShaderNeeds = {
   lch2rgb: boolean;
   hwb2rgb: boolean;
   cielab2rgb: boolean;
+  cam16ucs: boolean;
   deltaE: boolean;
   closestColor: boolean;
 };
@@ -374,6 +411,9 @@ function shaderNeedsForModel(model: number): Partial<ShaderNeeds> {
     case 29: // oklchDiag (same conversion as oklch)
     case 30: // oklrchDiag (same conversion as oklrch)
       return { oklab: true, lch2rgb: true };
+    case 31:
+    case 32:
+      return { oklab: true, srgb2rgb: true, cam16ucs: true };
     default:
       return {};
   }
@@ -396,6 +436,8 @@ function shaderNeedsForMetric(metric: number): Partial<ShaderNeeds> {
       return { deltaE: true }; // kotsarenkoRamos
     case 7:
       return { oklab: true, srgb2rgb: true, cielab2rgb: true }; // cielabD50
+    case 10:
+      return { oklab: true, srgb2rgb: true, cam16ucs: true }; // cam16ucsD65
     default:
       return {};
   }
@@ -411,6 +453,7 @@ function assembleChunks(needs: ShaderNeeds): string {
   if (needs.lch2rgb) src += shaderLCH2RGB + '\n';
   if (needs.hwb2rgb) src += shaderHWB2RGB + '\n';
   if (needs.cielab2rgb) src += shaderCIELab2RGB + '\n';
+  if (needs.cam16ucs) src += shaderCAM16UCS + '\n';
   if (needs.deltaE) src += shaderDeltaE + '\n';
   if (needs.closestColor) src += shaderClosestColor + '\n';
   return src;
@@ -427,6 +470,7 @@ function resolveNeeds(colorModel: number, distanceMetric: number, showRaw: boole
     lch2rgb: !!modelNeeds.lch2rgb,
     hwb2rgb: !!modelNeeds.hwb2rgb,
     cielab2rgb: !!(modelNeeds.cielab2rgb || metricNeeds.cielab2rgb),
+    cam16ucs: !!(modelNeeds.cam16ucs || metricNeeds.cam16ucs),
     deltaE: !!metricNeeds.deltaE && !showRaw,
     closestColor: !showRaw,
   };
@@ -440,7 +484,10 @@ export function assembleFragShader(
   const needs = resolveNeeds(colorModel, distanceMetric, showRaw);
   let src = `
 precision highp float;
+precision highp sampler2D;
+precision highp sampler3D;
 #define TWO_PI 6.28318530718
+#define LI_MATCH_T vUv.x
 in vec2 vUv;
 out vec4 fragColor;
 uniform float progress;
@@ -619,7 +666,10 @@ export function assembleFragShader3D(
   const needs = resolveNeeds(colorModel, distanceMetric, showRaw);
   let src = `
 precision highp float;
+precision highp sampler2D;
+precision highp sampler3D;
 #define TWO_PI 6.28318530718
+#define LI_MATCH_T vColorCoord.x
 in vec3 vColorCoord;
 out vec4 fragColor;
 uniform sampler2D paletteTexture;
@@ -637,6 +687,7 @@ export function assembleFragShader3DPrepass(colorModel: number, gamutClip: boole
   };
   let src = `
 precision highp float;
+precision highp sampler3D;
 #define TWO_PI 6.28318530718
 in vec3 vColorCoord;
 out vec4 fragColor;
@@ -653,6 +704,7 @@ uniform float uPosition;
 // so polar-disc edges don't bleed into the outline.
 export const outlineFragmentShaderSrc = `
 precision highp float;
+precision highp sampler2D;
 in vec2 vUv;
 out vec4 fragColor;
 uniform sampler2D colorMap;

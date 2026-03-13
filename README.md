@@ -1,6 +1,6 @@
 # palette-shader
 
-A dependency-free WebGL2 shader that maps any color palette across a 3-D perceptual color space and snaps each pixel to the nearest palette color. Visualize how a palette distributes across 30+ color models and ten distance metrics, all on the GPU. Includes 2-D cross-section views (`PaletteViz`) and an interactive 3-D cube/cylinder view (`PaletteViz3D`) with trackball rotation.
+A dependency-free WebGL2 shader that maps any color palette across a 3-D perceptual color space and snaps each pixel to the nearest palette color. Visualize how a palette distributes across 30+ color models and eleven distance metrics, all on the GPU. Includes 2-D cross-section views (`PaletteViz`) and an interactive 3-D cube/cylinder view (`PaletteViz3D`) with trackball rotation.
 
 [**Live demo →**](https://meodai.github.io/color-palette-shader/)
 
@@ -226,6 +226,13 @@ Controls the 3-D color space the visualization is rendered in. Polar variants (`
 | `'cielchD50'`      | cube  | CIELab D50 in cylindrical LCH coordinates.               |
 | `'cielchD50Polar'` | wheel | Polar form of CIELch D50.                                |
 
+**CAM16-UCS — D65**
+
+| Value                | Shape | Description                                                                                  |
+| -------------------- | ----- | -------------------------------------------------------------------------------------------- |
+| `'cam16ucsD65'`      | cube  | CAM16-UCS under fixed D65 CAT16 viewing conditions, rendered with an analytic inverse.      |
+| `'cam16ucsD65Polar'` | wheel | Polar CAM16-UCS view under the same fixed D65 conditions.                                    |
+
 **Classic**
 
 | Value        | Shape | Description                                          |
@@ -272,14 +279,15 @@ A practical starting point: use a **polar** model to get an intuitive read on hu
 
 Controls how "nearest palette color" is determined per pixel.
 
-**OK**
+**OK / appearance-inspired**
 
-| Value           | Description                                                                                                                                                              | Cost |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- | ------------------------------------------------------- | --- |
-| `'oklab'`       | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice.                                                                  | low  |
-| `'oklrab'`      | Euclidean in OKLab with toe-corrected lightness. Slightly better uniformity in dark tones than OKLab.                                                                    | low  |
-| `'okLightness'` | Absolute lightness difference in OKLab (`                                                                                                                                | ΔL   | `). Ignores hue and chroma — groups by brightness only. | low |
-| `'liMatch'`     | Spatially varying blend: full OKLab distance at the left edge, pure lightness match at the right. Inspired by censor's li-match. Useful for visualising tonal structure. | low  |
+| Value           | Description                                                                                                                                | Cost |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| `'oklab'`       | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice.                                   | low  |
+| `'oklrab'`      | Euclidean in OKLab with toe-corrected lightness. Slightly better uniformity in dark tones than OKLab.                                     | low  |
+| `'okLightness'` | Absolute lightness difference in OKLab (`ΔL`). Ignores hue and chroma, so regions are grouped by brightness only.                        | low  |
+| `'liMatch'`     | Spatially varying blend: full OKLab distance at the left edge, pure lightness match at the right. Inspired by censor's li-match.         | low  |
+| `'cam16ucsD65'` | Euclidean distance in CAM16-UCS under fixed D65 CAT16 viewing conditions. Useful when you want a full appearance-model metric like censor. | high |
 
 **CIE — D65**
 

@@ -24,6 +24,15 @@ CIE ΔE76, ΔE94, and ΔE2000 follow the standard CIE specifications.
 Kotsarenko–Ramos metric from their 2010 paper on measuring perceptual color
 difference.
 
+## CAM16-UCS metric
+
+The fixed-viewing-condition CAM16-UCS implementation is based on the
+MIT-licensed [censor](https://github.com/Quickmarble/censor) project by
+Quickmarble.
+
+This repo ports the forward sRGB/XYZ → CAM16-UCS transform for nearest-colour
+matching under a fixed D65 CAT16 viewing condition.
+
 ## Demo dependencies and services
 
 The demo and analyzer include a few third-party libraries and external services

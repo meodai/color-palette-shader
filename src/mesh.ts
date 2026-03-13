@@ -137,7 +137,7 @@ export function createSlicedCylinderMesh(
 }
 
 // Polar model IDs that should use a cylinder (or cone/bicone variant)
-export const POLAR_MODEL_IDS = new Set([5, 7, 9, 11, 13, 15, 18, 21, 24]); // all *Polar models
+export const POLAR_MODEL_IDS = new Set([5, 7, 9, 11, 13, 15, 18, 21, 24, 32]); // all *Polar models
 
 // Cone: HSV-type polar models (radius = value, point at bottom)
 export const CONE_MODEL_IDS = new Set([5, 11]); // okhsvPolar, hsvPolar

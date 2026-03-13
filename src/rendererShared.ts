@@ -8,6 +8,9 @@ import {
 
 export const AXIS_MAP = { x: 0, y: 1, z: 2 } as const;
 
+export const CAM16_UCS_D65_MODEL_ID = 31;
+export const CAM16_UCS_D65_POLAR_MODEL_ID = 32;
+
 export const COLOR_MODEL_MAP = {
   rgb: 0,
   rgb12bit: 1,
@@ -37,6 +40,8 @@ export const COLOR_MODEL_MAP = {
   cielabD50: 22,
   cielchD50: 23,
   cielchD50Polar: 24,
+  cam16ucsD65: CAM16_UCS_D65_MODEL_ID,
+  cam16ucsD65Polar: CAM16_UCS_D65_POLAR_MODEL_ID,
   spectrum: 28,
   oklchDiag: 29,
   oklrchDiag: 30,
@@ -53,6 +58,7 @@ export const DISTANCE_METRIC_MAP = {
   cielabD50: 7,
   okLightness: 8,
   liMatch: 9,
+  cam16ucsD65: 10,
 } as const;
 
 type BaseRendererOptions = {

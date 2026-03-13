@@ -91,8 +91,11 @@ The distance metric controls how "nearest palette color" is decided per pixel. I
 | `deltaE76`        | medium  | Classic CIE baseline                      | Colors in highly saturated or blue/purple ranges  |
 | `deltaE94`        | medium  | Better than ΔE76, cheaper than ΔE2000     | You need the most accurate result                 |
 | `deltaE2000`      | slow    | Most perceptually accurate CIE formula    | GPU-heavy, may affect framerate on large palettes |
+| `cam16ucsD65`     | slow    | Palette analysis with a full appearance model | You need configurable viewing conditions or a cheaper default |
 | `cielabD50`       | medium  | Print / ICC workflows                     | Screen-only contexts                              |
 | `kotsarenkoRamos` | fastest | Quick cheap approximation                 | Any accuracy-sensitive use                        |
 | `rgb`             | fastest | Debugging, computer/external tool context | Perceptual quality matters                        |
 
 For most use-cases `oklab` is the right default. Upgrade to `deltaE2000` when you specifically need the closest match to how a human observer perceives color differences.
+
+For fixed-condition appearance-space exploration, `cam16ucsD65` is the heavier but more appearance-aware option. If you want to inspect that space directly rather than only use it for matching, pair it with the `cam16ucsD65` or `cam16ucsD65Polar` color model.

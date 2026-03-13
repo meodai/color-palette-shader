@@ -267,6 +267,8 @@ const AXIS_NAMES = {
   cielabD50: ['a*', 'b*', 'L*'],
   cielchD50: ['H', 'C', 'L*'],
   cielchD50Polar: ['H', 'C', 'L*'],
+  cam16ucsD65: ["a'", "b'", "J'"],
+  cam16ucsD65Polar: ['H', "M'", "J'"],
   spectrum: ['λ', 'L', 'C'],
   oklchDiag: ['H', 'C↔', 'L'],
   oklrchDiag: ['H', 'C↔', 'Lr'],
@@ -519,6 +521,10 @@ $colorModel.innerHTML = `
     <option value="cielchD50">CIELch</option>
     <option value="cielchD50Polar">CIELch Polar</option>
   </optgroup>
+  <optgroup label="CAM16 — D65">
+    <option value="cam16ucsD65">CAM16-UCS D65</option>
+    <option value="cam16ucsD65Polar">CAM16-UCS Polar D65</option>
+  </optgroup>
   <optgroup label="Classic">
     <option value="hslPolar">HSL Polar</option>
     <option value="hsl">HSL</option>
@@ -557,7 +563,6 @@ $distanceMetric.innerHTML = `
     <option value="oklab">OKLab</option>
     <option value="oklrab">OKLrab</option>
     <option value="okLightness">OK Lightness</option>
-    <option value="liMatch">Li-match</option>
   </optgroup>
   <optgroup label="CIE — D65">
     <option value="deltaE76">Euclidean / ΔE76</option>
@@ -567,10 +572,10 @@ $distanceMetric.innerHTML = `
   <optgroup label="CIE — D50">
     <option value="cielabD50">Euclidean</option>
   </optgroup>
-  <optgroup label="Heuristic">
+  <optgroup label="Misc">
+    <option value="cam16ucsD65">CAM16-UCS D65</option>
+    <option value="liMatch">Li-match</option>
     <option value="kotsarenkoRamos">Kotsarenko / Ramos</option>
-  </optgroup>
-  <optgroup label="Simple">
     <option value="rgb">RGB</option>
   </optgroup>
 `;
@@ -818,6 +823,10 @@ function encodeHash(colors, settings) {
   return `#colors/${colorStr}?${params}`;
 }
 
+function normalizeDistanceMetric(metric) {
+  return metric === 'cam16ucs' ? 'cam16ucsD65' : metric;
+}
+
 function decodeHash(hash) {
   if (!hash || !hash.startsWith('#colors/')) return null;
   const withoutPrefix = hash.slice('#colors/'.length);
@@ -834,7 +843,7 @@ function decodeHash(hash) {
   return {
     colors,
     colorModel: params.get('model') || 'okhsl',
-    distanceMetric: params.get('metric') || 'oklab',
+    distanceMetric: normalizeDistanceMetric(params.get('metric') || 'oklab'),
     pos: parseFloat(params.get('pos') ?? '0'),
     invertZMode:
       params.get('invert') === 'all' || params.get('invert') === 'z'
