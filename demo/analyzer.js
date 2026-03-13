@@ -57,6 +57,66 @@ function labDistance(a, b) {
   return Math.sqrt((a.l - b.l) ** 2 + (a.a - b.a) ** 2 + (a.b - b.b) ** 2);
 }
 
+function srgbToLinear(value) {
+  if (value <= 0.04045) return value / 12.92;
+  return ((value + 0.055) / 1.055) ** 2.4;
+}
+
+function relativeLuminance(rgb) {
+  const [r, g, b] = rgb.map((value) => srgbToLinear(clamp01(value)));
+  return 0.2126729 * r + 0.7151522 * g + 0.072175 * b;
+}
+
+function apcaContrast(textRgb, backgroundRgb) {
+  const softClamp = (value) => (value <= 0.022 ? value + (0.022 - value) ** 1.414 : value);
+  const textY = softClamp(relativeLuminance(textRgb));
+  const backgroundY = softClamp(relativeLuminance(backgroundRgb));
+  if (Math.abs(backgroundY - textY) < 0.0005) return 0;
+  if (backgroundY > textY) {
+    return ((backgroundY ** 0.56 - textY ** 0.57) * 1.14 - 0.027) * 100;
+  }
+  return ((backgroundY ** 0.65 - textY ** 0.62) * 1.14 + 0.027) * 100;
+}
+
+const CVD_THRESHOLD = 0.045;
+const CVD_MATRICES = [
+  {
+    id: 'protan',
+    label: 'Protan',
+    matrix: [
+      [0.56667, 0.43333, 0],
+      [0.55833, 0.44167, 0],
+      [0, 0.24167, 0.75833],
+    ],
+  },
+  {
+    id: 'deutan',
+    label: 'Deutan',
+    matrix: [
+      [0.625, 0.375, 0],
+      [0.7, 0.3, 0],
+      [0, 0.3, 0.7],
+    ],
+  },
+  {
+    id: 'tritan',
+    label: 'Tritan',
+    matrix: [
+      [0.95, 0.05, 0],
+      [0, 0.43333, 0.56667],
+      [0, 0.475, 0.525],
+    ],
+  },
+];
+
+function transformRgb(rgb, matrix) {
+  return [
+    clamp01(rgb[0] * matrix[0][0] + rgb[1] * matrix[0][1] + rgb[2] * matrix[0][2]),
+    clamp01(rgb[0] * matrix[1][0] + rgb[1] * matrix[1][1] + rgb[2] * matrix[1][2]),
+    clamp01(rgb[0] * matrix[2][0] + rgb[1] * matrix[2][1] + rgb[2] * matrix[2][2]),
+  ];
+}
+
 function okDistLiMatchLab(a, b, t) {
   const distance = labDistance(a, b);
   return distance * (1 - t) + Math.abs(a.l - b.l) * t;
@@ -173,6 +233,47 @@ function stateForPalette(colors) {
     return best;
   });
 
+  const contrastPairs = pairs
+    .map((pair) => {
+      const source = data[pair.i];
+      const target = data[pair.j];
+      const sourceOnTarget = apcaContrast(source.rgb, target.rgb);
+      const targetOnSource = apcaContrast(target.rgb, source.rgb);
+      return {
+        ...pair,
+        sourceOnTarget,
+        targetOnSource,
+        bestContrast: Math.max(Math.abs(sourceOnTarget), Math.abs(targetOnSource)),
+      };
+    })
+    .sort((a, b) => a.bestContrast - b.bestContrast);
+
+  const cvdAnalyses = CVD_MATRICES.map(({ id, label, matrix }) => {
+    const simulated = data.map((entry) => ({
+      ...entry,
+      simLab: okLab(rgbToObject(transformRgb(entry.rgb, matrix))),
+    }));
+    const simulatedPairs = [];
+    for (let i = 0; i < simulated.length; i++) {
+      for (let j = i + 1; j < simulated.length; j++) {
+        simulatedPairs.push({
+          i,
+          j,
+          dist: labDistance(simulated[i].simLab, simulated[j].simLab),
+        });
+      }
+    }
+    simulatedPairs.sort((a, b) => a.dist - b.dist);
+    return {
+      id,
+      label,
+      minDist: simulatedPairs[0]?.dist ?? 0,
+      collapseCount: simulatedPairs.filter((pair) => pair.dist < CVD_THRESHOLD).length,
+      totalPairs: simulatedPairs.length,
+      closest: simulatedPairs[0] ?? null,
+    };
+  });
+
   return {
     data,
     pairs,
@@ -191,6 +292,8 @@ function stateForPalette(colors) {
     darkest,
     neutralisers,
     mixes: usefulMixes(data, 14),
+    contrastPairs,
+    cvdAnalyses,
   };
 }
 
@@ -582,11 +685,16 @@ function buildGrid() {
   $bottom.appendChild(makePanel('hue-sides', 'OKHSL hue sideviews', 'cell-sides'));
 
   const $lc = makePanel('lc-bars', '', 'section section-lc');
+  const $extra = document.createElement('div');
+  $extra.className = 'section section-extra';
+  $extra.appendChild(makePanel('contrast', 'Perceptual contrast', 'cell-contrast'));
+  $extra.appendChild(makePanel('cvd', 'CVD collapse', 'cell-cvd'));
 
   $grid.appendChild($top);
   $grid.appendChild($strips);
   $grid.appendChild($bottom);
   $grid.appendChild($lc);
+  $grid.appendChild($extra);
 }
 
 function clearPanel($panel, title) {
@@ -1355,6 +1463,68 @@ function renderHueSideviews($panel) {
   $panel.appendChild($gridEl);
 }
 
+function formatContrast(value) {
+  const rounded = Math.round(value);
+  return `${rounded > 0 ? '+' : ''}${rounded}`;
+}
+
+function renderContrastPanel($panel, state) {
+  clearPanel($panel, 'Perceptual contrast');
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  $note.textContent = 'Lower = weaker text/background separation';
+  $panel.appendChild($note);
+
+  const $list = document.createElement('div');
+  $list.className = 'metric-list';
+  state.contrastPairs.slice(0, 6).forEach((pair) => {
+    const $row = document.createElement('div');
+    $row.className = 'metric-row';
+    $row.innerHTML = `
+      <div class="metric-pair">
+        <span style="background:${palette[pair.i]}"></span>
+        <span style="background:${palette[pair.j]}"></span>
+      </div>
+      <div class="metric-copy">
+        <div class="metric-copy__title">${formatContrast(pair.sourceOnTarget)} / ${formatContrast(pair.targetOnSource)}</div>
+        <div class="metric-copy__meta">a on b / b on a</div>
+      </div>
+      <div class="metric-value">${pair.bestContrast.toFixed(1)}</div>
+    `;
+    $list.appendChild($row);
+  });
+  $panel.appendChild($list);
+}
+
+function renderCvdPanel($panel, state) {
+  clearPanel($panel, 'CVD collapse');
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  $note.textContent = `Pairs under ${CVD_THRESHOLD.toFixed(3)} simulated OKLab distance`;
+  $panel.appendChild($note);
+
+  const $list = document.createElement('div');
+  $list.className = 'metric-list';
+  state.cvdAnalyses.forEach((analysis) => {
+    const closest = analysis.closest;
+    const pairMarkup = closest
+      ? `<div class="metric-pair"><span style="background:${palette[closest.i]}"></span><span style="background:${palette[closest.j]}"></span></div>`
+      : '<div class="metric-pair"></div>';
+    const $row = document.createElement('div');
+    $row.className = 'metric-row';
+    $row.innerHTML = `
+      <div class="metric-name">${analysis.label}</div>
+      ${pairMarkup}
+      <div class="metric-copy">
+        <div class="metric-copy__title">min ${analysis.minDist.toFixed(3)}</div>
+        <div class="metric-copy__meta">${analysis.collapseCount}/${analysis.totalPairs} collapsed</div>
+      </div>
+    `;
+    $list.appendChild($row);
+  });
+  $panel.appendChild($list);
+}
+
 function renderBars($panel, title, items, accessor, max) {
   clearPanel($panel, title);
   const $bars = document.createElement('div');
@@ -1390,6 +1560,8 @@ function renderAnalysis() {
   renderUsefulMixes($grid.querySelector('[data-role="mixes"]'), state);
   renderPolarGroup($grid.querySelector('[data-role="polars"]'));
   renderHueSideviews($grid.querySelector('[data-role="hue-sides"]'));
+  renderContrastPanel($grid.querySelector('[data-role="contrast"]'), state);
+  renderCvdPanel($grid.querySelector('[data-role="cvd"]'), state);
 }
 
 function updateHeader() {

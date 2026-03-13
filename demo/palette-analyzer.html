@@ -277,7 +277,8 @@
         grid-template-areas:
           'top lc'
           'strips lc'
-          'bottom lc';
+          'bottom lc'
+          'extra extra';
         gap: 1px;
         padding: 1px;
         background: var(--c-border);
@@ -313,6 +314,12 @@
 
       .section-lc {
         grid-area: lc;
+      }
+
+      .section-extra {
+        grid-area: extra;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-areas: 'contrast cvd';
       }
 
       .section-stack {
@@ -379,6 +386,12 @@
       }
       .cell-polars {
         grid-area: polars;
+      }
+      .cell-contrast {
+        grid-area: contrast;
+      }
+      .cell-cvd {
+        grid-area: cvd;
       }
 
       .g {
@@ -746,6 +759,72 @@
         height: 7px;
         border: var(--s-line) solid var(--c-border);
         border-radius: 999px;
+      }
+
+      .metric-note {
+        margin-bottom: 4px;
+        color: var(--c-muted);
+        font-size: 7px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .metric-list {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+      }
+
+      .metric-row {
+        display: grid;
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
+        gap: 5px;
+        align-items: center;
+        min-width: 0;
+        padding-bottom: 2px;
+        border-bottom: var(--s-line) solid color-mix(in srgb, var(--c-grid) 80%, transparent);
+      }
+
+      .metric-row:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+
+      .metric-name {
+        color: var(--c-muted);
+        font-size: 8px;
+        text-transform: uppercase;
+      }
+
+      .metric-pair {
+        display: flex;
+        gap: 1px;
+      }
+
+      .metric-pair span {
+        width: 11px;
+        height: 8px;
+        border: var(--s-line) solid color-mix(in srgb, var(--c-border) 20%, transparent);
+      }
+
+      .metric-copy {
+        min-width: 0;
+      }
+
+      .metric-copy__title {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .metric-copy__meta {
+        color: var(--c-muted);
+        font-size: 7px;
+        text-transform: uppercase;
+      }
+
+      .metric-value {
+        color: var(--c-muted);
+        font-variant-numeric: tabular-nums;
+        font-size: 8px;
       }
     </style>
   </head>
