@@ -7,6 +7,7 @@ import {
   filterDeficiencyTrit,
   interpolate as culoriInterpolate,
 } from 'culori';
+import { TargetSession, extractColorTokens } from 'token-beam';
 
 const toSRGB = converter('rgb');
 const toOKLab = converter('oklab');
@@ -23,6 +24,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const ISO_PLOT_SIZE = 104;
 const ISO_PLOT_SCALE = 58;
 const DETAIL_PIXEL_RATIO = devicePixelRatio * 2;
+const MAX_PALETTE_COLORS = 128;
+const BEAM_SYNC_THROTTLE_MS = 50;
 const APCA_MIN_CONTRAST = 15;
 const APCA_LOW_CLIP = 0.1;
 const CONTRAST_SORT_OPTIONS = [
@@ -87,12 +90,20 @@ const HARMONY_RULES = [
 let $metric;
 let $outline;
 let $raw;
+let $beamToken;
+let $beamConnect;
+let $beamStatus;
 let isoCubeRotation = 0.72;
 let isoPlotMode = 'cube';
 let contrastSortMode = 'worst';
 let mainPaletteSortMode = 'original';
 let autoSortedPaletteHexes = null;
 let autoSortRequestId = 0;
+let beamSession = null;
+let beamSyncTimer = null;
+let pendingBeamPalette = null;
+
+const TOKEN_BEAM_SERVER_URL = import.meta.env?.VITE_SYNC_SERVER_URL || 'wss://tokenbeam.dev';
 
 const mainPaletteSortWorker = new Worker(new URL('./sort-worker.js', import.meta.url), {
   type: 'module',
@@ -119,6 +130,10 @@ function okLch(input) {
 
 function labDistance(a, b) {
   return Math.sqrt((a.l - b.l) ** 2 + (a.a - b.a) ** 2 + (a.b - b.b) ** 2);
+}
+
+function capPalette(colors) {
+  return colors.slice(0, MAX_PALETTE_COLORS);
 }
 
 function hueDistance(a, b) {
@@ -705,11 +720,113 @@ function buildProgram(gl, vertexSource, fragmentSource) {
 const $grid = document.querySelector('[data-grid]');
 const $ctl = document.querySelector('[data-ctl]');
 const $paste = document.querySelector('[data-paste]');
+const $beam = document.querySelector('[data-beam]');
 const $hdrL = document.querySelector('[data-hdr-l]');
 const $hdrR = document.querySelector('[data-hdr-r]');
 const $probe = document.querySelector('.cursor-probe');
 const $probeDot = $probe.querySelector('.cursor-probe__dot');
 const $probeLabel = $probe.querySelector('.cursor-probe__label');
+
+function beamShowError(message) {
+  if (!$beamStatus) return;
+  $beamStatus.textContent = message;
+  $beamStatus.dataset.state = 'error';
+}
+
+function beamClearError() {
+  if (!$beamStatus) return;
+  delete $beamStatus.dataset.state;
+  $beamStatus.textContent = '';
+}
+
+function beamResetUI() {
+  if (!$beamToken || !$beamConnect) return;
+  $beamToken.disabled = false;
+  $beamConnect.textContent = 'Connect';
+  $beamConnect.disabled = !$beamToken.value.trim();
+  beamSession = null;
+}
+
+function applyBeamPalette(colors) {
+  const cappedColors = capPalette(colors);
+  if (cappedColors.length < 1) return;
+  palette = cappedColors;
+  $paste.value = palette.join(' ');
+  updateAll();
+}
+
+function scheduleBeamPaletteUpdate(colors) {
+  pendingBeamPalette = capPalette(colors);
+  if (beamSyncTimer !== null) return;
+  beamSyncTimer = window.setTimeout(() => {
+    beamSyncTimer = null;
+    const nextPalette = pendingBeamPalette;
+    pendingBeamPalette = null;
+    if (nextPalette?.length) applyBeamPalette(nextPalette);
+  }, BEAM_SYNC_THROTTLE_MS);
+}
+
+function initTokenBeamControls() {
+  if (!$beam) return;
+  $beamToken = $beam.querySelector('[data-beam-token]');
+  $beamConnect = $beam.querySelector('[data-beam-connect]');
+  $beamStatus = $beam.querySelector('[data-beam-status]');
+  if (!$beamToken || !$beamConnect || !$beamStatus) return;
+
+  $beamToken.addEventListener('input', () => {
+    beamClearError();
+    $beamConnect.disabled = !$beamToken.value.trim();
+  });
+
+  $beamConnect.addEventListener('click', () => {
+    if (beamSession) {
+      beamSession.disconnect();
+      beamResetUI();
+      beamClearError();
+      return;
+    }
+
+    const token = $beamToken.value.trim();
+    if (!token) return;
+
+    beamClearError();
+    $beamToken.disabled = true;
+    $beamConnect.disabled = true;
+
+    beamSession = new TargetSession({
+      serverUrl: TOKEN_BEAM_SERVER_URL,
+      clientType: 'palette-shader',
+      sessionToken: token,
+    });
+
+    beamSession.on('paired', () => {
+      $beamConnect.textContent = 'Disconnect';
+      $beamConnect.disabled = false;
+    });
+
+    beamSession.on('sync', ({ payload }) => {
+      const hexColors = [...new Set(extractColorTokens(payload).map((entry) => entry.hex))];
+      if (hexColors.length >= 1) {
+        scheduleBeamPaletteUpdate(hexColors);
+      }
+    });
+
+    beamSession.on('error', ({ message }) => {
+      beamShowError(message);
+      beamResetUI();
+    });
+
+    beamSession.on('disconnected', () => {
+      beamResetUI();
+      beamClearError();
+    });
+
+    beamSession.connect().catch((err) => {
+      beamShowError(err instanceof Error ? err.message : 'Could not connect');
+      beamResetUI();
+    });
+  });
+}
 
 function updateMetricHeader() {
   $hdrR.textContent = '';
@@ -775,7 +892,7 @@ const palettes = [
   ],
 ];
 
-let palette = decodeHash(location.hash) ?? palettes[Math.floor(Math.random() * palettes.length)];
+let palette = capPalette(decodeHash(location.hash) ?? palettes[Math.floor(Math.random() * palettes.length)]);
 
 const rectTileConfigs = [
   {
@@ -2274,6 +2391,7 @@ function controlLabel(text, field) {
 }
 
 buildGrid();
+initTokenBeamControls();
 
 $metric = document.createElement('select');
 $metric.innerHTML = `
@@ -2331,10 +2449,12 @@ updateMetricHeader();
 
 $paste.value = palette.join(' ');
 $paste.addEventListener('input', () => {
-  const colors = $paste.value
+  const colors = capPalette(
+    $paste.value
     .split(/[\s,]+/)
     .map((value) => value.trim().replace(/^#?/, '#'))
-    .filter((value) => /^#([0-9a-f]{3}){1,2}$/i.test(value));
+    .filter((value) => /^#([0-9a-f]{3}){1,2}$/i.test(value)),
+  );
   if (colors.length < 2) return;
   palette = colors;
   updateAll();
