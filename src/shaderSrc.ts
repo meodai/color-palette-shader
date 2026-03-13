@@ -25,13 +25,13 @@ import shaderClosestColor from './shaders/closestColor.frag.glsl?raw' assert { t
 //   closestColor – branches on DISTANCE_METRIC define; uses everything above
 //
 // Defines (compile-time, prepended to shader source — trigger recompile, no runtime branching):
-//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76(=cielabD65) 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94 6=oklrab 7=cielabD50 8=okLightness
+//   DISTANCE_METRIC  int  0=rgb 1=oklab 2=deltaE76(=cielabD65) 3=deltaE2000 4=kotsarenkoRamos 5=deltaE94 6=oklrab 7=cielabD50 8=okLightness 9=liMatch
 //   COLOR_MODEL      int  0=rgb 1=rgb12bit 2=rgb8bit 3=oklab 4=okhsv 5=okhsvPolar
 //                         6=okhsl 7=okhslPolar 8=oklch 9=oklchPolar 10=hsv 11=hsvPolar
 //                         12=hsl 13=hslPolar 14=hwb 15=hwbPolar 16=oklrab 17=oklrch
 //                         18=oklrchPolar 19=cielab 20=cielch 21=cielchPolar
 //                         22=cielabD50 23=cielchD50 24=cielchD50Polar
-//                         25=rgb18bit 26=rgb6bit 27=rgb15bit
+//                         25=rgb18bit 26=rgb6bit 27=rgb15bit 28=spectrum 29=oklchDiag 30=oklrchDiag
 //   PROGRESS_AXIS    int  0=x 1=y 2=z
 //   INVERT_X         flag (defined = true)
 //   INVERT_Y         flag (defined = true)
@@ -92,6 +92,38 @@ vec3 quantizeRGB555(vec3 colorCoords) {
 }
 #endif
 
+#if COLOR_MODEL == 28
+// CIE 1931 XYZ color matching function approximation (Wyman et al. 2013)
+float cie_x(float w) {
+  float t1 = (w - 442.0) * ((w < 442.0) ? 0.0624 : 0.0374);
+  float t2 = (w - 599.8) * ((w < 599.8) ? 0.0264 : 0.0323);
+  float t3 = (w - 501.1) * ((w < 501.1) ? 0.0490 : 0.0382);
+  return 0.362 * exp(-0.5*t1*t1) + 1.056 * exp(-0.5*t2*t2) - 0.065 * exp(-0.5*t3*t3);
+}
+float cie_y(float w) {
+  float t1 = (w - 568.8) * ((w < 568.8) ? 0.0213 : 0.0247);
+  float t2 = (w - 530.9) * ((w < 530.9) ? 0.0613 : 0.0322);
+  return 0.821 * exp(-0.5*t1*t1) + 0.286 * exp(-0.5*t2*t2);
+}
+float cie_z(float w) {
+  float t1 = (w - 437.0) * ((w < 437.0) ? 0.0845 : 0.0278);
+  float t2 = (w - 459.0) * ((w < 459.0) ? 0.0385 : 0.0725);
+  return 1.217 * exp(-0.5*t1*t1) + 0.681 * exp(-0.5*t2*t2);
+}
+// Wavelength → OKLab (via XYZ → linear sRGB → OKLab)
+vec3 wavelength_to_oklab(float nm) {
+  float x = cie_x(nm), y = cie_y(nm), z = cie_z(nm);
+  // XYZ → linear sRGB (D65)
+  vec3 lin = vec3(
+     3.2404542 * x - 1.5371385 * y - 0.4985314 * z,
+    -0.9692660 * x + 1.8760108 * y + 0.0415560 * z,
+     0.0556434 * x - 0.2040259 * y + 1.0572252 * z
+  );
+  lin = max(lin, vec3(0.0));
+  return linear_srgb_to_oklab(lin);
+}
+#endif
+
 vec3 modelToRGB(vec3 colorCoords) {
   #if COLOR_MODEL == 0
     return colorCoords;
@@ -106,8 +138,10 @@ vec3 modelToRGB(vec3 colorCoords) {
     return okhsv_to_srgb(colorCoords);
   #elif COLOR_MODEL == 6 || COLOR_MODEL == 7
     return okhsl_to_srgb(colorCoords);
-  #elif COLOR_MODEL == 8 || COLOR_MODEL == 9
+  #elif COLOR_MODEL == 8 || COLOR_MODEL == 9 || COLOR_MODEL == 29
     return lch2rgb(vec3(colorCoords.z, colorCoords.y, colorCoords.x));
+  #elif COLOR_MODEL == 30
+    return lch2rgb(vec3(toe_inv(colorCoords.z), colorCoords.y, colorCoords.x));
   #elif COLOR_MODEL == 10 || COLOR_MODEL == 11
     return hsv2rgb(colorCoords);
   #elif COLOR_MODEL == 12 || COLOR_MODEL == 13
@@ -133,6 +167,36 @@ vec3 modelToRGB(vec3 colorCoords) {
     return quantizeRGB222(colorCoords);
   #elif COLOR_MODEL == 27
     return quantizeRGB555(colorCoords);
+  #elif COLOR_MODEL == 28
+    // X = spectral position, Y = lightness modulation, Z = chroma scale
+    // All modulation in OKLab for perceptually uniform results (like censor's CAM16UCS approach)
+    float sx = colorCoords.x;
+    vec3 labSpec;
+    if (sx < 0.8) {
+      // 0..0.8 → wavelengths 410..665nm (visible range)
+      labSpec = wavelength_to_oklab(410.0 + (sx / 0.8) * 255.0);
+    } else {
+      // 0.8..1.0 → purple line (red to violet, mixed in OKLab)
+      float pt = (sx - 0.8) / 0.2;
+      labSpec = mix(wavelength_to_oklab(665.0), wavelength_to_oklab(410.0), pt);
+    }
+    // Y: t in [-1,1] — center = natural lightness, bottom = black, top = white
+    float st = 2.0 * colorCoords.y - 1.0;
+    // Modulate L toward 0 (black) or 1 (white)
+    float L = (st < 0.0)
+      ? mix(labSpec.x, 0.0, -st)
+      : mix(labSpec.x, 1.0,  st);
+    // Chroma fades parabolically toward extremes, scaled by Z
+    float chromaScale = (1.0 - st * st) * colorCoords.z;
+    float a = labSpec.y * chromaScale;
+    float b = labSpec.z * chromaScale;
+    // OKLab → linear sRGB → sRGB
+    vec3 linOut = oklab_to_linear_srgb(vec3(L, a, b));
+    return vec3(
+      srgb_transfer_function(max(linOut.r, 0.0)),
+      srgb_transfer_function(max(linOut.g, 0.0)),
+      srgb_transfer_function(max(linOut.b, 0.0))
+    );
   #else
     return colorCoords;
   #endif
@@ -186,6 +250,13 @@ void main(){
       if (uv.x > 0.5) { hue += 0.5; }
       colorCoords = vec3(hue, 1.0 - abs(0.5 - uv.x) * 2.0, uv.y);
     #endif
+  #elif COLOR_MODEL == 29 || COLOR_MODEL == 30
+    // Diagonal complementary: x=hue, y&z form the diagonal.
+    // colorCoords already handles the axis permutation.
+    float compD29 = colorCoords.z - colorCoords.y;
+    float compHue29 = colorCoords.x * 0.5;
+    if (compD29 < 0.0) compHue29 += 0.5;
+    colorCoords = vec3(compHue29, abs(compD29), (colorCoords.y + colorCoords.z) * 0.5);
   #endif
 
   #ifdef INVERT_X
@@ -298,6 +369,11 @@ function shaderNeedsForModel(model: number): Partial<ShaderNeeds> {
     case 23:
     case 24: // cielabD50, cielchD50, cielchD50Polar
       return { oklab: true, srgb2rgb: true, cielab2rgb: true };
+    case 28: // spectrum (uses srgb_transfer_function from oklab)
+      return { oklab: true };
+    case 29: // oklchDiag (same conversion as oklch)
+    case 30: // oklrchDiag (same conversion as oklrch)
+      return { oklab: true, lch2rgb: true };
     default:
       return {};
   }
@@ -310,7 +386,8 @@ function shaderNeedsForMetric(metric: number): Partial<ShaderNeeds> {
     case 1:
     case 6:
     case 8:
-      return { oklab: true, srgb2rgb: true }; // oklab, oklrab, okLightness
+    case 9:
+      return { oklab: true, srgb2rgb: true }; // oklab, oklrab, okLightness, liMatch
     case 2:
     case 3:
     case 5: // deltaE76, deltaE2000, deltaE94
@@ -449,6 +526,13 @@ void main() {
     if (cc.x > uPosition) discard;
   #endif
 
+  #if COLOR_MODEL == 29 || COLOR_MODEL == 30
+    float dD3 = cc.z - cc.y;
+    float dH3 = cc.x * 0.5;
+    if (dD3 < 0.0) dH3 += 0.5;
+    cc = vec3(dH3, abs(dD3), (cc.y + cc.z) * 0.5);
+  #endif
+
   #ifdef INVERT_X
     cc.x = 1.0 - cc.x;
   #endif
@@ -498,6 +582,13 @@ void main() {
       if (any(lessThan(cc, vec3(0.0))) || any(greaterThan(cc, vec3(1.0)))) discard;
     #endif
     if (cc.x > uPosition) discard;
+  #endif
+
+  #if COLOR_MODEL == 29 || COLOR_MODEL == 30
+    float dD3p = cc.z - cc.y;
+    float dH3p = cc.x * 0.5;
+    if (dD3p < 0.0) dH3p += 0.5;
+    cc = vec3(dH3p, abs(dD3p), (cc.y + cc.z) * 0.5);
   #endif
 
   #ifdef INVERT_X

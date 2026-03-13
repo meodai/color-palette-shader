@@ -86,8 +86,9 @@ export function computeMetricPalette(palette: ColorList, metricCode: number): Fl
     let c: [number, number, number];
     switch (metricCode) {
       case 1:
-      case 8: {
-        // oklab, okLightness
+      case 8:
+      case 9: {
+        // oklab, okLightness, liMatch
         c = _linearToOklab(_srgbToLinear(r), _srgbToLinear(g), _srgbToLinear(b));
         break;
       }

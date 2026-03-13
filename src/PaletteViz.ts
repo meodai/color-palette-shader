@@ -64,6 +64,9 @@ export class PaletteViz {
     cielabD50: 22,
     cielchD50: 23,
     cielchD50Polar: 24,
+    spectrum: 28,
+    oklchDiag: 29,
+    oklrchDiag: 30,
   } as const;
   readonly #distanceMetricMap = {
     rgb: 0,
@@ -75,6 +78,7 @@ export class PaletteViz {
     oklrab: 6,
     cielabD50: 7,
     okLightness: 8,
+    liMatch: 9,
   } as const;
 
   // WebGL
