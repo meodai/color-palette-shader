@@ -1736,7 +1736,6 @@ function renderMainPalette($panel, state) {
   );
   const $row = document.createElement('div');
   $row.className = 'strip-row';
-  $row.innerHTML = '<span class="strip-lbl">Pal</span>';
   const $strip = document.createElement('div');
   $strip.className = 'strip';
   const entries =
