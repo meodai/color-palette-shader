@@ -655,7 +655,6 @@ function setIsoSvgViewport(svg, fill) {
 
 function renderIsoCubeSvg(svg, state, angle) {
   const border = themeVar('--c-grid', '#bbb');
-  const ink = themeVar('--c-border', '#111');
   const fill = themeVar('--c-paper', '#eee');
   const cosY = Math.cos(angle);
   const sinY = Math.sin(angle);
@@ -773,9 +772,6 @@ function renderIsoCubeSvg(svg, state, angle) {
       cy: point.y,
       r: radius,
       fill: entry.hex,
-      stroke: entry.index === state.darkest ? ink : 'rgba(0,0,0,0)',
-      'stroke-width': entry.index === state.darkest ? 1.35 : 0,
-      'vector-effect': 'non-scaling-stroke',
     });
     dotsGroup.appendChild(circle);
   });
@@ -787,7 +783,6 @@ function renderIsoCubeSvg(svg, state, angle) {
 
 function renderIsoCylinderSvg(svg, state, angle) {
   const border = themeVar('--c-grid', '#bbb');
-  const ink = themeVar('--c-border', '#111');
   const fill = themeVar('--c-paper', '#eee');
   const cosY = Math.cos(angle);
   const sinY = Math.sin(angle);
@@ -881,9 +876,6 @@ function renderIsoCylinderSvg(svg, state, angle) {
       cy: point.y,
       r: 2.2 + depthT * 1.8 + radiusScale * 0.8,
       fill: entry.hex,
-      stroke: entry.index === state.darkest ? ink : 'rgba(0,0,0,0)',
-      'stroke-width': entry.index === state.darkest ? 1.35 : 0,
-      'vector-effect': 'non-scaling-stroke',
     });
     dotsGroup.appendChild(circle);
   });
@@ -991,35 +983,71 @@ function drawSpaceScatter(state, xAccessor, yAccessor, xLabel, yLabel) {
 }
 
 function drawHuePolar(state) {
-  const { canvas, ctx, width, height } = makeCanvas(92, 92);
+  const width = 92;
+  const height = 92;
   const cx = width / 2;
   const cy = height / 2;
   const radius = width / 2 - 8;
   const border = themeVar('--c-grid', '#bbb');
-  const ink = themeVar('--c-border', '#111');
 
-  ctx.strokeStyle = border;
-  [0.25, 0.5, 0.75].forEach((factor) => {
-    ctx.setLineDash([2, 2]);
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius * factor, 0, Math.PI * 2);
-    ctx.stroke();
+  const svg = svgEl('svg', {
+    class: 'canvas-box polar-plot',
+    role: 'img',
+    'aria-label': 'Polar hue-chroma plot',
+    viewBox: `0 0 ${width} ${height}`,
+    width,
+    height,
   });
-  ctx.setLineDash([]);
-  ctx.beginPath();
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(cx - radius, cy);
-  ctx.lineTo(cx + radius, cy);
-  ctx.moveTo(cx, cy - radius);
-  ctx.lineTo(cx, cy + radius);
-  ctx.stroke();
 
-  ctx.fillStyle = border;
-  ctx.font = '7px Iosevka Web, monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+  [0.25, 0.5, 0.75].forEach((factor) => {
+    svg.appendChild(
+      svgEl('circle', {
+        cx,
+        cy,
+        r: radius * factor,
+        fill: 'none',
+        stroke: border,
+        'stroke-width': 1,
+        'stroke-dasharray': '2 2',
+        opacity: 0.85,
+        'vector-effect': 'non-scaling-stroke',
+      }),
+    );
+  });
+  svg.appendChild(
+    svgEl('circle', {
+      cx,
+      cy,
+      r: radius,
+      fill: 'none',
+      stroke: border,
+      'stroke-width': 1,
+      'vector-effect': 'non-scaling-stroke',
+    }),
+  );
+  svg.appendChild(
+    svgEl('line', {
+      x1: cx - radius,
+      y1: cy,
+      x2: cx + radius,
+      y2: cy,
+      stroke: border,
+      'stroke-width': 1,
+      'vector-effect': 'non-scaling-stroke',
+    }),
+  );
+  svg.appendChild(
+    svgEl('line', {
+      x1: cx,
+      y1: cy - radius,
+      x2: cx,
+      y2: cy + radius,
+      stroke: border,
+      'stroke-width': 1,
+      'vector-effect': 'non-scaling-stroke',
+    }),
+  );
+
   [
     ['R', 30],
     ['Y', 90],
@@ -1029,7 +1057,17 @@ function drawHuePolar(state) {
     ['M', 325],
   ].forEach(([label, angle]) => {
     const a = (angle * Math.PI) / 180;
-    ctx.fillText(label, cx + Math.cos(a) * (radius + 5), cy - Math.sin(a) * (radius + 5));
+    const text = svgEl('text', {
+      x: cx + Math.cos(a) * (radius + 5),
+      y: cy - Math.sin(a) * (radius + 5),
+      fill: border,
+      'font-size': 7,
+      'font-family': 'Iosevka Web, monospace',
+      'text-anchor': 'middle',
+      'dominant-baseline': 'middle',
+    });
+    text.textContent = label;
+    svg.appendChild(text);
   });
 
   const n = state.data.length;
@@ -1042,14 +1080,16 @@ function drawHuePolar(state) {
     const dotSize = 1 + minDD + Math.round(chromaNorm * (maxDD - minDD));
     const x = cx + Math.cos(angle) * r;
     const y = cy - Math.sin(angle) * r;
-    ctx.fillStyle = entry.hex;
-    ctx.strokeStyle = ink;
-    ctx.beginPath();
-    ctx.arc(x, y, dotSize, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    svg.appendChild(
+      svgEl('circle', {
+        cx: x,
+        cy: y,
+        r: dotSize,
+        fill: entry.hex,
+      }),
+    );
   });
-  return canvas;
+  return svg;
 }
 
 function renderOverview($panel, state) {
