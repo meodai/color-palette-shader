@@ -60,6 +60,7 @@ type BaseRendererOptions = {
   width: number;
   height: number;
   pixelRatio: number;
+  observeResize: boolean;
   container?: HTMLElement;
   canvasClassName: string;
 };
@@ -79,12 +80,15 @@ export abstract class BasePaletteRenderer {
   protected animationFrameId: number | null = null;
   protected destroyed = false;
   protected readonly containerElement?: HTMLElement;
+  protected readonly observeResize: boolean;
+  protected resizeObserver: ResizeObserver | null = null;
 
   protected constructor({
     palette,
     width,
     height,
     pixelRatio,
+    observeResize,
     container,
     canvasClassName,
   }: BaseRendererOptions) {
@@ -92,6 +96,7 @@ export abstract class BasePaletteRenderer {
     this.cssWidth = width;
     this.cssHeight = height;
     this.pixelRatioState = pixelRatio;
+    this.observeResize = observeResize;
     this.containerElement = container;
 
     this.canvasElement = document.createElement('canvas');
@@ -118,14 +123,24 @@ export abstract class BasePaletteRenderer {
   }
 
   protected syncCanvasSize(width: number, height: number): { pw: number; ph: number } {
-    const pw = Math.round(width * this.pixelRatioState);
-    const ph = Math.round(height * this.pixelRatioState);
+    const nextWidth = Math.max(1, Math.round(width));
+    const nextHeight = Math.max(1, Math.round(height));
+    const pw = Math.max(1, Math.round(nextWidth * this.pixelRatioState));
+    const ph = Math.max(1, Math.round(nextHeight * this.pixelRatioState));
+    this.cssWidth = nextWidth;
+    this.cssHeight = nextHeight;
     this.canvasElement.width = pw;
     this.canvasElement.height = ph;
-    this.canvasElement.style.width = `${width}px`;
-    this.canvasElement.style.height = `${height}px`;
     this.glContext.viewport(0, 0, pw, ph);
     return { pw, ph };
+  }
+
+  protected syncCanvasSizeFromLayout(): { pw: number; ph: number; width: number; height: number } {
+    const rect = this.canvasElement.getBoundingClientRect();
+    const width = rect.width > 0 ? rect.width : this.cssWidth;
+    const height = rect.height > 0 ? rect.height : this.cssHeight;
+    const { pw, ph } = this.syncCanvasSize(width, height);
+    return { pw, ph, width: this.cssWidth, height: this.cssHeight };
   }
 
   protected schedulePaint(): void {
@@ -158,6 +173,18 @@ export abstract class BasePaletteRenderer {
 
   protected attachCanvas(): void {
     this.containerElement?.appendChild(this.canvasElement);
+    const { pw, ph } = this.observeResize
+      ? this.syncCanvasSizeFromLayout()
+      : this.syncCanvasSize(this.cssWidth, this.cssHeight);
+    this.onSurfaceResized(pw, ph);
+    if (!this.observeResize || typeof ResizeObserver === 'undefined') return;
+    this.resizeObserver = new ResizeObserver(() => {
+      if (this.destroyed) return;
+      const { pw, ph } = this.syncCanvasSizeFromLayout();
+      this.onSurfaceResized(pw, ph);
+      this.schedulePaint();
+    });
+    this.resizeObserver.observe(this.canvasElement);
   }
 
   protected beginDestroy(): boolean {
@@ -169,6 +196,8 @@ export abstract class BasePaletteRenderer {
 
   protected destroyBaseResources(): void {
     const gl = this.glContext;
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
     gl.deleteTexture(this.paletteTexture);
     gl.deleteTexture(this.metricTexture);
     this.canvasElement.remove();
@@ -193,9 +222,7 @@ export abstract class BasePaletteRenderer {
   }
 
   resize(width: number, height: number | null = null): void {
-    this.cssWidth = width;
-    this.cssHeight = height ?? width;
-    const { pw, ph } = this.syncCanvasSize(this.cssWidth, this.cssHeight);
+    const { pw, ph } = this.syncCanvasSize(width, height ?? width);
     this.onSurfaceResized(pw, ph);
     this.schedulePaint();
   }
@@ -214,7 +241,9 @@ export abstract class BasePaletteRenderer {
 
   set pixelRatio(value: number) {
     this.pixelRatioState = value;
-    const { pw, ph } = this.syncCanvasSize(this.cssWidth, this.cssHeight);
+    const { pw, ph } = this.observeResize
+      ? this.syncCanvasSizeFromLayout()
+      : this.syncCanvasSize(this.cssWidth, this.cssHeight);
     this.onSurfaceResized(pw, ph);
     this.schedulePaint();
   }

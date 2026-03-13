@@ -51,6 +51,7 @@ export type PaletteVizOptions = {
   width?: number;
   height?: number;
   pixelRatio?: number;
+  observeResize?: boolean;
   container?: HTMLElement;
   // shader options
   colorModel?: SupportedColorModels;
@@ -68,6 +69,7 @@ export type PaletteViz3DOptions = {
   width?: number;
   height?: number;
   pixelRatio?: number;
+  observeResize?: boolean;
   container?: HTMLElement;
   colorModel?: SupportedColorModels;
   distanceMetric?: DistanceMetric;

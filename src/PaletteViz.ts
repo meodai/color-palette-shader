@@ -55,6 +55,7 @@ export class PaletteViz extends BasePaletteRenderer {
     width = 512,
     height = 512,
     pixelRatio = window.devicePixelRatio,
+    observeResize = false,
     container,
     colorModel = 'okhsv',
     distanceMetric = 'oklab',
@@ -70,6 +71,7 @@ export class PaletteViz extends BasePaletteRenderer {
       width,
       height,
       pixelRatio,
+      observeResize,
       container,
       canvasClassName: 'palette-viz',
     });

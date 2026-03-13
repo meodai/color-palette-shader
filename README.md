@@ -59,6 +59,7 @@ const viz = new PaletteViz({
   container: document.querySelector('#app'),
   width: 512,
   height: 512,
+  observeResize: false,
 });
 
 // option B — no container, place the canvas yourself
@@ -85,6 +86,7 @@ All options are optional. The palette defaults to a random 20-color set.
 | `width`          | `number`                     | `512`              | Canvas width in CSS pixels                                                                                                                                             |
 | `height`         | `number`                     | `512`              | Canvas height in CSS pixels                                                                                                                                            |
 | `pixelRatio`     | `number`                     | `devicePixelRatio` | Renderer pixel ratio                                                                                                                                                   |
+| `observeResize`  | `boolean`                    | `false`            | When `true`, a `ResizeObserver` tracks the laid-out canvas size and updates the backing resolution to match CSS layout. When `false`, `width` and `height` are treated as the explicit display size. |
 | `colorModel`     | `string`                     | `'okhsv'`          | Color space for the visualization (see [Color models](#color-models))                                                                                                  |
 | `distanceMetric` | `string`                     | `'oklab'`          | Distance function for nearest-color matching (see [Distance metrics](#distance-metrics))                                                                               |
 | `axis`           | `'x' \| 'y' \| 'z'`          | `'y'`              | Which axis the `position` value controls                                                                                                                               |
@@ -115,6 +117,12 @@ viz.outlineWidth = 2; // transparent border between regions, in physical pixels
 viz.gamutClip = true; // discard out-of-gamut pixels
 viz.pixelRatio = window.devicePixelRatio; // update after display changes
 ```
+
+Sizing model:
+
+- By default, `width` and `height` are the explicit display size and backing resolution source.
+- If you want normal CSS layout to control the canvas size, set `observeResize: true` and style the canvas or its container in CSS.
+- `pixelRatio` only affects backing resolution, not layout size.
 
 Additional read-only properties:
 
