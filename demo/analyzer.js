@@ -820,7 +820,7 @@ const polarTileConfigs = [
   {
     id: 'polar-lo',
     colorModel: 'oklchPolar',
-    label: 'Low chroma',
+    label: 'C',
     axis: 'y',
     controlLabel: 'C',
     position: 0.8,
@@ -829,27 +829,10 @@ const polarTileConfigs = [
   {
     id: 'polar-lo-inv',
     colorModel: 'oklchPolar',
-    label: 'Low chroma',
+    label: 'C',
     axis: 'y',
     controlLabel: 'C',
     position: 0.8,
-  },
-  {
-    id: 'polar-hi',
-    colorModel: 'oklchPolar',
-    label: 'High chroma',
-    axis: 'y',
-    controlLabel: 'C',
-    position: 0.3,
-    invertAxes: ['z'],
-  },
-  {
-    id: 'polar-hi-inv',
-    colorModel: 'oklchPolar',
-    label: 'High chroma',
-    axis: 'y',
-    controlLabel: 'C',
-    position: 0.3,
   },
 ];
 
@@ -857,47 +840,23 @@ const hueSideConfigs = [
   {
     id: 'side-0',
     colorModel: 'oklrchDiag',
-    label: 'Purple / seaweed',
+    label: 'Slice 1',
     axis: 'x',
     controlLabel: 'H',
-    position: 0.805,
+    position: 0.33,
   },
   {
     id: 'side-1',
     colorModel: 'oklrchDiag',
-    label: 'Red / cyan',
+    label: 'Slice 2',
     axis: 'x',
     controlLabel: 'H',
-    position: 0.224,
+    position: 0.66,
   },
   {
     id: 'side-2',
     colorModel: 'oklrchDiag',
-    label: 'Orange / blue',
-    axis: 'x',
-    controlLabel: 'H',
-    position: 0.406,
-  },
-  {
-    id: 'side-3',
-    colorModel: 'oklrchDiag',
-    label: 'Olive / ultramarine',
-    axis: 'x',
-    controlLabel: 'H',
-    position: 0.635,
-  },
-  {
-    id: 'side-4',
-    colorModel: 'oklrchDiag',
-    label: 'Lime / violet',
-    axis: 'x',
-    controlLabel: 'H',
-    position: 0.699,
-  },
-  {
-    id: 'side-5',
-    colorModel: 'oklrchDiag',
-    label: 'Emerald / rose',
+    label: 'Slice 3',
     axis: 'x',
     controlLabel: 'H',
     position: 1,
@@ -1811,7 +1770,9 @@ function renderPolarGroup($panel) {
   const $gridEl = document.createElement('div');
   $gridEl.className = 'viz-grid-4';
   polarTileConfigs.forEach((cfg) => {
-    $gridEl.appendChild(makePanelShader(cfg, 100, 100));
+    const $card = makePanelShader(cfg, 100, 100);
+    $card.querySelector('.viz-title')?.remove();
+    $gridEl.appendChild($card);
   });
   $panel.appendChild($gridEl);
 }
