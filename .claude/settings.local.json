@@ -4,7 +4,9 @@
       "Bash(gh api:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(ls:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "WebFetch(domain:culorijs.org)",
+      "WebFetch(domain:colorandcontrast.com)"
     ]
   }
 }

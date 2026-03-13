@@ -2104,12 +2104,19 @@ function renderStereopsisPanel($panel, state) {
   clearPanel($panel, 'Chromostereopsis');
   appendMetricLinks($panel, ARTICLE_LINKS.chromostereopsis);
   const count = state.stereopsisPairs.length;
-  const $note = document.createElement('div');
-  $note.className = 'metric-note';
-  $note.textContent = count
-    ? `${count} red-blue pair${count !== 1 ? 's' : ''} that may cause depth illusion and eye strain`
-    : 'No red-blue high-chroma pairs detected';
-  $panel.appendChild($note);
+  const stereoState = count > 3 ? 'alert' : count > 0 ? 'warn' : 'ok';
+
+  const $boxes = document.createElement('div');
+  $boxes.className = 'box-row';
+  const $badge = document.createElement('div');
+  $badge.className = 'info-box';
+  $badge.innerHTML = `
+    <div class="info-box__label" title="Red-blue high-chroma pairs that cause depth illusion and eye strain">Red-blue pairs</div>
+    <div class="info-box__value">${count}<span class="info-box__indicator" style="background:${themeVar(`--c-${stereoState}`, '#000')}"></span></div>
+    <div class="info-box__bar" style="width:${count ? 100 : 0}%;background:${themeVar(`--c-${stereoState}`, '#000')}"></div>
+  `;
+  $boxes.appendChild($badge);
+  $panel.appendChild($boxes);
 
   if (count) {
     const $list = document.createElement('div');
@@ -2119,8 +2126,8 @@ function renderStereopsisPanel($panel, state) {
       $row.className = 'metric-row metric-row--warn';
       $row.innerHTML = `
         <div class="metric-pair">
-          <span style="background:${palette[pair.i]}"></span>
-          <span style="background:${palette[pair.j]}"></span>
+          <span style="background:${palette[pair.i]};display:flex;align-items:center;justify-content:center"><span style="background:${palette[pair.j]};width:50%;height:50%;border-radius:1px"></span></span>
+          <span style="background:${palette[pair.j]};display:flex;align-items:center;justify-content:center"><span style="background:${palette[pair.i]};width:50%;height:50%;border-radius:1px"></span></span>
         </div>
         <div class="metric-copy">
           <div class="metric-copy__title">${palette[pair.i]} / ${palette[pair.j]}</div>
