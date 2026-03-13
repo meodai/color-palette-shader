@@ -20,6 +20,14 @@ const $tools = document.querySelector('[data-tools]');
 const $app = document.querySelector('#app');
 const $palettePaste = document.querySelector('[data-palette-paste]');
 
+const userAgent = navigator.userAgent || '';
+const platform = navigator.platform || '';
+const isIOSDevice = /iPad|iPhone|iPod/.test(userAgent);
+const isTouchMac = platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+const isIOSLike = isIOSDevice || isTouchMac;
+const demoPixelRatio = isIOSLike ? Math.min(devicePixelRatio, 1.5) : devicePixelRatio * 2;
+const demoObserveResize = !isIOSLike;
+
 if (!$palette || !$tools || !$app || !$palettePaste) {
   throw new Error('Required DOM elements not found');
 }
@@ -212,8 +220,8 @@ const sharedOptions = {
   width: vizSize(),
   height: vizSize(),
   container: $app,
-  pixelRatio: devicePixelRatio * 2,
-  observeResize: true,
+  pixelRatio: demoPixelRatio,
+  observeResize: demoObserveResize,
 };
 
 const vizzes = [
@@ -1019,8 +1027,8 @@ function create3DViz() {
     palette: toVizPalette(palette),
     width: s * cols,
     height: s * rows,
-    pixelRatio: devicePixelRatio * 2,
-    observeResize: true,
+    pixelRatio: demoPixelRatio,
+    observeResize: demoObserveResize,
     colorModel: $colorModel.value,
     distanceMetric: $distanceMetric.value,
     invertAxes: getInvertZMode() === 'all' ? ['z'] : [],
