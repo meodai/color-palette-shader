@@ -19,10 +19,15 @@ const mixRGB = (a, b, t) => [
   a[1] * (1 - t) + b[1] * t,
   a[2] * (1 - t) + b[2] * t,
 ];
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const ISO_PLOT_SIZE = 104;
+const ISO_PLOT_SCALE = 58;
 
 let $metric;
 let $outline;
 let $raw;
+let isoCubeRotation = 0.72;
+let isoPlotMode = 'cube';
 
 function srgbArray(input) {
   const color = toSRGB(input);
@@ -624,74 +629,319 @@ function addPairRow($panel, pair, state) {
   $panel.appendChild($row);
 }
 
-function drawIsoCube(state, rotate) {
-  const { canvas, ctx, width, height } = makeCanvas(104, 104);
+function svgEl(tag, attributes = {}) {
+  const element = document.createElementNS(SVG_NS, tag);
+  Object.entries(attributes).forEach(([key, value]) => {
+    element.setAttribute(key, String(value));
+  });
+  return element;
+}
+
+function projectIsoPoint(lightness, axisA, axisB, cosY, sinY, scale) {
+  const xRot = axisA * cosY + axisB * sinY;
+  const zRot = -axisA * sinY + axisB * cosY;
+  const x = (xRot - zRot) * 0.86602540378 * scale;
+  const y = (xRot + zRot) * 0.5 * scale - lightness * scale;
+  return { x, y, z: xRot + zRot };
+}
+
+function setIsoSvgViewport(svg, fill) {
+  svg.innerHTML = '';
+  svg.setAttribute('viewBox', `0 0 ${ISO_PLOT_SIZE} ${ISO_PLOT_SIZE}`);
+  svg.setAttribute('width', ISO_PLOT_SIZE);
+  svg.setAttribute('height', ISO_PLOT_SIZE);
+  svg.style.background = fill;
+}
+
+function renderIsoCubeSvg(svg, state, angle) {
   const border = themeVar('--c-grid', '#bbb');
   const ink = themeVar('--c-border', '#111');
   const fill = themeVar('--c-paper', '#eee');
-  ctx.fillStyle = fill;
-  ctx.fillRect(0, 0, width, height);
+  const cosY = Math.cos(angle);
+  const sinY = Math.sin(angle);
+  const center = projectIsoPoint(0.5, 0, 0, cosY, sinY, ISO_PLOT_SCALE);
+  const toSvgPoint = (point) => ({
+    x: point.x + ISO_PLOT_SIZE / 2 - center.x,
+    y: point.y + ISO_PLOT_SIZE / 2 - center.y,
+  });
 
-  const vertices = [
-    [width / 2, 8],
-    [width - 8, height * 0.3],
-    [width - 8, height * 0.7],
-    [width / 2, height - 8],
-    [8, height * 0.7],
-    [8, height * 0.3],
+  setIsoSvgViewport(svg, fill);
+
+  const cubeCorners = [
+    [0, -0.5, -0.5],
+    [0, 0.5, -0.5],
+    [0, 0.5, 0.5],
+    [0, -0.5, 0.5],
+    [1, -0.5, -0.5],
+    [1, 0.5, -0.5],
+    [1, 0.5, 0.5],
+    [1, -0.5, 0.5],
   ];
-  ctx.strokeStyle = border;
-  for (let index = 0; index < vertices.length; index++) {
-    const current = vertices[index];
-    const next = vertices[(index + 1) % vertices.length];
-    ctx.beginPath();
-    ctx.moveTo(current[0], current[1]);
-    ctx.lineTo(next[0], next[1]);
-    ctx.stroke();
+  const cubeEdges = [
+    [0, 1],
+    [1, 2],
+    [2, 3],
+    [3, 0],
+    [4, 5],
+    [5, 6],
+    [6, 7],
+    [7, 4],
+    [0, 4],
+    [1, 5],
+    [2, 6],
+    [3, 7],
+  ];
+  const cubePoints = cubeCorners.map(([lightness, axisA, axisB]) =>
+    projectIsoPoint(lightness, axisA, axisB, cosY, sinY, ISO_PLOT_SCALE),
+  );
+
+  let frontCorner = 4;
+  let frontDepth = cubePoints[4].z;
+  for (let index = 5; index < 8; index++) {
+    if (cubePoints[index].z > frontDepth) {
+      frontDepth = cubePoints[index].z;
+      frontCorner = index;
+    }
   }
-  ctx.beginPath();
-  ctx.moveTo(width / 2, height / 2);
-  ctx.lineTo(vertices[0][0], vertices[0][1]);
-  ctx.moveTo(width / 2, height / 2);
-  ctx.lineTo(vertices[1][0], vertices[1][1]);
-  ctx.moveTo(width / 2, height / 2);
-  ctx.lineTo(vertices[5][0], vertices[5][1]);
-  ctx.stroke();
+
+  const visibleEdges = [];
+  const degrees = new Array(8).fill(0);
+  for (const [start, end] of cubeEdges) {
+    if (start === frontCorner || end === frontCorner) continue;
+    visibleEdges.push([start, end]);
+    degrees[start] += 1;
+    degrees[end] += 1;
+  }
+
+  const dashedGroup = svgEl('g', {
+    class: 'iso-cube__frame iso-cube__frame--dashed',
+    fill: 'none',
+    stroke: border,
+    'stroke-width': 1,
+  });
+  const solidGroup = svgEl('g', {
+    class: 'iso-cube__frame iso-cube__frame--solid',
+    fill: 'none',
+    stroke: border,
+    'stroke-width': 1,
+  });
+
+  for (const [start, end] of visibleEdges) {
+    const a = toSvgPoint(cubePoints[start]);
+    const b = toSvgPoint(cubePoints[end]);
+    const line = svgEl('line', {
+      x1: a.x,
+      y1: a.y,
+      x2: b.x,
+      y2: b.y,
+      'vector-effect': 'non-scaling-stroke',
+    });
+    if (degrees[start] === 2 || degrees[end] === 2) {
+      solidGroup.appendChild(line);
+    } else {
+      dashedGroup.appendChild(line);
+    }
+  }
 
   const points = state.data
     .map((entry) => {
-      const point = {
-        x: clamp(entry.lab.a / 0.45 + 0.5, 0, 1),
-        y: clamp(entry.lab.b / 0.45 + 0.5, 0, 1),
-        z: entry.lab.l,
+      const axisA = clamp(entry.lab.a / 0.45, -1, 1) * 0.5;
+      const axisB = clamp(entry.lab.b / 0.45, -1, 1) * 0.5;
+      return {
         entry,
+        projected: projectIsoPoint(entry.lab.l, axisA, axisB, cosY, sinY, ISO_PLOT_SCALE),
       };
-      return rotate ? { x: 1 - point.y, y: point.x, z: point.z, entry } : point;
     })
-    .sort((a, b) => a.x + a.y + a.z - (b.x + b.y + b.z));
+    .sort((a, b) => a.projected.z - b.projected.z);
 
-  const dotSize = clamp(Math.round(10 / Math.sqrt(Math.max(state.data.length, 1))), 1, 2);
-  const cx = width / 2;
-  const cy = height / 2;
-  const span = width * 0.34;
-  const dy = height * 0.18;
-  for (const point of points) {
-    const xx = (point.y - point.x) * span;
-    const yy = (point.x + point.y - 1) * dy - (point.z - 0.5) * height * 0.45;
-    const x = cx + xx;
-    const y = cy + yy;
-    ctx.fillStyle = point.entry.hex;
-    ctx.beginPath();
-    ctx.arc(x, y, dotSize, 0, Math.PI * 2);
-    ctx.fill();
-    if (point.entry.index === state.darkest) {
-      ctx.strokeStyle = ink;
-      ctx.beginPath();
-      ctx.arc(x, y, dotSize + 1, 0, Math.PI * 2);
-      ctx.stroke();
+  let minDepth = Infinity;
+  let maxDepth = -Infinity;
+  points.forEach(({ projected }) => {
+    minDepth = Math.min(minDepth, projected.z);
+    maxDepth = Math.max(maxDepth, projected.z);
+  });
+  const depthSpan = Math.max(1e-6, maxDepth - minDepth);
+
+  const dotsGroup = svgEl('g', { class: 'iso-cube__dots' });
+  points.forEach(({ entry, projected }) => {
+    const point = toSvgPoint(projected);
+    const depthT = (projected.z - minDepth) / depthSpan;
+    const radius = 2.4 + depthT * 2.4;
+    const circle = svgEl('circle', {
+      class: 'iso-cube__dot',
+      cx: point.x,
+      cy: point.y,
+      r: radius,
+      fill: entry.hex,
+      stroke: entry.index === state.darkest ? ink : 'rgba(0,0,0,0)',
+      'stroke-width': entry.index === state.darkest ? 1.35 : 0,
+      'vector-effect': 'non-scaling-stroke',
+    });
+    dotsGroup.appendChild(circle);
+  });
+
+  svg.appendChild(dashedGroup);
+  svg.appendChild(solidGroup);
+  svg.appendChild(dotsGroup);
+}
+
+function renderIsoCylinderSvg(svg, state, angle) {
+  const border = themeVar('--c-grid', '#bbb');
+  const ink = themeVar('--c-border', '#111');
+  const fill = themeVar('--c-paper', '#eee');
+  const cosY = Math.cos(angle);
+  const sinY = Math.sin(angle);
+  const cx = ISO_PLOT_SIZE / 2;
+  const cy = ISO_PLOT_SIZE / 2;
+  const radius = ISO_PLOT_SCALE * 0.5;
+  const rx = radius * Math.sqrt(2) * 0.86602540378;
+  const ry = radius * Math.sqrt(2) * 0.5;
+  const topY = cy - ISO_PLOT_SCALE * 0.5;
+  const bottomY = cy + ISO_PLOT_SCALE * 0.5;
+
+  setIsoSvgViewport(svg, fill);
+
+  const dashedGroup = svgEl('g', {
+    class: 'iso-cube__frame iso-cube__frame--dashed',
+    fill: 'none',
+    stroke: border,
+    'stroke-width': 1,
+  });
+  const solidGroup = svgEl('g', {
+    class: 'iso-cube__frame iso-cube__frame--solid',
+    fill: 'none',
+    stroke: border,
+    'stroke-width': 1,
+  });
+
+  const topArc = svgEl('path', {
+    d: `M ${cx - rx} ${topY} A ${rx} ${ry} 0 0 1 ${cx + rx} ${topY}`,
+    'vector-effect': 'non-scaling-stroke',
+  });
+  const bottomBackArc = svgEl('path', {
+    d: `M ${cx - rx} ${bottomY} A ${rx} ${ry} 0 0 1 ${cx + rx} ${bottomY}`,
+    'vector-effect': 'non-scaling-stroke',
+  });
+  const bottomFrontArc = svgEl('path', {
+    d: `M ${cx - rx} ${bottomY} A ${rx} ${ry} 0 0 0 ${cx + rx} ${bottomY}`,
+    'vector-effect': 'non-scaling-stroke',
+  });
+  const leftLine = svgEl('line', {
+    x1: cx - rx,
+    y1: topY,
+    x2: cx - rx,
+    y2: bottomY,
+    'vector-effect': 'non-scaling-stroke',
+  });
+  const rightLine = svgEl('line', {
+    x1: cx + rx,
+    y1: topY,
+    x2: cx + rx,
+    y2: bottomY,
+    'vector-effect': 'non-scaling-stroke',
+  });
+
+  dashedGroup.appendChild(bottomBackArc);
+  solidGroup.appendChild(topArc);
+  solidGroup.appendChild(bottomFrontArc);
+  solidGroup.appendChild(leftLine);
+  solidGroup.appendChild(rightLine);
+
+  const points = state.data
+    .map((entry) => {
+      const theta = (entry.lch.h * Math.PI) / 180;
+      const axisA = Math.cos(theta) * clamp(entry.lch.c / 0.322, 0, 1) * 0.5;
+      const axisB = Math.sin(theta) * clamp(entry.lch.c / 0.322, 0, 1) * 0.5;
+      return {
+        entry,
+        projected: projectIsoPoint(entry.lab.l, axisA, axisB, cosY, sinY, ISO_PLOT_SCALE),
+      };
+    })
+    .sort((a, b) => a.projected.z - b.projected.z);
+
+  let minDepth = Infinity;
+  let maxDepth = -Infinity;
+  points.forEach(({ projected }) => {
+    minDepth = Math.min(minDepth, projected.z);
+    maxDepth = Math.max(maxDepth, projected.z);
+  });
+  const depthSpan = Math.max(1e-6, maxDepth - minDepth);
+
+  const dotsGroup = svgEl('g', { class: 'iso-cube__dots' });
+  points.forEach(({ entry, projected }) => {
+    const point = {
+      x: projected.x + cx,
+      y: projected.y + cy - projectIsoPoint(0.5, 0, 0, cosY, sinY, ISO_PLOT_SCALE).y,
+    };
+    const depthT = (projected.z - minDepth) / depthSpan;
+    const radiusScale = clamp(entry.lch.c / 0.322, 0, 1);
+    const circle = svgEl('circle', {
+      class: 'iso-cube__dot',
+      cx: point.x,
+      cy: point.y,
+      r: 2.2 + depthT * 1.8 + radiusScale * 0.8,
+      fill: entry.hex,
+      stroke: entry.index === state.darkest ? ink : 'rgba(0,0,0,0)',
+      'stroke-width': entry.index === state.darkest ? 1.35 : 0,
+      'vector-effect': 'non-scaling-stroke',
+    });
+    dotsGroup.appendChild(circle);
+  });
+
+  svg.appendChild(dashedGroup);
+  svg.appendChild(solidGroup);
+  svg.appendChild(dotsGroup);
+}
+
+function makeIsoCubeSvg(state) {
+  const svg = svgEl('svg', {
+    class: 'iso-cube',
+    role: 'img',
+    'aria-label': 'OKLab colourspace scatter plot',
+  });
+  let dragging = false;
+  let startX = 0;
+  let startAngle = isoCubeRotation;
+
+  const render = () => {
+    svg.setAttribute(
+      'aria-label',
+      isoPlotMode === 'cylinder' ? 'OKLCh cylindrical scatter plot' : 'OKLab colourspace scatter plot',
+    );
+    if (isoPlotMode === 'cylinder') {
+      renderIsoCylinderSvg(svg, state, isoCubeRotation);
+      return;
     }
-  }
-  return canvas;
+    renderIsoCubeSvg(svg, state, isoCubeRotation);
+  };
+
+  svg.addEventListener('pointerdown', (event) => {
+    dragging = true;
+    startX = event.clientX;
+    startAngle = isoCubeRotation;
+    svg.setPointerCapture?.(event.pointerId);
+    event.preventDefault();
+  });
+
+  svg.addEventListener('pointermove', (event) => {
+    if (!dragging) return;
+    isoCubeRotation = startAngle + (event.clientX - startX) * 0.008;
+    render();
+    event.preventDefault();
+  });
+
+  const stopDrag = (event) => {
+    if (!dragging) return;
+    dragging = false;
+    svg.releasePointerCapture?.(event.pointerId);
+    event.preventDefault();
+  };
+
+  svg.addEventListener('pointerup', stopDrag);
+  svg.addEventListener('pointercancel', stopDrag);
+
+  render();
+  return svg;
 }
 
 function drawSpaceScatter(state, xAccessor, yAccessor, xLabel, yLabel) {
@@ -877,11 +1127,36 @@ function renderLiMatch($panel, state) {
 
 function renderIsocubes($panel, state) {
   clearPanel($panel, 'OKLab colourspace');
-  const $gridEl = document.createElement('div');
-  $gridEl.className = 'cube-grid';
-  $gridEl.appendChild(drawIsoCube(state, false));
-  $gridEl.appendChild(drawIsoCube(state, true));
-  $panel.appendChild($gridEl);
+  const $wrap = document.createElement('div');
+  $wrap.className = 'iso-cube-wrap';
+  const $toolbar = document.createElement('div');
+  $toolbar.className = 'iso-cube__toolbar';
+  const $modes = document.createElement('div');
+  $modes.className = 'iso-cube__modes';
+  [
+    ['cube', 'Cube'],
+    ['cylinder', 'Cylinder'],
+  ].forEach(([mode, label]) => {
+    const $button = document.createElement('button');
+    $button.type = 'button';
+    $button.className = 'iso-cube__mode';
+    if (mode === isoPlotMode) $button.dataset.active = 'true';
+    $button.textContent = label;
+    $button.addEventListener('click', () => {
+      if (isoPlotMode === mode) return;
+      isoPlotMode = mode;
+      renderIsocubes($panel, state);
+    });
+    $modes.appendChild($button);
+  });
+  $toolbar.appendChild($modes);
+  $wrap.appendChild($toolbar);
+  $wrap.appendChild(makeIsoCubeSvg(state));
+  const $hint = document.createElement('div');
+  $hint.className = 'iso-cube__hint';
+  $hint.textContent = isoPlotMode === 'cylinder' ? 'drag to rotate OKLCh' : 'drag to rotate OKLab';
+  $wrap.appendChild($hint);
+  $panel.appendChild($wrap);
 }
 
 function renderLCBars($panel, state) {
