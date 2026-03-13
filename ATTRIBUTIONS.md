@@ -16,10 +16,27 @@ The spectrum visualization is inspired by the **SpectroBoxWidget** from
 ## OKLab / OKHsl / OKHsv
 
 GLSL implementation based on Bjorn Ottosson's reference code:
-https://bottosson.github.io/posts/oklab/
+[A perceptual color space for image processing](https://bottosson.github.io/posts/oklab/)
 
 ## Delta E formulas
 
 CIE ΔE76, ΔE94, and ΔE2000 follow the standard CIE specifications.
 Kotsarenko–Ramos metric from their 2010 paper on measuring perceptual color
 difference.
+
+## Demo dependencies and services
+
+The demo and analyzer include a few third-party libraries and external services
+that are not part of the core runtime package:
+
+- [colorsort-js](https://github.com/websublime/colorsort) powers the analyzer's
+  auto-sort worker for palette ordering.
+- [culori](https://culorijs.org/) is used in the demo/analyzer for color
+  conversion, interpolation, and color-vision-deficiency simulation.
+- [token-beam](https://github.com/meodai/token-beam) is used for live palette
+  sync in the demo/analyzer.
+- [Color Name API](https://meodai.github.io/color-name-api/) via
+  [api.color.pizza](https://api.color.pizza/v1/) is used to fetch palette color
+  names in the analyzer.
+- [Iosevka](https://be5invis.github.io/Iosevka/) is loaded from cdnjs for the
+  demo and analyzer UI typography.
