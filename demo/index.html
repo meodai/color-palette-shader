@@ -139,6 +139,7 @@ const c = (hex) => { const { r, g, b } = toRGB(hex); return [r, g, b]; };
 const viz = new PaletteViz({
   palette: ['#f2f0e5', '#4b80ca', '#b45252', '#a2dcc7'].map(c),
   container: document.querySelector('#app'),
+  observeResize: true,
   colorModel: 'okhslPolar', // 'okhslPolar' | 'oklchPolar' | 'cielchPolar' | 'okhsl' | …
   distanceMetric: 'oklab',  // 'oklab' | 'oklrab' | 'deltaE2000' | 'cielabD50' | …
   axis: 'y',                // which axis the position slider controls
@@ -148,7 +149,7 @@ const viz = new PaletteViz({
 });
 
 // option B: no container — place the canvas yourself
-const viz = new PaletteViz({ palette });
+const viz = new PaletteViz({ palette, observeResize: true });
 document.querySelector('#app').appendChild(viz.canvas);
 
 // update live
@@ -175,6 +176,7 @@ viz.destroy();</code></pre>
 const viz3d = new PaletteViz3D({
   palette: ['#f2f0e5', '#4b80ca', '#b45252', '#a2dcc7'].map(c),
   container: document.querySelector('#app'),
+  observeResize: true,
   colorModel: 'okhsv',
   distanceMetric: 'oklab',
   position: 1.0,       // 1 = full volume, 0 = fully sliced

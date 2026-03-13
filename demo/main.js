@@ -213,6 +213,7 @@ const sharedOptions = {
   height: vizSize(),
   container: $app,
   pixelRatio: devicePixelRatio * 2,
+  observeResize: true,
 };
 
 const vizzes = [
@@ -1019,6 +1020,7 @@ function create3DViz() {
     width: s * cols,
     height: s * rows,
     pixelRatio: devicePixelRatio * 2,
+    observeResize: true,
     colorModel: $colorModel.value,
     distanceMetric: $distanceMetric.value,
     invertAxes: getInvertZMode() === 'all' ? ['z'] : [],
