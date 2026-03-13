@@ -531,36 +531,26 @@ function stateForPalette(colors) {
   }
   hkPairs.sort((a, b) => b.boostDelta - a.boostDelta);
 
-  // Chromostereopsis: heuristic depth-separation risk, strongest around
-  // long/short wavelength conflicts such as saturated red/blue, but not
-  // exclusive to those pairs.
+  // Chromostereopsis: heuristic depth-separation risk based on strong
+  // chromatic separation, opponent hue distance, and some lightness contrast.
   const CHROMA_STEREO_MIN = 0.06;
-  const hueAffinity = (hue, target, range = 70) =>
-    clamp01(1 - hueDistance(hue, target) / range);
   const stereopsisPairs = [];
   for (let i = 0; i < data.length; i++) {
     for (let j = i + 1; j < data.length; j++) {
       if (data[i].lch.c < CHROMA_STEREO_MIN || data[j].lch.c < CHROMA_STEREO_MIN) continue;
       const hueDelta = hueDistance(data[i].lch.h, data[j].lch.h);
       const minChroma = Math.min(data[i].lch.c, data[j].lch.c);
-      const redBlueBias = Math.max(
-        hueAffinity(data[i].lch.h, 0) * hueAffinity(data[j].lch.h, 255),
-        hueAffinity(data[j].lch.h, 0) * hueAffinity(data[i].lch.h, 255),
-      );
-      const warmCoolSplit = (data[i].lch.h <= 90 || data[i].lch.h >= 330) !==
-        (data[j].lch.h <= 90 || data[j].lch.h >= 330)
-        ? 1
-        : 0.45;
       const lightnessDelta = Math.abs(data[i].lab.l - data[j].lab.l);
-      const severity =
-        minChroma * (0.35 + 0.65 * redBlueBias) * warmCoolSplit * (0.7 + 0.3 * lightnessDelta);
+      const hueFactor = Math.sin((hueDelta * Math.PI) / 360);
+      const severity = minChroma * (0.4 + 0.6 * hueFactor) * (0.75 + 0.25 * lightnessDelta);
       stereopsisPairs.push({
         i,
         j,
         severity,
         minChroma,
         hueDelta,
-        redBlueBias,
+        hueFactor,
+        lightnessDelta,
       });
     }
   }
@@ -2154,7 +2144,7 @@ function renderStereopsisPanel($panel, state) {
 
   const $note = document.createElement('div');
   $note.className = 'metric-note';
-  $note.textContent = 'Heuristic strongest depth-separation pairs, red/blue-biased but not exclusive';
+  $note.textContent = 'Heuristic strongest depth-separation pairs';
   $panel.appendChild($note);
 
   if (count) {
@@ -2163,7 +2153,7 @@ function renderStereopsisPanel($panel, state) {
     state.stereopsisPairs.slice(0, 6).forEach((pair) => {
       const $pair = document.createElement('div');
       $pair.className = 'stereo-pair';
-      $pair.title = `${palette[pair.i]} / ${palette[pair.j]} · score ${pair.severity.toFixed(3)} · Δh ${pair.hueDelta.toFixed(0)}° · Cmin ${pair.minChroma.toFixed(3)} · rb ${pair.redBlueBias.toFixed(2)}`;
+      $pair.title = `${palette[pair.i]} / ${palette[pair.j]} · score ${pair.severity.toFixed(3)} · Δh ${pair.hueDelta.toFixed(0)}° · Cmin ${pair.minChroma.toFixed(3)} · hue ${pair.hueFactor.toFixed(2)} · ΔL ${pair.lightnessDelta.toFixed(3)}`;
       $pair.innerHTML = `<span style="--c:${palette[pair.i]}"><span style="--c:${palette[pair.j]}"></span></span><span style="--c:${palette[pair.j]}"><span style="--c:${palette[pair.i]}"></span></span>`;
       $row.appendChild($pair);
     });
