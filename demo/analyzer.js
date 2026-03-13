@@ -108,6 +108,11 @@ function srgbToLinear(value) {
   return ((value + 0.055) / 1.055) ** 2.4;
 }
 
+function linearToSrgb(value) {
+  if (value <= 0.0031308) return value * 12.92;
+  return 1.055 * value ** (1 / 2.4) - 0.055;
+}
+
 function relativeLuminance(rgb) {
   const [r, g, b] = rgb.map((value) => srgbToLinear(clamp01(value)));
   return 0.2126729 * r + 0.7151522 * g + 0.072175 * b;
@@ -161,10 +166,11 @@ const CVD_MATRICES = [
 ];
 
 function transformRgb(rgb, matrix) {
+  const lin = rgb.map(srgbToLinear);
   return [
-    clamp01(rgb[0] * matrix[0][0] + rgb[1] * matrix[0][1] + rgb[2] * matrix[0][2]),
-    clamp01(rgb[0] * matrix[1][0] + rgb[1] * matrix[1][1] + rgb[2] * matrix[1][2]),
-    clamp01(rgb[0] * matrix[2][0] + rgb[1] * matrix[2][1] + rgb[2] * matrix[2][2]),
+    clamp01(linearToSrgb(lin[0] * matrix[0][0] + lin[1] * matrix[0][1] + lin[2] * matrix[0][2])),
+    clamp01(linearToSrgb(lin[0] * matrix[1][0] + lin[1] * matrix[1][1] + lin[2] * matrix[1][2])),
+    clamp01(linearToSrgb(lin[0] * matrix[2][0] + lin[1] * matrix[2][1] + lin[2] * matrix[2][2])),
   ];
 }
 
@@ -376,8 +382,8 @@ function stateForPalette(colors) {
         const triad = [chromaticEntries[i], chromaticEntries[j], chromaticEntries[k]];
         const sorted = [...triad].sort((a, b) => a.lch.h - b.lch.h);
         const gaps = [
-          hueDistance(sorted[0].lch.h, sorted[1].lch.h),
-          hueDistance(sorted[1].lch.h, sorted[2].lch.h),
+          sorted[1].lch.h - sorted[0].lch.h,
+          sorted[2].lch.h - sorted[1].lch.h,
           360 - (sorted[2].lch.h - sorted[0].lch.h),
         ];
         chromaticTriads.push({
