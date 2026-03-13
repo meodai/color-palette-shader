@@ -452,12 +452,12 @@ const specBoxConfig = {
 const TILE_SIZE = 100;
 const vizzes = [];
 
-function createVizEntry(cfg, width, height, dynamic = false) {
+function createVizEntry(cfg, width, height, dynamic = false, pixelRatio = devicePixelRatio) {
   const viz = new PaletteViz({
     palette: palette.map((hex) => srgbArray(hex)),
     width,
     height,
-    pixelRatio: devicePixelRatio,
+    pixelRatio,
     colorModel: cfg.colorModel,
     distanceMetric: $metric?.value ?? 'oklab',
     axis: cfg.axis,
@@ -1327,10 +1327,12 @@ function renderHueSideviews($panel) {
   clearPanel($panel, 'Complementary Slices');
   const $gridEl = document.createElement('div');
   $gridEl.className = 'viz-grid-6';
+  const renderSize = 96;
   hueSideConfigs.forEach((cfg) => {
     const $card = document.createElement('div');
     $card.className = 'viz-card';
-    const entry = createVizEntry(cfg, 54, 54, true);
+    const entry = createVizEntry(cfg, renderSize, renderSize, true, devicePixelRatio * 2);
+    entry.viz.canvas.style.imageRendering = 'auto';
     $card.appendChild(entry.viz.canvas);
     const $lbl = makeVizLabel(cfg, entry.viz, 'viz-card__lbl');
     $lbl.querySelector('.viz-title')?.remove();
