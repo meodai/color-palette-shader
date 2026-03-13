@@ -627,6 +627,10 @@ function makeCanvas(width, height) {
   return { canvas, ctx, width, height };
 }
 
+function checkerBackground(a, b, size = 2) {
+  return `repeating-conic-gradient(${a} 0 25%, #0000 0 50%) 50% / ${size}px ${size}px, ${b}`;
+}
+
 function buildShader(gl, type, source) {
   const shader = gl.createShader(type);
   gl.shaderSource(shader, source);
@@ -1697,50 +1701,41 @@ function renderMainPalette($panel, state) {
 
 function renderNeutralisers($panel, state) {
   clearPanel($panel, 'Neutralisers');
-  const { canvas, ctx, width, height } = makeCanvas(396, 22);
-  const slotWidth = width / Math.max(1, state.sortedByL.length);
-  state.sortedByL.forEach((entry, index) => {
+  const $strip = document.createElement('div');
+  $strip.className = 'dither-strip';
+  state.sortedByL.forEach((entry) => {
     const partner = state.neutralisers[entry.index] ?? entry;
-    const x = Math.floor(index * slotWidth);
-    const nextX = Math.floor((index + 1) * slotWidth);
-    const w = Math.max(1, nextX - x);
-    ctx.fillStyle = partner.hex;
-    ctx.fillRect(x, 0, w, 9);
-    for (let yy = 10; yy < height; yy++) {
-      for (let xx = 0; xx < w; xx++) {
-        ctx.fillStyle = (xx + yy) % 2 === 0 ? entry.hex : partner.hex;
-        ctx.fillRect(x + xx, yy, 1, 1);
-      }
-    }
+    const $slot = document.createElement('div');
+    $slot.className = 'dither-strip__slot';
+    $slot.title = `${entry.hex} -> ${partner.hex}`;
+
+    const $top = document.createElement('span');
+    $top.className = 'dither-strip__top';
+    $top.style.background = partner.hex;
+
+    const $bottom = document.createElement('span');
+    $bottom.className = 'dither-strip__bottom';
+    $bottom.style.background = checkerBackground(entry.hex, partner.hex);
+
+    $slot.appendChild($top);
+    $slot.appendChild($bottom);
+    $strip.appendChild($slot);
   });
-  ctx.strokeStyle = themeVar('--c-grid', '#bbb');
-  ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
-  $panel.appendChild(canvas);
+  $panel.appendChild($strip);
 }
 
 function renderUsefulMixes($panel, state) {
   clearPanel($panel, 'mixes');
-  const { canvas, ctx, width, height } = makeCanvas(44, 58);
-  const cols = 2;
-  const rows = 7;
-  const gap = 1;
-  const cellWidth = Math.floor((width - gap * (cols - 1)) / cols);
-  const cellHeight = Math.floor((height - gap * (rows - 1)) / rows);
+  const $gridEl = document.createElement('div');
+  $gridEl.className = 'mix-grid';
   state.mixes.forEach((mix, index) => {
-    const col = index % cols;
-    const row = Math.floor(index / cols);
-    const x = col * (cellWidth + gap);
-    const y = row * (cellHeight + gap);
-    for (let yy = 0; yy < cellHeight; yy++) {
-      for (let xx = 0; xx < cellWidth; xx++) {
-        ctx.fillStyle = (xx + yy) % 2 === 0 ? mix.a.hex : mix.b.hex;
-        ctx.fillRect(x + xx, y + yy, 1, 1);
-      }
-    }
+    const $cell = document.createElement('span');
+    $cell.className = 'mix-grid__cell';
+    $cell.title = `${mix.a.hex} + ${mix.b.hex}`;
+    $cell.style.background = checkerBackground(mix.a.hex, mix.b.hex);
+    $gridEl.appendChild($cell);
   });
-  ctx.strokeStyle = themeVar('--c-grid', '#bbb');
-  ctx.strokeRect(0.5, 0.5, width - 1, height - 1);
-  $panel.appendChild(canvas);
+  $panel.appendChild($gridEl);
 }
 
 function renderPolarGroup($panel) {
