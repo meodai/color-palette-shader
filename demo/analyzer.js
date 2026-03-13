@@ -1150,7 +1150,7 @@ function renderSpectrumPanel($panel, state) {
 }
 
 function renderLiMatch($panel, state) {
-  clearPanel($panel, 'Li-match greyscale');
+  clearPanel($panel, 'Li-match');
   const entry = createVizEntry(
     {
       id: 'li-viz',
@@ -1416,9 +1416,26 @@ buildGrid();
 
 $metric = document.createElement('select');
 $metric.innerHTML = `
-  <optgroup label="OK"><option value="oklab">OKLab</option><option value="oklrab">OKLrab</option></optgroup>
-  <optgroup label="CIE"><option value="deltaE76">DeltaE76</option><option value="deltaE94">DeltaE94</option><option value="deltaE2000">DeltaE2000</option><option value="cielabD50">CIELab D50</option></optgroup>
-  <optgroup label="Simple"><option value="rgb">RGB</option></optgroup>
+  <optgroup label="OK">
+    <option value="oklab">OKLab</option>
+    <option value="oklrab">OKLrab</option>
+    <option value="okLightness">OK Lightness</option>
+    <option value="liMatch">Li-match</option>
+  </optgroup>
+  <optgroup label="CIE — D65">
+    <option value="deltaE76">Euclidean / ΔE76</option>
+    <option value="deltaE94">ΔE94</option>
+    <option value="deltaE2000">ΔE2000</option>
+  </optgroup>
+  <optgroup label="CIE — D50">
+    <option value="cielabD50">Euclidean</option>
+  </optgroup>
+  <optgroup label="Heuristic">
+    <option value="kotsarenkoRamos">Kotsarenko / Ramos</option>
+  </optgroup>
+  <optgroup label="Simple">
+    <option value="rgb">RGB</option>
+  </optgroup>
 `;
 $metric.value = 'oklrab';
 $metric.addEventListener('change', () => {
