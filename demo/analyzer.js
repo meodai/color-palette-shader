@@ -55,13 +55,28 @@ const ARTICLE_LINKS = {
   harmony: [
     { label: 'Analogous', href: 'https://colorandcontrast.com/#/analogous-colors' },
     { label: 'Complementary', href: 'https://colorandcontrast.com/#/complimentary-colors' },
+    { label: 'Split-compl.', href: 'https://colorandcontrast.com/#/split-complimentary-colors' },
     { label: 'Triadic', href: 'https://colorandcontrast.com/#/triadic-colors' },
+    { label: 'Tetradic', href: 'https://colorandcontrast.com/#/tetradic-colors' },
+    { label: 'Monochromatic', href: 'https://colorandcontrast.com/#/monochromatic-colors' },
+  ],
+  hk: [
+    { label: 'HK effect', href: 'https://colorandcontrast.com/#/helmholtz-kohlrausch-effect' },
+  ],
+  chromostereopsis: [
+    { label: 'Chromostereopsis', href: 'https://colorandcontrast.com/#/chromostereopsis' },
+  ],
+  temperature: [
+    { label: 'Warm & cool', href: 'https://colorandcontrast.com/#/warm-and-cool-colors' },
   ],
 };
 const HARMONY_RULES = [
   { id: 'analogous', label: 'Analogous', kind: 'pair', target: 30, tolerance: 18 },
   { id: 'complementary', label: 'Complementary', kind: 'pair', target: 180, tolerance: 18 },
+  { id: 'split-complementary', label: 'Split-compl.', kind: 'split', target: 150, splitGap: 60, tolerance: 20 },
   { id: 'triadic', label: 'Triadic', kind: 'triad', target: 120, tolerance: 16 },
+  { id: 'tetradic', label: 'Tetradic', kind: 'tetrad', target: 90, tolerance: 16 },
+  { id: 'monochromatic', label: 'Monochromatic', kind: 'pair', target: 0, tolerance: 12 },
 ];
 
 let $metric;
@@ -344,7 +359,73 @@ function stateForPalette(colors) {
     }
   }
 
+  const chromaticTetrads = [];
+  for (let i = 0; i < chromaticEntries.length; i++) {
+    for (let j = i + 1; j < chromaticEntries.length; j++) {
+      for (let k = j + 1; k < chromaticEntries.length; k++) {
+        for (let m = k + 1; m < chromaticEntries.length; m++) {
+          const tetrad = [chromaticEntries[i], chromaticEntries[j], chromaticEntries[k], chromaticEntries[m]];
+          const sorted = [...tetrad].sort((a, b) => a.lch.h - b.lch.h);
+          const gaps = [
+            sorted[1].lch.h - sorted[0].lch.h,
+            sorted[2].lch.h - sorted[1].lch.h,
+            sorted[3].lch.h - sorted[2].lch.h,
+            360 - (sorted[3].lch.h - sorted[0].lch.h),
+          ];
+          chromaticTetrads.push({
+            indices: tetrad.map((entry) => entry.index),
+            gaps,
+          });
+        }
+      }
+    }
+  }
+
   const harmonyAnalyses = HARMONY_RULES.map((rule) => {
+    if (rule.kind === 'split') {
+      // Split-complementary: two gaps near target (150°) and one gap near splitGap (60°)
+      const ranked = chromaticTriads
+        .map((triad) => {
+          const sorted3 = [...triad.gaps].sort((a, b) => a - b);
+          // Smallest gap should match splitGap, two larger gaps should match target
+          const splitError = Math.abs(sorted3[0] - rule.splitGap);
+          const bigError = Math.max(Math.abs(sorted3[1] - rule.target), Math.abs(sorted3[2] - rule.target));
+          return {
+            ...triad,
+            error: Math.max(splitError, bigError),
+            meanGap: triad.gaps.reduce((sum, gap) => sum + gap, 0) / triad.gaps.length,
+          };
+        })
+        .sort((a, b) => a.error - b.error);
+      const matches = ranked.filter((triad) => triad.error <= rule.tolerance);
+      return {
+        ...rule,
+        kind: 'triad',
+        count: matches.length,
+        setCount: chromaticTriads.length,
+        coverage: chromaticTriads.length ? matches.length / chromaticTriads.length : 0,
+        closest: ranked[0] ?? null,
+      };
+    }
+
+    if (rule.kind === 'tetrad') {
+      const ranked = chromaticTetrads
+        .map((tetrad) => ({
+          ...tetrad,
+          error: Math.max(...tetrad.gaps.map((gap) => Math.abs(gap - rule.target))),
+          meanGap: tetrad.gaps.reduce((sum, gap) => sum + gap, 0) / tetrad.gaps.length,
+        }))
+        .sort((a, b) => a.error - b.error);
+      const matches = ranked.filter((tetrad) => tetrad.error <= rule.tolerance);
+      return {
+        ...rule,
+        count: matches.length,
+        setCount: chromaticTetrads.length,
+        coverage: chromaticTetrads.length ? matches.length / chromaticTetrads.length : 0,
+        closest: ranked[0] ?? null,
+      };
+    }
+
     if (rule.kind === 'triad') {
       const ranked = chromaticTriads
         .map((triad) => ({
@@ -405,6 +486,80 @@ function stateForPalette(colors) {
     };
   });
 
+  // Helmholtz-Kohlrausch effect: high-chroma colors appear brighter than
+  // their luminance suggests. The HK correction uses Nayatani's formula
+  // approximated via OKLch chroma as a proxy for saturation.
+  // Factor: perceived_L ≈ L + f(chroma) where f scales with chroma.
+  const hkEntries = data.map((entry, index) => {
+    const y = luminances[index];
+    // Nayatani-style HK factor: chroma drives the perceived brightness boost.
+    // OKLch C typically ranges 0–0.4; scale so a fully saturated color
+    // gets roughly +0.15 perceived-luminance boost.
+    const hkBoost = entry.lch.c * 0.37;
+    const perceivedY = Math.min(1, y + hkBoost);
+    return { index, hex: entry.hex, y, perceivedY, boost: hkBoost, chroma: entry.lch.c };
+  });
+  const hkPairs = [];
+  for (let i = 0; i < hkEntries.length; i++) {
+    for (let j = i + 1; j < hkEntries.length; j++) {
+      const a = hkEntries[i];
+      const b = hkEntries[j];
+      // Cases where luminance order and perceived order disagree
+      const lumDelta = a.y - b.y;
+      const percDelta = a.perceivedY - b.perceivedY;
+      const flipped = (lumDelta > 0.02 && percDelta < -0.02) || (lumDelta < -0.02 && percDelta > 0.02);
+      hkPairs.push({
+        i, j,
+        lumDelta: Math.abs(lumDelta),
+        percDelta: Math.abs(percDelta),
+        boostDelta: Math.abs(a.boost - b.boost),
+        flipped,
+      });
+    }
+  }
+  hkPairs.sort((a, b) => b.boostDelta - a.boostDelta);
+
+  // Chromostereopsis: red-blue combinations cause depth illusion and eye strain.
+  // Detect pairs where one hue is in the red range and the other in blue,
+  // both with meaningful chroma.
+  const CHROMA_STEREO_MIN = 0.06;
+  const RED_RANGE = [0, 30];       // 0–30° and 330–360° in OKLch hue
+  const BLUE_RANGE = [240, 290];
+  const isRedish = (h) => h <= RED_RANGE[1] || h >= 330;
+  const isBlueish = (h) => h >= BLUE_RANGE[0] && h <= BLUE_RANGE[1];
+  const stereopsisPairs = [];
+  for (let i = 0; i < data.length; i++) {
+    for (let j = i + 1; j < data.length; j++) {
+      if (data[i].lch.c < CHROMA_STEREO_MIN || data[j].lch.c < CHROMA_STEREO_MIN) continue;
+      const aRed = isRedish(data[i].lch.h);
+      const aBlue = isBlueish(data[i].lch.h);
+      const bRed = isRedish(data[j].lch.h);
+      const bBlue = isBlueish(data[j].lch.h);
+      if ((aRed && bBlue) || (aBlue && bRed)) {
+        stereopsisPairs.push({
+          i, j,
+          severity: Math.min(data[i].lch.c, data[j].lch.c),
+        });
+      }
+    }
+  }
+  stereopsisPairs.sort((a, b) => b.severity - a.severity);
+
+  // Warm/Cool classification based on OKLch hue.
+  // Warm: 0–90° and 330–360° (reds, oranges, yellows)
+  // Cool: 90–330° (greens, blues, purples)
+  // Near-neutral colors (low chroma) are classified as neutral.
+  const WARM_COOL_CHROMA_MIN = 0.03;
+  const temperature = data.map((entry) => {
+    if (entry.lch.c < WARM_COOL_CHROMA_MIN) return { ...entry, temp: 'neutral' };
+    const h = entry.lch.h;
+    if (h <= 90 || h >= 330) return { ...entry, temp: 'warm' };
+    return { ...entry, temp: 'cool' };
+  });
+  const warmCount = temperature.filter((e) => e.temp === 'warm').length;
+  const coolCount = temperature.filter((e) => e.temp === 'cool').length;
+  const neutralCount = temperature.filter((e) => e.temp === 'neutral').length;
+
   return {
     data,
     pairs,
@@ -434,6 +589,13 @@ function stateForPalette(colors) {
     neighbourPairs,
     harmonyAnalyses,
     cvdAnalyses,
+    hkEntries,
+    hkPairs,
+    stereopsisPairs,
+    temperature,
+    warmCount,
+    coolCount,
+    neutralCount,
   };
 }
 
@@ -833,6 +995,9 @@ function buildGrid() {
   $extra.appendChild(makePanel('simultaneous', 'Neighbour influence', 'cell-simultaneous'));
   $extra.appendChild(makePanel('luminance', 'Luminance spread', 'cell-luminance'));
   $extra.appendChild(makePanel('harmony', 'Harmony structure', 'cell-harmony'));
+  $extra.appendChild(makePanel('hk', 'Helmholtz-Kohlrausch', 'cell-hk'));
+  $extra.appendChild(makePanel('stereopsis', 'Chromostereopsis', 'cell-stereopsis'));
+  $extra.appendChild(makePanel('temperature', 'Warm / Cool', 'cell-temperature'));
 
   $grid.appendChild($top);
   $grid.appendChild($strips);
@@ -1858,21 +2023,28 @@ function renderHarmonyPanel($panel, state) {
   appendMetricLinks($panel, ARTICLE_LINKS.harmony);
   const $note = document.createElement('div');
   $note.className = 'metric-note';
-  $note.textContent = 'Descriptive hue coverage for chromatic pairs and true three-colour triads';
+  $note.textContent = 'Hue coverage for chromatic pairs, triads, and tetrads';
   $panel.appendChild($note);
 
   const $list = document.createElement('div');
   $list.className = 'metric-list';
   state.harmonyAnalyses.forEach((analysis) => {
     const closest = analysis.closest;
-    const pairMarkup = closest
-      ? analysis.kind === 'triad'
-        ? `<div class="metric-pair"><span style="background:${palette[closest.indices[0]]}"></span><span style="background:${palette[closest.indices[1]]}"></span><span style="background:${palette[closest.indices[2]]}"></span></div>`
-        : `<div class="metric-pair"><span style="background:${palette[closest.i]}"></span><span style="background:${palette[closest.j]}"></span></div>`
-      : '<div class="metric-pair"></div>';
-    const meta = analysis.kind === 'triad'
-      ? `${analysis.count}/${analysis.setCount} triads · nearest ${closest ? closest.meanGap.toFixed(0) : '—'}° avg`
-      : `${analysis.count}/${analysis.setCount} pairs · nearest ${closest ? closest.delta.toFixed(0) : '—'}°`;
+    let pairMarkup = '<div class="metric-pair"></div>';
+    if (closest) {
+      if (analysis.kind === 'tetrad') {
+        pairMarkup = `<div class="metric-pair"><span style="background:${palette[closest.indices[0]]}"></span><span style="background:${palette[closest.indices[1]]}"></span><span style="background:${palette[closest.indices[2]]}"></span><span style="background:${palette[closest.indices[3]]}"></span></div>`;
+      } else if (analysis.kind === 'triad') {
+        pairMarkup = `<div class="metric-pair"><span style="background:${palette[closest.indices[0]]}"></span><span style="background:${palette[closest.indices[1]]}"></span><span style="background:${palette[closest.indices[2]]}"></span></div>`;
+      } else {
+        pairMarkup = `<div class="metric-pair"><span style="background:${palette[closest.i]}"></span><span style="background:${palette[closest.j]}"></span></div>`;
+      }
+    }
+    const setLabel = analysis.kind === 'tetrad' ? 'tetrads' : analysis.kind === 'triad' ? 'triads' : 'pairs';
+    const nearestLabel = (analysis.kind === 'tetrad' || analysis.kind === 'triad')
+      ? `nearest ${closest ? closest.meanGap.toFixed(0) : '—'}° avg`
+      : `nearest ${closest ? closest.delta.toFixed(0) : '—'}°`;
+    const meta = `${analysis.count}/${analysis.setCount} ${setLabel} · ${nearestLabel}`;
     const $row = document.createElement('div');
     $row.className = 'metric-row';
     $row.innerHTML = `
@@ -1887,6 +2059,105 @@ function renderHarmonyPanel($panel, state) {
     $list.appendChild($row);
   });
   $panel.appendChild($list);
+}
+
+function renderHkPanel($panel, state) {
+  clearPanel($panel, 'Helmholtz-Kohlrausch');
+  appendMetricLinks($panel, ARTICLE_LINKS.hk);
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  $note.textContent = 'High-chroma colors appear brighter than their luminance suggests';
+  $panel.appendChild($note);
+
+  const $list = document.createElement('div');
+  $list.className = 'metric-list';
+  const sorted = [...state.hkEntries].sort((a, b) => b.boost - a.boost);
+  sorted.slice(0, 8).forEach((entry) => {
+    const $row = document.createElement('div');
+    $row.className = 'metric-row';
+    if (entry.boost > 0.05) $row.classList.add('metric-row--warn');
+    $row.innerHTML = `
+      <div class="metric-pair">
+        <span style="background:${entry.hex}" title="${entry.hex}"></span>
+        <span style="background:hsl(0 0% ${Math.round(entry.perceivedY * 100)}%)" title="Perceived: Y ${entry.perceivedY.toFixed(3)}"></span>
+      </div>
+      <div class="metric-copy">
+        <div class="metric-copy__title">Y ${entry.y.toFixed(3)} → perceived ${entry.perceivedY.toFixed(3)}</div>
+        <div class="metric-copy__meta">C ${entry.chroma.toFixed(3)} · boost +${entry.boost.toFixed(3)}</div>
+      </div>
+      <div class="metric-value">+${(entry.boost * 100).toFixed(0)}%</div>
+    `;
+    $list.appendChild($row);
+  });
+
+  const flipped = state.hkPairs.filter((p) => p.flipped);
+  if (flipped.length > 0) {
+    const $warn = document.createElement('div');
+    $warn.className = 'metric-note';
+    $warn.textContent = `${flipped.length} pair${flipped.length !== 1 ? 's' : ''} where perceived brightness order disagrees with luminance order`;
+    $panel.appendChild($warn);
+  }
+  $panel.appendChild($list);
+}
+
+function renderStereopsisPanel($panel, state) {
+  clearPanel($panel, 'Chromostereopsis');
+  appendMetricLinks($panel, ARTICLE_LINKS.chromostereopsis);
+  const count = state.stereopsisPairs.length;
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  $note.textContent = count
+    ? `${count} red-blue pair${count !== 1 ? 's' : ''} that may cause depth illusion and eye strain`
+    : 'No red-blue high-chroma pairs detected';
+  $panel.appendChild($note);
+
+  if (count) {
+    const $list = document.createElement('div');
+    $list.className = 'metric-list';
+    state.stereopsisPairs.forEach((pair) => {
+      const $row = document.createElement('div');
+      $row.className = 'metric-row metric-row--warn';
+      $row.innerHTML = `
+        <div class="metric-pair">
+          <span style="background:${palette[pair.i]}"></span>
+          <span style="background:${palette[pair.j]}"></span>
+        </div>
+        <div class="metric-copy">
+          <div class="metric-copy__title">${palette[pair.i]} / ${palette[pair.j]}</div>
+          <div class="metric-copy__meta">min chroma ${pair.severity.toFixed(3)}</div>
+        </div>
+      `;
+      $list.appendChild($row);
+    });
+    $panel.appendChild($list);
+  }
+}
+
+function renderTemperaturePanel($panel, state) {
+  clearPanel($panel, 'Warm / Cool');
+  appendMetricLinks($panel, ARTICLE_LINKS.temperature);
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  $note.textContent = 'Color temperature based on OKLch hue angle';
+  $panel.appendChild($note);
+
+  const $boxes = document.createElement('div');
+  $boxes.className = 'box-row';
+  [
+    { label: 'Warm', count: state.warmCount, color: '--c-warm', fallback: '#e06030' },
+    { label: 'Cool', count: state.coolCount, color: '--c-cool', fallback: '#3080d0' },
+    { label: 'Neutral', count: state.neutralCount, color: '--c-neutral', fallback: '#888' },
+  ].forEach(({ label, count, color, fallback }) => {
+    const $box = document.createElement('div');
+    $box.className = 'info-box';
+    $box.innerHTML = `
+      <div class="info-box__label">${label}</div>
+      <div class="info-box__value">${count}<span class="info-box__indicator" style="background:${themeVar(color, fallback)}"></span></div>
+      <div class="info-box__bar" style="width:${state.data.length ? (count / state.data.length) * 100 : 0}%;background:${themeVar(color, fallback)}"></div>
+    `;
+    $boxes.appendChild($box);
+  });
+  $panel.appendChild($boxes);
 }
 
 function renderBars($panel, title, items, accessor, max) {
@@ -1930,6 +2201,9 @@ function renderAnalysis() {
   renderNeighbourPanel($grid.querySelector('[data-role="simultaneous"]'), state);
   renderLuminancePanel($grid.querySelector('[data-role="luminance"]'), state);
   renderHarmonyPanel($grid.querySelector('[data-role="harmony"]'), state);
+  renderHkPanel($grid.querySelector('[data-role="hk"]'), state);
+  renderStereopsisPanel($grid.querySelector('[data-role="stereopsis"]'), state);
+  renderTemperaturePanel($grid.querySelector('[data-role="temperature"]'), state);
 }
 
 function updateHeader() {
