@@ -349,10 +349,10 @@ const rectTileConfigs = [
 ];
 
 const polarTileConfigs = [
-  { id: 'polar-lc1', colorModel: 'oklchPolar', label: 'Hue-lightness C=0.08', axis: 'y', controlLabel: 'C', position: 0.8 },
-  { id: 'polar-lc2', colorModel: 'oklchPolar', label: 'Hue-lightness C=0.20', axis: 'y', controlLabel: 'C', position: 0.5 },
-  { id: 'polar-lc3', colorModel: 'oklchPolar', label: 'Hue-lightness C=0.35', axis: 'y', controlLabel: 'C', position: 0.3 },
-  { id: 'polar-lc4', colorModel: 'oklchPolar', label: 'Hue-lightness C=0', axis: 'y', controlLabel: 'C', position: 0 },
+  { id: 'polar-lo', colorModel: 'oklchPolar', label: 'Low chroma', axis: 'y', controlLabel: 'C', position: 0.8, invertAxes: ['z'] },
+  { id: 'polar-lo-inv', colorModel: 'oklchPolar', label: 'Low chroma', axis: 'y', controlLabel: 'C', position: 0.8 },
+  { id: 'polar-hi', colorModel: 'oklchPolar', label: 'High chroma', axis: 'y', controlLabel: 'C', position: 0.3, invertAxes: ['z'] },
+  { id: 'polar-hi-inv', colorModel: 'oklchPolar', label: 'High chroma', axis: 'y', controlLabel: 'C', position: 0.3 },
 ];
 
 const hueSideConfigs = [
@@ -581,11 +581,11 @@ function drawIsoCube(state, rotate) {
   }
   ctx.beginPath();
   ctx.moveTo(width / 2, height / 2);
-  ctx.lineTo(width / 2, 0);
+  ctx.lineTo(vertices[0][0], vertices[0][1]);
   ctx.moveTo(width / 2, height / 2);
-  ctx.lineTo(width, height / 4);
+  ctx.lineTo(vertices[1][0], vertices[1][1]);
   ctx.moveTo(width / 2, height / 2);
-  ctx.lineTo(0, height / 4);
+  ctx.lineTo(vertices[5][0], vertices[5][1]);
   ctx.stroke();
 
   const points = state.data
@@ -600,7 +600,7 @@ function drawIsoCube(state, rotate) {
     })
     .sort((a, b) => a.x + a.y + a.z - (b.x + b.y + b.z));
 
-  const dotSize = clamp(Math.round(32 / Math.sqrt(Math.max(state.data.length, 1))), 2, 5);
+  const dotSize = clamp(Math.round(10 / Math.sqrt(Math.max(state.data.length, 1))), 1, 2);
   const cx = width / 2;
   const cy = height / 2;
   const span = width * 0.34;
@@ -679,11 +679,16 @@ function drawHuePolar(state) {
   const ink = themeVar('--c-border', '#111');
 
   ctx.strokeStyle = border;
-  [0.25, 0.5, 0.75, 1].forEach((factor) => {
+  [0.25, 0.5, 0.75].forEach((factor) => {
+    ctx.setLineDash([2, 2]);
     ctx.beginPath();
     ctx.arc(cx, cy, radius * factor, 0, Math.PI * 2);
     ctx.stroke();
   });
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(cx - radius, cy);
   ctx.lineTo(cx + radius, cy);
@@ -707,10 +712,14 @@ function drawHuePolar(state) {
     ctx.fillText(label, cx + Math.cos(a) * (radius + 5), cy - Math.sin(a) * (radius + 5));
   });
 
-  const dotSize = clamp(Math.round(32 / Math.sqrt(Math.max(state.data.length, 1))), 2, 5);
+  const n = state.data.length;
+  const minDD = n <= 24 ? 1 : 0.5;
+  const maxDD = n <= 64 ? 2.5 : n <= 128 ? 2 : 1.5;
   state.data.forEach((entry) => {
     const angle = (entry.lch.h * Math.PI) / 180;
-    const r = (entry.lch.c / state.maxC) * radius;
+    const chromaNorm = clamp(entry.lch.c / 0.322, 0, 1);
+    const r = chromaNorm * radius;
+    const dotSize = 1 + minDD + Math.round(chromaNorm * (maxDD - minDD));
     const x = cx + Math.cos(angle) * r;
     const y = cy - Math.sin(angle) * r;
     ctx.fillStyle = entry.hex;
@@ -770,7 +779,7 @@ function renderStats($panel, state) {
 }
 
 function renderSpectrumPanel($panel, state) {
-  clearPanel($panel, 'Specbox');
+  clearPanel($panel);
   $panel.appendChild(makePanelShader(specBoxConfig, 188, 82));
 }
 
@@ -790,6 +799,7 @@ function renderLiMatch($panel, state) {
     true,
   );
   entry.viz.distanceMetric = 'liMatch';
+  entry.lockMetric = true;
   entry.viz.canvas.style.cssText =
     'image-rendering:pixelated;height:180px!important;width:40px!important;display:block;';
   $panel.appendChild(entry.viz.canvas);
@@ -923,11 +933,18 @@ function renderPolarGroup($panel) {
 }
 
 function renderHueSideviews($panel) {
-  clearPanel($panel, 'OKHSL hue sideviews');
+  clearPanel($panel, 'Complementary Slices');
   const $gridEl = document.createElement('div');
   $gridEl.className = 'viz-grid-6';
   hueSideConfigs.forEach((cfg) => {
-    $gridEl.appendChild(makePanelShader(cfg, 54, 54));
+    const $card = document.createElement('div');
+    $card.className = 'viz-card';
+    const entry = createVizEntry(cfg, 54, 54, true);
+    $card.appendChild(entry.viz.canvas);
+    const $lbl = makeVizLabel(cfg, entry.viz, 'viz-card__lbl');
+    $lbl.querySelector('.viz-title')?.remove();
+    $card.appendChild($lbl);
+    $gridEl.appendChild($card);
   });
   $panel.appendChild($gridEl);
 }
@@ -999,8 +1016,8 @@ $metric.innerHTML = `
   <optgroup label="Simple"><option value="rgb">RGB</option></optgroup>
 `;
 $metric.addEventListener('change', () => {
-  vizzes.forEach(({ viz }) => {
-    viz.distanceMetric = $metric.value;
+  vizzes.forEach((entry) => {
+    if (!entry.lockMetric) entry.viz.distanceMetric = $metric.value;
   });
   $hdrR.textContent = `Colour difference: ${$metric.selectedOptions[0].text}`;
 });
