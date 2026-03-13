@@ -319,7 +319,7 @@ const rectTileConfigs = [
   {
     id: 'rect-hc',
     colorModel: 'oklch',
-    label: 'Rect hue-lightness',
+    label: 'H/L',
     axis: 'y',
     controlLabel: 'C',
     position: 1,
@@ -328,7 +328,7 @@ const rectTileConfigs = [
   {
     id: 'rect-hc-inv',
     colorModel: 'oklch',
-    label: 'Rect hue-lightness',
+    label: 'H/L',
     axis: 'y',
     controlLabel: 'C',
     position: 0.3,
@@ -337,7 +337,7 @@ const rectTileConfigs = [
   {
     id: 'rect-lc',
     colorModel: 'oklch',
-    label: 'Rect hue-lightness',
+    label: 'H/L',
     axis: 'y',
     controlLabel: 'C',
     position: 0.2,
@@ -345,7 +345,7 @@ const rectTileConfigs = [
   {
     id: 'rect-lc-inv',
     colorModel: 'oklch',
-    label: 'Rect hue-lightness',
+    label: 'H/L',
     axis: 'y',
     controlLabel: 'C',
     position: 0.2,
@@ -552,7 +552,7 @@ function buildGrid() {
   const $meta = document.createElement('div');
   $meta.className = 'section-stack stack-meta';
   $meta.appendChild(makePanel('overview', 'Indexed palette', 'cell-overview'));
-  $meta.appendChild(makePanel('stats', 'Statistics', 'cell-stats'));
+  $meta.appendChild(makePanel('stats', '', 'cell-stats'));
 
   $top.appendChild($rects);
   $top.appendChild($meta);
@@ -566,11 +566,11 @@ function buildGrid() {
 
   const $bottom = document.createElement('div');
   $bottom.className = 'section section-bottom';
-  $bottom.appendChild(makePanel('mixes', 'Useful mixes', 'cell-mixes'));
+  $bottom.appendChild(makePanel('mixes', 'mixes', 'cell-mixes'));
   $bottom.appendChild(makePanel('polars', 'Polar hue-lightness', 'cell-polars'));
   $bottom.appendChild(makePanel('hue-sides', 'OKHSL hue sideviews', 'cell-sides'));
 
-  const $lc = makePanel('lc-bars', 'Lightness & chroma', 'section section-lc');
+  const $lc = makePanel('lc-bars', '', 'section section-lc');
 
   $grid.appendChild($top);
   $grid.appendChild($strips);
@@ -1098,7 +1098,7 @@ function renderOverview($panel, state) {
   const $iss = document.createElement('div');
   $iss.className = 'info-box';
   $iss.innerHTML = `
-    <div class="info-box__label">Internal similarity</div>
+    <div class="info-box__label">similarity</div>
     <div class="info-box__value">${state.iss.toFixed(3)}<span class="info-box__indicator" style="background:${themeVar(`--c-${issState}`, '#000')}"></span></div>
     <div class="info-box__bar" style="width:${Math.min(1, (state.iss - 0.4) / 3.1) * 100}%;background:${themeVar(`--c-${issState}`, '#000')}"></div>
   `;
@@ -1117,7 +1117,7 @@ function renderOverview($panel, state) {
 }
 
 function renderStats($panel, state) {
-  clearPanel($panel, 'Statistics');
+  clearPanel($panel);
   [
     ['Colours', state.data.length],
     ['Min dist', state.minDist.toFixed(4)],
@@ -1213,7 +1213,7 @@ function renderIsocubes($panel, state) {
 }
 
 function renderLCBars($panel, state) {
-  clearPanel($panel, 'Lightness & chroma');
+  clearPanel($panel);
   const $header = document.createElement('div');
   $header.className = 'lc-header';
   $header.innerHTML = '<span>Li</span><span>Chr</span>';
@@ -1291,7 +1291,7 @@ function renderNeutralisers($panel, state) {
 }
 
 function renderUsefulMixes($panel, state) {
-  clearPanel($panel, 'Useful mixes');
+  clearPanel($panel, 'mixes');
   const { canvas, ctx, width, height } = makeCanvas(44, 58);
   const cols = 2;
   const rows = 7;
