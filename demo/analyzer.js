@@ -531,28 +531,37 @@ function stateForPalette(colors) {
   }
   hkPairs.sort((a, b) => b.boostDelta - a.boostDelta);
 
-  // Chromostereopsis: red-blue combinations cause depth illusion and eye strain.
-  // Detect pairs where one hue is in the red range and the other in blue,
-  // both with meaningful chroma.
+  // Chromostereopsis: heuristic depth-separation risk, strongest around
+  // long/short wavelength conflicts such as saturated red/blue, but not
+  // exclusive to those pairs.
   const CHROMA_STEREO_MIN = 0.06;
-  const RED_RANGE = [0, 30];       // 0–30° and 330–360° in OKLch hue
-  const BLUE_RANGE = [240, 290];
-  const isRedish = (h) => h <= RED_RANGE[1] || h >= 330;
-  const isBlueish = (h) => h >= BLUE_RANGE[0] && h <= BLUE_RANGE[1];
+  const hueAffinity = (hue, target, range = 70) =>
+    clamp01(1 - hueDistance(hue, target) / range);
   const stereopsisPairs = [];
   for (let i = 0; i < data.length; i++) {
     for (let j = i + 1; j < data.length; j++) {
       if (data[i].lch.c < CHROMA_STEREO_MIN || data[j].lch.c < CHROMA_STEREO_MIN) continue;
-      const aRed = isRedish(data[i].lch.h);
-      const aBlue = isBlueish(data[i].lch.h);
-      const bRed = isRedish(data[j].lch.h);
-      const bBlue = isBlueish(data[j].lch.h);
-      if ((aRed && bBlue) || (aBlue && bRed)) {
-        stereopsisPairs.push({
-          i, j,
-          severity: Math.min(data[i].lch.c, data[j].lch.c),
-        });
-      }
+      const hueDelta = hueDistance(data[i].lch.h, data[j].lch.h);
+      const minChroma = Math.min(data[i].lch.c, data[j].lch.c);
+      const redBlueBias = Math.max(
+        hueAffinity(data[i].lch.h, 0) * hueAffinity(data[j].lch.h, 255),
+        hueAffinity(data[j].lch.h, 0) * hueAffinity(data[i].lch.h, 255),
+      );
+      const warmCoolSplit = (data[i].lch.h <= 90 || data[i].lch.h >= 330) !==
+        (data[j].lch.h <= 90 || data[j].lch.h >= 330)
+        ? 1
+        : 0.45;
+      const lightnessDelta = Math.abs(data[i].lab.l - data[j].lab.l);
+      const severity =
+        minChroma * (0.35 + 0.65 * redBlueBias) * warmCoolSplit * (0.7 + 0.3 * lightnessDelta);
+      stereopsisPairs.push({
+        i,
+        j,
+        severity,
+        minChroma,
+        hueDelta,
+        redBlueBias,
+      });
     }
   }
   stereopsisPairs.sort((a, b) => b.severity - a.severity);
@@ -2128,27 +2137,33 @@ function renderStereopsisPanel($panel, state) {
   clearPanel($panel, 'Chromostereopsis');
   appendMetricLinks($panel, ARTICLE_LINKS.chromostereopsis);
   const count = state.stereopsisPairs.length;
-  const stereoState = count > 3 ? 'alert' : count > 0 ? 'warn' : 'ok';
+  const strongCount = state.stereopsisPairs.filter((pair) => pair.severity >= 0.05).length;
+  const stereoState = strongCount > 3 ? 'alert' : strongCount > 0 ? 'warn' : 'ok';
 
   const $boxes = document.createElement('div');
   $boxes.className = 'box-row';
   const $badge = document.createElement('div');
   $badge.className = 'info-box';
   $badge.innerHTML = `
-    <div class="info-box__label" title="Red-blue high-chroma pairs that cause depth illusion and eye strain">Red-blue pairs</div>
-    <div class="info-box__value">${count}<span class="info-box__indicator" style="background:${themeVar(`--c-${stereoState}`, '#000')}"></span></div>
-    <div class="info-box__bar" style="width:${count ? 100 : 0}%;background:${themeVar(`--c-${stereoState}`, '#000')}"></div>
+    <div class="info-box__label" title="Pairs with the strongest heuristic chromostereopsis risk">Strongest pairs</div>
+    <div class="info-box__value">${strongCount}<span class="info-box__indicator" style="background:${themeVar(`--c-${stereoState}`, '#000')}"></span></div>
+    <div class="info-box__bar" style="width:${strongCount ? 100 : 0}%;background:${themeVar(`--c-${stereoState}`, '#000')}"></div>
   `;
   $boxes.appendChild($badge);
   $panel.appendChild($boxes);
 
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  $note.textContent = 'Heuristic strongest depth-separation pairs, red/blue-biased but not exclusive';
+  $panel.appendChild($note);
+
   if (count) {
     const $row = document.createElement('div');
     $row.className = 'close-row';
-    state.stereopsisPairs.forEach((pair) => {
+    state.stereopsisPairs.slice(0, 6).forEach((pair) => {
       const $pair = document.createElement('div');
       $pair.className = 'stereo-pair';
-      $pair.title = `${palette[pair.i]} / ${palette[pair.j]} · chroma ${pair.severity.toFixed(3)}`;
+      $pair.title = `${palette[pair.i]} / ${palette[pair.j]} · score ${pair.severity.toFixed(3)} · Δh ${pair.hueDelta.toFixed(0)}° · Cmin ${pair.minChroma.toFixed(3)} · rb ${pair.redBlueBias.toFixed(2)}`;
       $pair.innerHTML = `<span style="--c:${palette[pair.i]}"><span style="--c:${palette[pair.j]}"></span></span><span style="--c:${palette[pair.j]}"><span style="--c:${palette[pair.i]}"></span></span>`;
       $row.appendChild($pair);
     });
