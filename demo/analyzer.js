@@ -23,12 +23,53 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const ISO_PLOT_SIZE = 104;
 const ISO_PLOT_SCALE = 58;
 const DETAIL_PIXEL_RATIO = devicePixelRatio * 2;
+const APCA_MIN_CONTRAST = 15;
+const APCA_LOW_CLIP = 0.1;
+const CONTRAST_SORT_OPTIONS = [
+  { value: 'worst', label: 'Worst case' },
+  { value: 'dark-on-light', label: 'Dark on light' },
+  { value: 'light-on-dark', label: 'Light on dark' },
+];
+const ARTICLE_LINKS = {
+  contrast: [
+    { label: 'APCA', href: 'https://colorandcontrast.com/#/apca' },
+    { label: 'Relative luminance', href: 'https://colorandcontrast.com/#/relative-luminance' },
+  ],
+  polarity: [
+    { label: 'Contrast polarity', href: 'https://colorandcontrast.com/#/contrast-polarity' },
+    { label: 'Light mode', href: 'https://colorandcontrast.com/#/light-mode' },
+    { label: 'Dark mode', href: 'https://colorandcontrast.com/#/dark-mode' },
+  ],
+  cvd: [
+    { label: 'CVD', href: 'https://colorandcontrast.com/#/color-vision-deficiency' },
+    { label: 'Confusion lines', href: 'https://colorandcontrast.com/#/color-confusion-lines' },
+  ],
+  simultaneous: [
+    { label: 'Simultaneous contrast', href: 'https://colorandcontrast.com/#/simultaneous-contrast' },
+    { label: 'Lateral inhibition', href: 'https://colorandcontrast.com/#/lateral-inhibition' },
+  ],
+  luminance: [
+    { label: 'Relative luminance', href: 'https://colorandcontrast.com/#/relative-luminance' },
+    { label: 'Dynamic range', href: 'https://colorandcontrast.com/#/dynamic-range' },
+  ],
+  harmony: [
+    { label: 'Analogous', href: 'https://colorandcontrast.com/#/analogous-colors' },
+    { label: 'Complementary', href: 'https://colorandcontrast.com/#/complimentary-colors' },
+    { label: 'Triadic', href: 'https://colorandcontrast.com/#/triadic-colors' },
+  ],
+};
+const HARMONY_RULES = [
+  { id: 'analogous', label: 'Analogous', kind: 'pair', target: 30, tolerance: 18 },
+  { id: 'complementary', label: 'Complementary', kind: 'pair', target: 180, tolerance: 18 },
+  { id: 'triadic', label: 'Triadic', kind: 'triad', target: 120, tolerance: 16 },
+];
 
 let $metric;
 let $outline;
 let $raw;
 let isoCubeRotation = 0.72;
 let isoPlotMode = 'cube';
+let contrastSortMode = 'worst';
 
 function srgbArray(input) {
   const color = toSRGB(input);
@@ -57,6 +98,11 @@ function labDistance(a, b) {
   return Math.sqrt((a.l - b.l) ** 2 + (a.a - b.a) ** 2 + (a.b - b.b) ** 2);
 }
 
+function hueDistance(a, b) {
+  const delta = Math.abs(normHue(a) - normHue(b));
+  return Math.min(delta, 360 - delta);
+}
+
 function srgbToLinear(value) {
   if (value <= 0.04045) return value / 12.92;
   return ((value + 0.055) / 1.055) ** 2.4;
@@ -72,10 +118,15 @@ function apcaContrast(textRgb, backgroundRgb) {
   const textY = softClamp(relativeLuminance(textRgb));
   const backgroundY = softClamp(relativeLuminance(backgroundRgb));
   if (Math.abs(backgroundY - textY) < 0.0005) return 0;
+  let contrast;
   if (backgroundY > textY) {
-    return ((backgroundY ** 0.56 - textY ** 0.57) * 1.14 - 0.027) * 100;
+    contrast = (backgroundY ** 0.56 - textY ** 0.57) * 1.14;
+    if (contrast < APCA_LOW_CLIP) return 0;
+    return (contrast - 0.027) * 100;
   }
-  return ((backgroundY ** 0.65 - textY ** 0.62) * 1.14 + 0.027) * 100;
+  contrast = (backgroundY ** 0.65 - textY ** 0.62) * 1.14;
+  if (contrast > -APCA_LOW_CLIP) return 0;
+  return (contrast + 0.027) * 100;
 }
 
 const CVD_THRESHOLD = 0.045;
@@ -115,6 +166,14 @@ function transformRgb(rgb, matrix) {
     clamp01(rgb[0] * matrix[1][0] + rgb[1] * matrix[1][1] + rgb[2] * matrix[1][2]),
     clamp01(rgb[0] * matrix[2][0] + rgb[1] * matrix[2][1] + rgb[2] * matrix[2][2]),
   ];
+}
+
+function apparentAgainstNeighbour(sourceLab, neighbourLab) {
+  return {
+    l: clamp01(sourceLab.l + (sourceLab.l - neighbourLab.l) * 0.1),
+    a: sourceLab.a + (sourceLab.a - neighbourLab.a) * 0.08,
+    b: sourceLab.b + (sourceLab.b - neighbourLab.b) * 0.08,
+  };
 }
 
 function okDistLiMatchLab(a, b, t) {
@@ -208,6 +267,7 @@ function stateForPalette(colors) {
 
   const sortedByL = [...data].sort((a, b) => a.lab.l - b.lab.l);
   const lightnesses = data.map((entry) => entry.lab.l);
+  const luminances = data.map((entry) => relativeLuminance(entry.rgb));
   const minL = lightnesses.length ? Math.min(...lightnesses) : 0;
   const maxL = lightnesses.length ? Math.max(...lightnesses) : 0;
   const meanL = lightnesses.length
@@ -216,6 +276,24 @@ function stateForPalette(colors) {
   const maxC = Math.max(...data.map((entry) => entry.lch.c), 0.001);
   const acyclic = isAcyclic(data.length, pairs);
   const darkest = sortedByL[0]?.index ?? 0;
+  const sortedByY = [...data]
+    .map((entry, index) => ({ ...entry, luminance: luminances[index] }))
+    .sort((a, b) => a.luminance - b.luminance);
+  const luminanceSpan = sortedByY.length
+    ? sortedByY[sortedByY.length - 1].luminance - sortedByY[0].luminance
+    : 0;
+  const luminanceGaps = [];
+  for (let i = 0; i < sortedByY.length - 1; i++) {
+    luminanceGaps.push({
+      a: sortedByY[i],
+      b: sortedByY[i + 1],
+      gap: sortedByY[i + 1].luminance - sortedByY[i].luminance,
+    });
+  }
+  luminanceGaps.sort((a, b) => a.gap - b.gap);
+  const meanLuminance = luminances.length
+    ? luminances.reduce((sum, value) => sum + value, 0) / luminances.length
+    : 0;
 
   const neutralisers = data.map((source) => {
     let best = data[0] ?? source;
@@ -244,9 +322,106 @@ function stateForPalette(colors) {
         sourceOnTarget,
         targetOnSource,
         bestContrast: Math.max(Math.abs(sourceOnTarget), Math.abs(targetOnSource)),
+        contrastDelta: Math.abs(Math.abs(sourceOnTarget) - Math.abs(targetOnSource)),
+      };
+    });
+
+  const polarityPairs = contrastPairs
+    .map((pair) => ({
+      ...pair,
+      weakerContrast: Math.min(Math.abs(pair.sourceOnTarget), Math.abs(pair.targetOnSource)),
+      strongerContrast: Math.max(Math.abs(pair.sourceOnTarget), Math.abs(pair.targetOnSource)),
+    }))
+    .sort((a, b) => b.contrastDelta - a.contrastDelta || a.weakerContrast - b.weakerContrast);
+
+  const luminancePairs = contrastPairs
+    .map((pair) => ({
+      ...pair,
+      deltaY: Math.abs(luminances[pair.i] - luminances[pair.j]),
+    }))
+    .sort((a, b) => a.deltaY - b.deltaY);
+
+  const neighbourPairs = pairs
+    .map((pair) => {
+      const source = data[pair.i];
+      const target = data[pair.j];
+      const apparentSource = apparentAgainstNeighbour(source.lab, target.lab);
+      const apparentTarget = apparentAgainstNeighbour(target.lab, source.lab);
+      const apparentDist = labDistance(apparentSource, apparentTarget);
+      return {
+        ...pair,
+        apparentDist,
+        influence: apparentDist - pair.dist,
       };
     })
-    .sort((a, b) => a.bestContrast - b.bestContrast);
+    .sort((a, b) => b.influence - a.influence);
+
+  const chromaticPairs = [];
+  const chromaticEntries = data.filter((entry) => entry.lch.c >= 0.03);
+  for (let i = 0; i < data.length; i++) {
+    for (let j = i + 1; j < data.length; j++) {
+      if (data[i].lch.c < 0.03 || data[j].lch.c < 0.03) continue;
+      chromaticPairs.push({
+        i,
+        j,
+        delta: hueDistance(data[i].lch.h, data[j].lch.h),
+      });
+    }
+  }
+
+  const chromaticTriads = [];
+  for (let i = 0; i < chromaticEntries.length; i++) {
+    for (let j = i + 1; j < chromaticEntries.length; j++) {
+      for (let k = j + 1; k < chromaticEntries.length; k++) {
+        const triad = [chromaticEntries[i], chromaticEntries[j], chromaticEntries[k]];
+        const sorted = [...triad].sort((a, b) => a.lch.h - b.lch.h);
+        const gaps = [
+          hueDistance(sorted[0].lch.h, sorted[1].lch.h),
+          hueDistance(sorted[1].lch.h, sorted[2].lch.h),
+          360 - (sorted[2].lch.h - sorted[0].lch.h),
+        ];
+        chromaticTriads.push({
+          indices: triad.map((entry) => entry.index),
+          gaps,
+        });
+      }
+    }
+  }
+
+  const harmonyAnalyses = HARMONY_RULES.map((rule) => {
+    if (rule.kind === 'triad') {
+      const ranked = chromaticTriads
+        .map((triad) => ({
+          ...triad,
+          error: Math.max(...triad.gaps.map((gap) => Math.abs(gap - rule.target))),
+          meanGap: triad.gaps.reduce((sum, gap) => sum + gap, 0) / triad.gaps.length,
+        }))
+        .sort((a, b) => a.error - b.error);
+      const matches = ranked.filter((triad) => triad.error <= rule.tolerance);
+      return {
+        ...rule,
+        count: matches.length,
+        setCount: chromaticTriads.length,
+        coverage: chromaticTriads.length ? matches.length / chromaticTriads.length : 0,
+        closest: ranked[0] ?? null,
+      };
+    }
+
+    const ranked = chromaticPairs
+      .map((pair) => ({
+        ...pair,
+        error: Math.abs(pair.delta - rule.target),
+      }))
+      .sort((a, b) => a.error - b.error);
+    const matches = ranked.filter((pair) => pair.error <= rule.tolerance);
+    return {
+      ...rule,
+      count: matches.length,
+      setCount: chromaticPairs.length,
+      coverage: chromaticPairs.length ? matches.length / chromaticPairs.length : 0,
+      closest: ranked[0] ?? null,
+    };
+  });
 
   const cvdAnalyses = CVD_MATRICES.map(({ id, label, matrix }) => {
     const simulated = data.map((entry) => ({
@@ -290,9 +465,18 @@ function stateForPalette(colors) {
     meanL,
     maxC,
     darkest,
+    luminances,
+    sortedByY,
+    luminanceSpan,
+    meanLuminance,
+    luminanceGaps,
     neutralisers,
     mixes: usefulMixes(data, 14),
     contrastPairs,
+    polarityPairs,
+    luminancePairs,
+    neighbourPairs,
+    harmonyAnalyses,
     cvdAnalyses,
   };
 }
@@ -688,7 +872,11 @@ function buildGrid() {
   const $extra = document.createElement('div');
   $extra.className = 'section section-extra';
   $extra.appendChild(makePanel('contrast', 'Perceptual contrast', 'cell-contrast'));
+  $extra.appendChild(makePanel('polarity', 'Contrast polarity', 'cell-polarity'));
   $extra.appendChild(makePanel('cvd', 'CVD collapse', 'cell-cvd'));
+  $extra.appendChild(makePanel('simultaneous', 'Neighbour influence', 'cell-simultaneous'));
+  $extra.appendChild(makePanel('luminance', 'Luminance spread', 'cell-luminance'));
+  $extra.appendChild(makePanel('harmony', 'Harmony structure', 'cell-harmony'));
 
   $grid.appendChild($top);
   $grid.appendChild($strips);
@@ -1468,18 +1656,76 @@ function formatContrast(value) {
   return `${rounded > 0 ? '+' : ''}${rounded}`;
 }
 
+function sortedContrastPairs(state) {
+  const pairs = [...state.contrastPairs];
+  if (contrastSortMode === 'dark-on-light') {
+    pairs.sort((a, b) => Math.abs(a.sourceOnTarget) - Math.abs(b.sourceOnTarget));
+    return pairs;
+  }
+  if (contrastSortMode === 'light-on-dark') {
+    pairs.sort((a, b) => Math.abs(a.targetOnSource) - Math.abs(b.targetOnSource));
+    return pairs;
+  }
+  pairs.sort((a, b) => {
+    if (a.bestContrast !== b.bestContrast) return a.bestContrast - b.bestContrast;
+    return b.contrastDelta - a.contrastDelta;
+  });
+  return pairs;
+}
+
+function metricToolbarSelect(options, value, onChange) {
+  const $wrap = document.createElement('div');
+  $wrap.className = 'metric-toolbar';
+  const $select = document.createElement('select');
+  options.forEach((option) => {
+    const $option = document.createElement('option');
+    $option.value = option.value;
+    $option.textContent = option.label;
+    if (option.value === value) $option.selected = true;
+    $select.appendChild($option);
+  });
+  $select.addEventListener('change', () => onChange($select.value));
+  $wrap.appendChild($select);
+  return $wrap;
+}
+
+function appendMetricLinks($panel, links) {
+  const $links = document.createElement('div');
+  $links.className = 'metric-links';
+  links.forEach((link) => {
+    const $anchor = document.createElement('a');
+    $anchor.className = 'metric-link';
+    $anchor.href = link.href;
+    $anchor.target = '_blank';
+    $anchor.rel = 'noreferrer';
+    $anchor.textContent = link.label;
+    $links.appendChild($anchor);
+  });
+  $panel.appendChild($links);
+}
+
 function renderContrastPanel($panel, state) {
   clearPanel($panel, 'Perceptual contrast');
+  $panel.appendChild(
+    metricToolbarSelect(CONTRAST_SORT_OPTIONS, contrastSortMode, (value) => {
+      contrastSortMode = value;
+      renderContrastPanel($panel, state);
+    }),
+  );
+  appendMetricLinks($panel, ARTICLE_LINKS.contrast);
   const $note = document.createElement('div');
   $note.className = 'metric-note';
-  $note.textContent = 'Lower = weaker text/background separation';
+  $note.textContent = `Lower = weaker text/background separation, under ${APCA_MIN_CONTRAST} is fragile`;
   $panel.appendChild($note);
 
   const $list = document.createElement('div');
   $list.className = 'metric-list';
-  state.contrastPairs.slice(0, 6).forEach((pair) => {
+  sortedContrastPairs(state)
+    .slice(0, 6)
+    .forEach((pair) => {
     const $row = document.createElement('div');
     $row.className = 'metric-row';
+    if (pair.bestContrast < APCA_MIN_CONTRAST) $row.classList.add('metric-row--danger');
     $row.innerHTML = `
       <div class="metric-pair">
         <span style="background:${palette[pair.i]}"></span>
@@ -1492,12 +1738,43 @@ function renderContrastPanel($panel, state) {
       <div class="metric-value">${pair.bestContrast.toFixed(1)}</div>
     `;
     $list.appendChild($row);
+    });
+  $panel.appendChild($list);
+}
+
+function renderPolarityPanel($panel, state) {
+  clearPanel($panel, 'Contrast polarity');
+  appendMetricLinks($panel, ARTICLE_LINKS.polarity);
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  $note.textContent = 'Largest APCA asymmetry when foreground and background are swapped';
+  $panel.appendChild($note);
+
+  const $list = document.createElement('div');
+  $list.className = 'metric-list';
+  state.polarityPairs.slice(0, 6).forEach((pair) => {
+    const $row = document.createElement('div');
+    $row.className = 'metric-row';
+    if (pair.weakerContrast < APCA_MIN_CONTRAST) $row.classList.add('metric-row--danger');
+    $row.innerHTML = `
+      <div class="metric-pair">
+        <span style="background:${palette[pair.i]}"></span>
+        <span style="background:${palette[pair.j]}"></span>
+      </div>
+      <div class="metric-copy">
+        <div class="metric-copy__title">${formatContrast(pair.sourceOnTarget)} / ${formatContrast(pair.targetOnSource)}</div>
+        <div class="metric-copy__meta">polarity gap ${pair.contrastDelta.toFixed(1)}</div>
+      </div>
+      <div class="metric-value">${pair.weakerContrast.toFixed(1)}</div>
+    `;
+    $list.appendChild($row);
   });
   $panel.appendChild($list);
 }
 
 function renderCvdPanel($panel, state) {
   clearPanel($panel, 'CVD collapse');
+  appendMetricLinks($panel, ARTICLE_LINKS.cvd);
   const $note = document.createElement('div');
   $note.className = 'metric-note';
   $note.textContent = `Pairs under ${CVD_THRESHOLD.toFixed(3)} simulated OKLab distance`;
@@ -1519,6 +1796,137 @@ function renderCvdPanel($panel, state) {
         <div class="metric-copy__title">min ${analysis.minDist.toFixed(3)}</div>
         <div class="metric-copy__meta">${analysis.collapseCount}/${analysis.totalPairs} collapsed</div>
       </div>
+    `;
+    $list.appendChild($row);
+  });
+  $panel.appendChild($list);
+}
+
+function renderNeighbourPanel($panel, state) {
+  clearPanel($panel, 'Neighbour influence');
+  appendMetricLinks($panel, ARTICLE_LINKS.simultaneous);
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  $note.textContent = 'Heuristic opponent-push: apparent separation increase when paired';
+  $panel.appendChild($note);
+
+  const $list = document.createElement('div');
+  $list.className = 'metric-list';
+  state.neighbourPairs.slice(0, 6).forEach((pair) => {
+    const $row = document.createElement('div');
+    $row.className = 'metric-row';
+    $row.innerHTML = `
+      <div class="metric-pair">
+        <span style="background:${palette[pair.i]}"></span>
+        <span style="background:${palette[pair.j]}"></span>
+      </div>
+      <div class="metric-copy">
+        <div class="metric-copy__title">+${pair.influence.toFixed(3)} apparent distance</div>
+        <div class="metric-copy__meta">${pair.dist.toFixed(3)} → ${pair.apparentDist.toFixed(3)}</div>
+      </div>
+      <div class="metric-value">${pair.apparentDist.toFixed(3)}</div>
+    `;
+    $list.appendChild($row);
+  });
+  $panel.appendChild($list);
+}
+
+function renderLuminancePanel($panel, state) {
+  clearPanel($panel, 'Luminance distribution');
+  appendMetricLinks($panel, ARTICLE_LINKS.luminance);
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  $note.textContent = 'Pairwise ΔY plus overall luminance span';
+  $panel.appendChild($note);
+
+  const $summary = document.createElement('div');
+  $summary.className = 'metric-summary';
+  $summary.innerHTML = `
+    <div><span>Span</span><strong>${state.luminanceSpan.toFixed(3)}</strong></div>
+    <div><span>Mean Y</span><strong>${state.meanLuminance.toFixed(3)}</strong></div>
+    <div><span>Weakest pair</span><strong>${(state.luminancePairs[0]?.deltaY ?? 0).toFixed(3)}</strong></div>
+  `;
+  $panel.appendChild($summary);
+
+  const $bars = document.createElement('div');
+  $bars.className = 'lum-bars';
+  state.sortedByY.forEach((entry) => {
+    const $bar = document.createElement('span');
+    $bar.style.background = entry.hex;
+    $bar.style.height = `${Math.max(10, entry.luminance * 100)}%`;
+    $bar.title = `${entry.hex} Y ${entry.luminance.toFixed(3)}`;
+    $bars.appendChild($bar);
+  });
+  $panel.appendChild($bars);
+
+  const histogram = new Array(6).fill(0);
+  state.luminancePairs.forEach((pair) => {
+    const index = Math.min(histogram.length - 1, Math.floor(pair.deltaY * histogram.length));
+    histogram[index] += 1;
+  });
+  const histogramMax = Math.max(...histogram, 1);
+  const $distBars = document.createElement('div');
+  $distBars.className = 'dist-bars';
+  histogram.forEach((count, index) => {
+    const $bar = document.createElement('span');
+    $bar.style.height = `${(count / histogramMax) * 100}%`;
+    $bar.title = `bin ${index + 1}: ${count} pairs`;
+    $distBars.appendChild($bar);
+  });
+  $panel.appendChild($distBars);
+
+  const $list = document.createElement('div');
+  $list.className = 'metric-list';
+  state.luminancePairs.slice(0, 4).forEach((pair) => {
+    const $row = document.createElement('div');
+    $row.className = 'metric-row';
+    if (pair.deltaY < 0.06) $row.classList.add('metric-row--danger');
+    $row.innerHTML = `
+      <div class="metric-pair">
+        <span style="background:${palette[pair.i]}"></span>
+        <span style="background:${palette[pair.j]}"></span>
+      </div>
+      <div class="metric-copy">
+        <div class="metric-copy__title">${palette[pair.i]} / ${palette[pair.j]}</div>
+        <div class="metric-copy__meta">ΔY ${pair.deltaY.toFixed(3)} · APCA ${pair.bestContrast.toFixed(1)}</div>
+      </div>
+      <div class="metric-value">${pair.deltaY.toFixed(3)}</div>
+    `;
+    $list.appendChild($row);
+  });
+  $panel.appendChild($list);
+}
+
+function renderHarmonyPanel($panel, state) {
+  clearPanel($panel, 'Harmony structure');
+  appendMetricLinks($panel, ARTICLE_LINKS.harmony);
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  $note.textContent = 'Descriptive hue coverage for chromatic pairs and true three-colour triads';
+  $panel.appendChild($note);
+
+  const $list = document.createElement('div');
+  $list.className = 'metric-list';
+  state.harmonyAnalyses.forEach((analysis) => {
+    const closest = analysis.closest;
+    const pairMarkup = closest
+      ? analysis.kind === 'triad'
+        ? `<div class="metric-pair"><span style="background:${palette[closest.indices[0]]}"></span><span style="background:${palette[closest.indices[1]]}"></span><span style="background:${palette[closest.indices[2]]}"></span></div>`
+        : `<div class="metric-pair"><span style="background:${palette[closest.i]}"></span><span style="background:${palette[closest.j]}"></span></div>`
+      : '<div class="metric-pair"></div>';
+    const meta = analysis.kind === 'triad'
+      ? `${analysis.count}/${analysis.setCount} triads · nearest ${closest ? closest.meanGap.toFixed(0) : '—'}° avg`
+      : `${analysis.count}/${analysis.setCount} pairs · nearest ${closest ? closest.delta.toFixed(0) : '—'}°`;
+    const $row = document.createElement('div');
+    $row.className = 'metric-row';
+    $row.innerHTML = `
+      <div class="metric-name">${analysis.label}</div>
+      ${pairMarkup}
+      <div class="metric-copy">
+        <div class="metric-copy__title">${Math.round(analysis.coverage * 100)}% coverage</div>
+        <div class="metric-copy__meta">${meta}</div>
+      </div>
+      <div class="metric-value">${closest ? closest.error.toFixed(0) : '—'}°</div>
     `;
     $list.appendChild($row);
   });
@@ -1561,7 +1969,11 @@ function renderAnalysis() {
   renderPolarGroup($grid.querySelector('[data-role="polars"]'));
   renderHueSideviews($grid.querySelector('[data-role="hue-sides"]'));
   renderContrastPanel($grid.querySelector('[data-role="contrast"]'), state);
+  renderPolarityPanel($grid.querySelector('[data-role="polarity"]'), state);
   renderCvdPanel($grid.querySelector('[data-role="cvd"]'), state);
+  renderNeighbourPanel($grid.querySelector('[data-role="simultaneous"]'), state);
+  renderLuminancePanel($grid.querySelector('[data-role="luminance"]'), state);
+  renderHarmonyPanel($grid.querySelector('[data-role="harmony"]'), state);
 }
 
 function updateHeader() {
