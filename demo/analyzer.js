@@ -139,6 +139,7 @@ let colorNameRequestKey = '';
 let colorNameList = 'bestOf';
 let colorNameListTitles = new Map(COLOR_NAME_LIST_VALUES.map((value) => [value, value]));
 let colorNameListMetaLoaded = false;
+let showColorNames = false;
 
 function attachAnalysisWorker(worker) {
   worker.addEventListener('message', (event) => {
@@ -184,6 +185,27 @@ function colorNameListOptions() {
     value,
     label: colorNameListTitles.get(value) ?? value,
   }));
+}
+
+function sortedColorNameEntries(entries) {
+  const buckets = new Map();
+  colorNameEntries.forEach((entry) => {
+    const key = String(entry?.requestedHex ?? entry?.hex ?? '').toLowerCase();
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(entry);
+  });
+  return entries.map((entry) => {
+    const bucket = buckets.get(String(entry.hex).toLowerCase());
+    return bucket?.shift() ?? null;
+  });
+}
+
+function mainPaletteEntries(state) {
+  return mainPaletteSortMode === 'auto' && Array.isArray(autoSortedPaletteHexes)
+    ? reorderEntriesByHex(state.data, autoSortedPaletteHexes)
+    : mainPaletteSortMode === 'current'
+      ? state.sortedByL
+      : state.data;
 }
 
 function colorNameRequestKeyOf(colors, list) {
@@ -808,7 +830,7 @@ function buildProgram(gl, vertexSource, fragmentSource) {
 
 function renderColorNamesIfReady() {
   if (!latestAnalysisState) return;
-  renderColorNamesPanel($grid.querySelector('[data-role="names"]'), latestAnalysisState);
+  renderMainPalette($grid.querySelector('[data-role="main"]'), latestAnalysisState);
 }
 
 async function loadColorNameListMetadata() {
@@ -1251,7 +1273,6 @@ function buildGrid() {
   const $strips = document.createElement('div');
   $strips.className = 'section section-strips';
   $strips.appendChild(makePanel('main', 'Main palette', 'cell-main'));
-  $strips.appendChild(makePanel('names', 'Color names', 'cell-names'));
   $strips.appendChild(makePanel('neutralisers', 'Neutralisers', 'cell-neutralisers'));
 
   const $bottom = document.createElement('div');
@@ -1972,18 +1993,44 @@ function renderMainPalette($panel, state) {
   $sortLabel.textContent = 'Sort';
   $sort.insertBefore($sortLabel, $sort.firstChild);
   $head.appendChild($sort);
+
+  const $namesToggle = document.createElement('button');
+  $namesToggle.type = 'button';
+  $namesToggle.className = 'metric-link metric-link--button';
+  $namesToggle.textContent = showColorNames ? 'names v' : 'names >';
+  $namesToggle.addEventListener('click', () => {
+    showColorNames = !showColorNames;
+    if (showColorNames) {
+      scheduleColorNamesFetch(palette);
+    } else {
+      abortColorNamesFetch();
+      colorNamesLoading = false;
+    }
+    renderMainPalette($panel, state);
+  });
+  $head.appendChild($namesToggle);
+
+  if (showColorNames) {
+    const $listSelect = metricToolbarSelect(colorNameListOptions(), colorNameList, (value) => {
+      colorNameList = value;
+      scheduleColorNamesFetch(palette);
+      renderMainPalette($panel, state);
+    });
+    $listSelect.classList.add('metric-toolbar--inline');
+    const $listLabel = document.createElement('span');
+    $listLabel.className = 'metric-toolbar__label';
+    $listLabel.textContent = 'List';
+    $listSelect.insertBefore($listLabel, $listSelect.firstChild);
+    $head.appendChild($listSelect);
+  }
+
   $panel.appendChild($head);
 
   const $row = document.createElement('div');
   $row.className = 'strip-row';
   const $strip = document.createElement('div');
   $strip.className = 'strip';
-  const entries =
-    mainPaletteSortMode === 'auto' && Array.isArray(autoSortedPaletteHexes)
-      ? reorderEntriesByHex(state.data, autoSortedPaletteHexes)
-      : mainPaletteSortMode === 'current'
-        ? state.sortedByL
-        : state.data;
+  const entries = mainPaletteEntries(state);
   entries.forEach((entry) => {
     const $slot = document.createElement('span');
     $slot.style.background = entry.hex;
@@ -1992,30 +2039,11 @@ function renderMainPalette($panel, state) {
   });
   $row.appendChild($strip);
   $panel.appendChild($row);
+
+  if (showColorNames) appendColorNamesSection($panel, state, entries);
 }
 
-function renderColorNamesPanel($panel, state) {
-  clearPanel($panel);
-  const $head = document.createElement('div');
-  $head.className = 'pnl__head';
-  const $title = document.createElement('div');
-  $title.className = 'pnl__t';
-  $title.textContent = 'Color names';
-  $head.appendChild($title);
-
-  const $listSelect = metricToolbarSelect(colorNameListOptions(), colorNameList, (value) => {
-    colorNameList = value;
-    scheduleColorNamesFetch(palette);
-    renderColorNamesPanel($panel, state);
-  });
-  $listSelect.classList.add('metric-toolbar--inline');
-  const $listLabel = document.createElement('span');
-  $listLabel.className = 'metric-toolbar__label';
-  $listLabel.textContent = 'List';
-  $listSelect.insertBefore($listLabel, $listSelect.firstChild);
-  $head.appendChild($listSelect);
-  $panel.appendChild($head);
-
+function appendColorNamesSection($panel, state, entries) {
   appendMetricLinks($panel, [{ label: 'API', href: 'https://meodai.github.io/color-name-api/' }]);
 
   const $note = document.createElement('div');
@@ -2040,8 +2068,9 @@ function renderColorNamesPanel($panel, state) {
 
   const $gridEl = document.createElement('div');
   $gridEl.className = 'name-grid';
-  state.data.forEach((entry, index) => {
-    const match = colorNameEntries[index];
+  const sortedMatches = sortedColorNameEntries(entries);
+  entries.forEach((entry, index) => {
+    const match = sortedMatches[index];
     const title = match?.name ?? 'Unknown';
     const matchedHex = match?.hex ?? entry.hex;
     const distance = Number.isFinite(match?.distance) ? match.distance.toFixed(2) : '0.00';
@@ -2584,7 +2613,6 @@ function renderAnalysisState(state) {
   renderIsocubes($grid.querySelector('[data-role="cubes"]'), state);
   renderLCBars($grid.querySelector('[data-role="lc-bars"]'), state);
   renderMainPalette($grid.querySelector('[data-role="main"]'), state);
-  renderColorNamesPanel($grid.querySelector('[data-role="names"]'), state);
   renderNeutralisers($grid.querySelector('[data-role="neutralisers"]'), state);
   renderUsefulMixes($grid.querySelector('[data-role="mixes"]'), state);
   renderPolarGroup($grid.querySelector('[data-role="polars"]'));
@@ -2615,7 +2643,7 @@ function updateAll() {
   const vizPalette = palette.map((hex) => srgbArray(hex));
   autoSortedPaletteHexes = null;
   requestAutoPaletteSort();
-  scheduleColorNamesFetch(palette);
+  if (showColorNames) scheduleColorNamesFetch(palette);
   vizzes.forEach(({ viz }) => {
     viz.palette = vizPalette;
   });

@@ -366,7 +366,6 @@
         grid-template-columns: 1fr;
         grid-template-areas:
           'main'
-          'names'
           'neutral';
       }
 
@@ -440,9 +439,6 @@
       }
       .cell-main {
         grid-area: main;
-      }
-      .cell-names {
-        grid-area: names;
       }
       .cell-neutralisers {
         grid-area: neutral;
@@ -953,6 +949,14 @@
         font-size: 7px;
         letter-spacing: 0.04em;
         text-transform: uppercase;
+      }
+
+      .metric-link--button {
+        padding: 0;
+        border: none;
+        background: none;
+        font: inherit;
+        cursor: pointer;
       }
 
       .metric-toolbar select {
