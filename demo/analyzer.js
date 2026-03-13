@@ -2150,7 +2150,7 @@ function renderStereopsisPanel($panel, state) {
   if (count) {
     const $row = document.createElement('div');
     $row.className = 'close-row';
-    state.stereopsisPairs.slice(0, 6).forEach((pair) => {
+    state.stereopsisPairs.slice(0, 10).forEach((pair) => {
       const $pair = document.createElement('div');
       $pair.className = 'stereo-pair';
       $pair.title = `${palette[pair.i]} / ${palette[pair.j]} · score ${pair.severity.toFixed(3)} · Δh ${pair.hueDelta.toFixed(0)}° · Cmin ${pair.minChroma.toFixed(3)} · hue ${pair.hueFactor.toFixed(2)} · ΔL ${pair.lightnessDelta.toFixed(3)}`;
