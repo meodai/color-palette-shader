@@ -465,6 +465,24 @@
         margin-bottom: 0;
       }
 
+      .panel-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: var(--c-muted);
+        font-size: 8px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .panel-status__dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        border: var(--s-line) solid color-mix(in srgb, var(--c-border) 35%, transparent);
+      }
+
       .pnl__t--sub {
         margin-top: 4px;
         margin-bottom: 2px;

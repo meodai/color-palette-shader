@@ -2124,23 +2124,27 @@ function renderHkPanel($panel, state) {
 }
 
 function renderStereopsisPanel($panel, state) {
-  clearPanel($panel, 'Chromostereopsis');
+  clearPanel($panel);
+  const atRiskCount = state.stereopsisPairs.filter((pair) => pair.severity >= 0.05).length;
+  const totalPairs = state.pairs.length;
+  const riskRatio = totalPairs ? atRiskCount / totalPairs : 0;
+  const riskColor = `hsl(${120 * (1 - riskRatio)} 72% 46%)`;
+
+  const $head = document.createElement('div');
+  $head.className = 'pnl__head';
+  const $title = document.createElement('div');
+  $title.className = 'pnl__t';
+  $title.textContent = 'Chromostereopsis';
+  $head.appendChild($title);
+
+  const $status = document.createElement('div');
+  $status.className = 'panel-status';
+  $status.innerHTML = `<span class="panel-status__dot" style="background:${riskColor}"></span><span>${atRiskCount}/${totalPairs} at risk</span>`;
+  $head.appendChild($status);
+  $panel.appendChild($head);
+
   appendMetricLinks($panel, ARTICLE_LINKS.chromostereopsis);
   const count = state.stereopsisPairs.length;
-  const strongCount = state.stereopsisPairs.filter((pair) => pair.severity >= 0.05).length;
-  const stereoState = strongCount > 3 ? 'alert' : strongCount > 0 ? 'warn' : 'ok';
-
-  const $boxes = document.createElement('div');
-  $boxes.className = 'box-row';
-  const $badge = document.createElement('div');
-  $badge.className = 'info-box';
-  $badge.innerHTML = `
-    <div class="info-box__label" title="Pairs with the strongest heuristic chromostereopsis risk">Strongest pairs</div>
-    <div class="info-box__value">${strongCount}<span class="info-box__indicator" style="background:${themeVar(`--c-${stereoState}`, '#000')}"></span></div>
-    <div class="info-box__bar" style="width:${strongCount ? 100 : 0}%;background:${themeVar(`--c-${stereoState}`, '#000')}"></div>
-  `;
-  $boxes.appendChild($badge);
-  $panel.appendChild($boxes);
 
   const $note = document.createElement('div');
   $note.className = 'metric-note';
