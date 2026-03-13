@@ -30,6 +30,11 @@ const CONTRAST_SORT_OPTIONS = [
   { value: 'dark-on-light', label: 'Dark on light' },
   { value: 'light-on-dark', label: 'Light on dark' },
 ];
+const MAIN_PALETTE_SORT_OPTIONS = [
+  { value: 'original', label: 'Original order' },
+  { value: 'current', label: 'Lightness' },
+  { value: 'auto', label: 'Auto' },
+];
 const ARTICLE_LINKS = {
   contrast: [
     { label: 'APCA', href: 'https://colorandcontrast.com/#/apca' },
@@ -85,6 +90,13 @@ let $raw;
 let isoCubeRotation = 0.72;
 let isoPlotMode = 'cube';
 let contrastSortMode = 'worst';
+let mainPaletteSortMode = 'original';
+let autoSortedPaletteHexes = null;
+let autoSortRequestId = 0;
+
+const mainPaletteSortWorker = new Worker(new URL('./sort-worker.js', import.meta.url), {
+  type: 'module',
+});
 
 function srgbArray(input) {
   const color = toSRGB(input);
@@ -626,6 +638,37 @@ function makeCanvas(width, height) {
   ctx.scale(dpr, dpr);
   return { canvas, ctx, width, height };
 }
+
+function reorderEntriesByHex(entries, sortedHexes) {
+  const buckets = new Map();
+  entries.forEach((entry) => {
+    const key = entry.hex.toLowerCase();
+    if (!buckets.has(key)) buckets.set(key, []);
+    buckets.get(key).push(entry);
+  });
+
+  const ordered = [];
+  sortedHexes.forEach((hex) => {
+    const bucket = buckets.get(String(hex).toLowerCase());
+    if (bucket?.length) ordered.push(bucket.shift());
+  });
+
+  buckets.forEach((remaining) => ordered.push(...remaining));
+  return ordered;
+}
+
+function requestAutoPaletteSort() {
+  const requestId = ++autoSortRequestId;
+  mainPaletteSortWorker.postMessage({ hexes: [...palette], requestId });
+}
+
+mainPaletteSortWorker.addEventListener('message', (event) => {
+  const { type, payload } = event.data || {};
+  if (!payload || payload.requestId !== autoSortRequestId) return;
+  if (type !== 'sorted' || !Array.isArray(payload.sorted)) return;
+  autoSortedPaletteHexes = payload.sorted;
+  if (mainPaletteSortMode === 'auto') renderAnalysis();
+});
 
 function checkerBackground(a, b, size = 2) {
   return `repeating-conic-gradient(${a} 0 25%, #0000 0 50%) 50% / ${size}px ${size}px, ${b}`;
@@ -1684,12 +1727,25 @@ function renderLCBars($panel, state) {
 
 function renderMainPalette($panel, state) {
   clearPanel($panel, 'Main palette');
+  $panel.appendChild(
+    metricToolbarSelect(MAIN_PALETTE_SORT_OPTIONS, mainPaletteSortMode, (value) => {
+      mainPaletteSortMode = value;
+      if (mainPaletteSortMode === 'auto' && !autoSortedPaletteHexes) requestAutoPaletteSort();
+      renderMainPalette($panel, state);
+    }),
+  );
   const $row = document.createElement('div');
   $row.className = 'strip-row';
   $row.innerHTML = '<span class="strip-lbl">Pal</span>';
   const $strip = document.createElement('div');
   $strip.className = 'strip';
-  state.sortedByL.forEach((entry) => {
+  const entries =
+    mainPaletteSortMode === 'auto' && Array.isArray(autoSortedPaletteHexes)
+      ? reorderEntriesByHex(state.data, autoSortedPaletteHexes)
+      : mainPaletteSortMode === 'current'
+        ? state.sortedByL
+        : state.data;
+  entries.forEach((entry) => {
     const $slot = document.createElement('span');
     $slot.style.background = entry.hex;
     $slot.title = entry.hex;
@@ -2206,6 +2262,8 @@ function updateHeader() {
 
 function updateAll() {
   const vizPalette = palette.map((hex) => srgbArray(hex));
+  autoSortedPaletteHexes = null;
+  requestAutoPaletteSort();
   vizzes.forEach(({ viz }) => {
     viz.palette = vizPalette;
   });
