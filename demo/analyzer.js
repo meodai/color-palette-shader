@@ -1190,7 +1190,6 @@ function makeVizLabel(cfg, viz, className) {
   const $title = document.createElement('span');
   $title.className = 'viz-title';
   $title.textContent = cfg.label;
-
   const $ctrl = document.createElement('div');
   $ctrl.className = 'viz-ctrl';
 
@@ -1202,7 +1201,6 @@ function makeVizLabel(cfg, viz, className) {
   $slider.type = 'range';
   $slider.min = '0';
   $slider.max = '1';
-  $slider.step = '0.001';
   $slider.value = String(cfg.position);
   $slider.title = `${cfg.controlLabel} slice`;
   $slider.addEventListener('input', () => {
@@ -1982,6 +1980,9 @@ function renderMainPalette($panel, state) {
   $title.textContent = 'Main palette';
   $head.appendChild($title);
 
+  const $controls = document.createElement('div');
+  $controls.className = 'main-palette__controls';
+
   const $sort = metricToolbarSelect(MAIN_PALETTE_SORT_OPTIONS, mainPaletteSortMode, (value) => {
     mainPaletteSortMode = value;
     if (mainPaletteSortMode === 'auto' && !autoSortedPaletteHexes) requestAutoPaletteSort();
@@ -1992,7 +1993,7 @@ function renderMainPalette($panel, state) {
   $sortLabel.className = 'metric-toolbar__label';
   $sortLabel.textContent = 'Sort';
   $sort.insertBefore($sortLabel, $sort.firstChild);
-  $head.appendChild($sort);
+  $controls.appendChild($sort);
 
   const $namesToggle = document.createElement('button');
   $namesToggle.type = 'button';
@@ -2008,7 +2009,7 @@ function renderMainPalette($panel, state) {
     }
     renderMainPalette($panel, state);
   });
-  $head.appendChild($namesToggle);
+  $controls.appendChild($namesToggle);
 
   if (showColorNames) {
     const $listSelect = metricToolbarSelect(colorNameListOptions(), colorNameList, (value) => {
@@ -2021,9 +2022,10 @@ function renderMainPalette($panel, state) {
     $listLabel.className = 'metric-toolbar__label';
     $listLabel.textContent = 'List';
     $listSelect.insertBefore($listLabel, $listSelect.firstChild);
-    $head.appendChild($listSelect);
+    $controls.appendChild($listSelect);
   }
 
+  $head.appendChild($controls);
   $panel.appendChild($head);
 
   const $row = document.createElement('div');
@@ -2045,7 +2047,6 @@ function renderMainPalette($panel, state) {
 
 function appendColorNamesSection($panel, state, entries) {
   appendMetricLinks($panel, [{ label: 'API', href: 'https://meodai.github.io/color-name-api/' }]);
-
   const $note = document.createElement('div');
   $note.className = 'metric-note';
   if (colorNamesLoading) {
