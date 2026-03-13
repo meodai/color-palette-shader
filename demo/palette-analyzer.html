@@ -471,7 +471,7 @@
 
       .close-pair span {
         height: 8px;
-        border: var(--s-line) solid color-mix(in srgb, var(--c-border) 20%, transparent);
+        background: var(--c);
       }
 
       .box-row {
@@ -543,7 +543,7 @@
       .pr__s {
         width: 12px;
         height: 8px;
-        border: var(--s-line) solid color-mix(in srgb, var(--c-border) 20%, transparent);
+        background: var(--c);
       }
 
       .pr__d {
@@ -903,7 +903,28 @@
       .metric-pair span {
         width: 11px;
         height: 8px;
-        border: var(--s-line) solid color-mix(in srgb, var(--c-border) 20%, transparent);
+        background: var(--c);
+      }
+
+      .stereo-pair {
+        display: flex;
+        flex-direction: column;
+        width: 13px;
+      }
+
+      .stereo-pair > span {
+        aspect-ratio: 1;
+        height: auto;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--c);
+      }
+
+      .stereo-pair > span > span {
+        width: 50%;
+        height: 50%;
+        background: var(--c);
       }
 
       .metric-copy {

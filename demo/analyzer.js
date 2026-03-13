@@ -1033,7 +1033,7 @@ function addCloseColorsRow($panel, label, pairs, count) {
     const $pair = document.createElement('div');
     $pair.className = 'close-pair';
     $pair.title = `dist ${pair.dist.toFixed(4)}`;
-    $pair.innerHTML = `<span style="background:${palette[pair.i]}"></span><span style="background:${palette[pair.j]}"></span>`;
+    $pair.innerHTML = `<span style="--c:${palette[pair.i]}"></span><span style="--c:${palette[pair.j]}"></span>`;
     $row.appendChild($pair);
   }
   $panel.appendChild($row);
@@ -1043,9 +1043,9 @@ function addPairRow($panel, pair, state) {
   const $row = document.createElement('div');
   $row.className = 'pr';
   $row.innerHTML = `
-    <span class="pr__s" style="background:${palette[pair.i]}"></span>
+    <span class="pr__s" style="--c:${palette[pair.i]}"></span>
     <span style="color:${themeVar('--c-muted', '#777')}">↔</span>
-    <span class="pr__s" style="background:${palette[pair.j]}"></span>
+    <span class="pr__s" style="--c:${palette[pair.j]}"></span>
     <span class="pr__d">${pair.dist.toFixed(4)}</span>
   `;
   if (pair.i === state.darkest || pair.j === state.darkest) $row.style.fontWeight = '600';
@@ -1849,8 +1849,8 @@ function renderContrastPanel($panel, state) {
     if (pair.bestContrast < APCA_MIN_CONTRAST) $row.classList.add('metric-row--danger');
     $row.innerHTML = `
       <div class="metric-pair">
-        <span style="background:${palette[pair.i]}"></span>
-        <span style="background:${palette[pair.j]}"></span>
+        <span style="--c:${palette[pair.i]}"></span>
+        <span style="--c:${palette[pair.j]}"></span>
       </div>
       <div class="metric-copy">
         <div class="metric-copy__title">${formatContrast(pair.sourceOnTarget)} / ${formatContrast(pair.targetOnSource)}</div>
@@ -1879,8 +1879,8 @@ function renderPolarityPanel($panel, state) {
     if (pair.weakerContrast < APCA_MIN_CONTRAST) $row.classList.add('metric-row--danger');
     $row.innerHTML = `
       <div class="metric-pair">
-        <span style="background:${palette[pair.i]}"></span>
-        <span style="background:${palette[pair.j]}"></span>
+        <span style="--c:${palette[pair.i]}"></span>
+        <span style="--c:${palette[pair.j]}"></span>
       </div>
       <div class="metric-copy">
         <div class="metric-copy__title">${formatContrast(pair.sourceOnTarget)} / ${formatContrast(pair.targetOnSource)}</div>
@@ -1906,7 +1906,7 @@ function renderCvdPanel($panel, state) {
   state.cvdAnalyses.forEach((analysis) => {
     const closest = analysis.closest;
     const pairMarkup = closest
-      ? `<div class="metric-pair"><span style="background:${palette[closest.i]}"></span><span style="background:${palette[closest.j]}"></span></div>`
+      ? `<div class="metric-pair"><span style="--c:${palette[closest.i]}"></span><span style="--c:${palette[closest.j]}"></span></div>`
       : '<div class="metric-pair"></div>';
     const $row = document.createElement('div');
     $row.className = 'metric-row';
@@ -1938,8 +1938,8 @@ function renderNeighbourPanel($panel, state) {
     $row.className = 'metric-row';
     $row.innerHTML = `
       <div class="metric-pair">
-        <span style="background:${palette[pair.i]}"></span>
-        <span style="background:${palette[pair.j]}"></span>
+        <span style="--c:${palette[pair.i]}"></span>
+        <span style="--c:${palette[pair.j]}"></span>
       </div>
       <div class="metric-copy">
         <div class="metric-copy__title">+${pair.influence.toFixed(3)} apparent distance</div>
@@ -2004,8 +2004,8 @@ function renderLuminancePanel($panel, state) {
     if (pair.deltaY < 0.06) $row.classList.add('metric-row--danger');
     $row.innerHTML = `
       <div class="metric-pair">
-        <span style="background:${palette[pair.i]}"></span>
-        <span style="background:${palette[pair.j]}"></span>
+        <span style="--c:${palette[pair.i]}"></span>
+        <span style="--c:${palette[pair.j]}"></span>
       </div>
       <div class="metric-copy">
         <div class="metric-copy__title">${palette[pair.i]} / ${palette[pair.j]}</div>
@@ -2033,11 +2033,11 @@ function renderHarmonyPanel($panel, state) {
     let pairMarkup = '<div class="metric-pair"></div>';
     if (closest) {
       if (analysis.kind === 'tetrad') {
-        pairMarkup = `<div class="metric-pair"><span style="background:${palette[closest.indices[0]]}"></span><span style="background:${palette[closest.indices[1]]}"></span><span style="background:${palette[closest.indices[2]]}"></span><span style="background:${palette[closest.indices[3]]}"></span></div>`;
+        pairMarkup = `<div class="metric-pair"><span style="--c:${palette[closest.indices[0]]}"></span><span style="--c:${palette[closest.indices[1]]}"></span><span style="--c:${palette[closest.indices[2]]}"></span><span style="--c:${palette[closest.indices[3]]}"></span></div>`;
       } else if (analysis.kind === 'triad') {
-        pairMarkup = `<div class="metric-pair"><span style="background:${palette[closest.indices[0]]}"></span><span style="background:${palette[closest.indices[1]]}"></span><span style="background:${palette[closest.indices[2]]}"></span></div>`;
+        pairMarkup = `<div class="metric-pair"><span style="--c:${palette[closest.indices[0]]}"></span><span style="--c:${palette[closest.indices[1]]}"></span><span style="--c:${palette[closest.indices[2]]}"></span></div>`;
       } else {
-        pairMarkup = `<div class="metric-pair"><span style="background:${palette[closest.i]}"></span><span style="background:${palette[closest.j]}"></span></div>`;
+        pairMarkup = `<div class="metric-pair"><span style="--c:${palette[closest.i]}"></span><span style="--c:${palette[closest.j]}"></span></div>`;
       }
     }
     const setLabel = analysis.kind === 'tetrad' ? 'tetrads' : analysis.kind === 'triad' ? 'triads' : 'pairs';
@@ -2078,8 +2078,8 @@ function renderHkPanel($panel, state) {
     if (entry.boost > 0.05) $row.classList.add('metric-row--warn');
     $row.innerHTML = `
       <div class="metric-pair">
-        <span style="background:${entry.hex}" title="${entry.hex}"></span>
-        <span style="background:hsl(0 0% ${Math.round(entry.perceivedY * 100)}%)" title="Perceived: Y ${entry.perceivedY.toFixed(3)}"></span>
+        <span style="--c:${entry.hex}" title="${entry.hex}"></span>
+        <span style="--c:hsl(0 0% ${Math.round(entry.perceivedY * 100)}%)" title="Perceived: Y ${entry.perceivedY.toFixed(3)}"></span>
       </div>
       <div class="metric-copy">
         <div class="metric-copy__title">Y ${entry.y.toFixed(3)} → perceived ${entry.perceivedY.toFixed(3)}</div>
@@ -2119,24 +2119,16 @@ function renderStereopsisPanel($panel, state) {
   $panel.appendChild($boxes);
 
   if (count) {
-    const $list = document.createElement('div');
-    $list.className = 'metric-list';
+    const $row = document.createElement('div');
+    $row.className = 'close-row';
     state.stereopsisPairs.forEach((pair) => {
-      const $row = document.createElement('div');
-      $row.className = 'metric-row metric-row--warn';
-      $row.innerHTML = `
-        <div class="metric-pair">
-          <span style="background:${palette[pair.i]};display:flex;align-items:center;justify-content:center"><span style="background:${palette[pair.j]};width:50%;height:50%;border-radius:1px"></span></span>
-          <span style="background:${palette[pair.j]};display:flex;align-items:center;justify-content:center"><span style="background:${palette[pair.i]};width:50%;height:50%;border-radius:1px"></span></span>
-        </div>
-        <div class="metric-copy">
-          <div class="metric-copy__title">${palette[pair.i]} / ${palette[pair.j]}</div>
-          <div class="metric-copy__meta">min chroma ${pair.severity.toFixed(3)}</div>
-        </div>
-      `;
-      $list.appendChild($row);
+      const $pair = document.createElement('div');
+      $pair.className = 'stereo-pair';
+      $pair.title = `${palette[pair.i]} / ${palette[pair.j]} · chroma ${pair.severity.toFixed(3)}`;
+      $pair.innerHTML = `<span style="--c:${palette[pair.i]}"><span style="--c:${palette[pair.j]}"></span></span><span style="--c:${palette[pair.j]}"><span style="--c:${palette[pair.i]}"></span></span>`;
+      $row.appendChild($pair);
     });
-    $panel.appendChild($list);
+    $panel.appendChild($row);
   }
 }
 
