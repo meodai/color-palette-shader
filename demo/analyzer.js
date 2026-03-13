@@ -733,7 +733,7 @@ function drawHuePolar(state) {
 }
 
 function renderOverview($panel, state) {
-  clearPanel($panel, 'Indexed palette');
+  clearPanel($panel);
   addCloseColorsRow($panel, 'Close cols: 10% li-match', state.closePairs10, 10);
   addCloseColorsRow($panel, 'Close cols: 70% li-match', state.closePairs70, 10);
 
@@ -752,7 +752,7 @@ function renderOverview($panel, state) {
   const $acyclic = document.createElement('div');
   $acyclic.className = 'info-box';
   $acyclic.innerHTML = `
-    <div class="info-box__label">Acyclic?</div>
+    <div class="info-box__label" title="Whether the nearest-neighbour graph (each color linked to its closest match) is cycle-free. Acyclic palettes have cleaner perceptual separation.">Acyclic?</div>
     <div class="info-box__value">&lt;${state.acyclic ? 'yes' : 'no'}&gt;<span class="info-box__indicator" style="background:${themeVar(`--c-${acState}`, '#000')}"></span></div>
     <div class="info-box__bar" style="width:100%;background:${themeVar(`--c-${acState}`, '#000')}"></div>
   `;
