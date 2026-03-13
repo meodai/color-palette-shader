@@ -25,7 +25,6 @@ const ISO_PLOT_SIZE = 104;
 const ISO_PLOT_SCALE = 58;
 const DETAIL_PIXEL_RATIO = devicePixelRatio * 2;
 const MAX_PALETTE_COLORS = 128;
-const BEAM_SYNC_THROTTLE_MS = 50;
 const APCA_MIN_CONTRAST = 15;
 const APCA_LOW_CLIP = 0.1;
 const CONTRAST_SORT_OPTIONS = [
@@ -100,14 +99,46 @@ let mainPaletteSortMode = 'original';
 let autoSortedPaletteHexes = null;
 let autoSortRequestId = 0;
 let beamSession = null;
-let beamSyncTimer = null;
-let pendingBeamPalette = null;
 
 const TOKEN_BEAM_SERVER_URL = import.meta.env?.VITE_SYNC_SERVER_URL || 'wss://tokenbeam.dev';
 
 const mainPaletteSortWorker = new Worker(new URL('./sort-worker.js', import.meta.url), {
   type: 'module',
 });
+let analysisWorker = null;
+
+let analysisRequestId = 0;
+let latestAnalysisState = null;
+
+function attachAnalysisWorker(worker) {
+  worker.addEventListener('message', (event) => {
+    const { type, payload } = event.data || {};
+    if (!payload || payload.requestId !== analysisRequestId) return;
+    if (type === 'error') {
+      console.error('Analysis worker failed:', payload.message);
+      return;
+    }
+    if (type !== 'analyzed' || !payload.state) return;
+    latestAnalysisState = payload.state;
+    renderAnalysisState(latestAnalysisState);
+  });
+}
+
+function createAnalysisWorker() {
+  const worker = new Worker(new URL('./analysis-worker.js', import.meta.url), {
+    type: 'module',
+  });
+  attachAnalysisWorker(worker);
+  return worker;
+}
+
+function cancelAnalysisRequest() {
+  analysisRequestId += 1;
+  if (analysisWorker) analysisWorker.terminate();
+  analysisWorker = createAnalysisWorker();
+}
+
+analysisWorker = createAnalysisWorker();
 
 function srgbArray(input) {
   const color = toSRGB(input);
@@ -681,9 +712,22 @@ mainPaletteSortWorker.addEventListener('message', (event) => {
   if (!payload || payload.requestId !== autoSortRequestId) return;
   if (type !== 'sorted' || !Array.isArray(payload.sorted)) return;
   autoSortedPaletteHexes = payload.sorted;
-  if (mainPaletteSortMode === 'auto') renderAnalysis();
+  if (mainPaletteSortMode === 'auto' && latestAnalysisState) {
+    renderMainPalette($grid.querySelector('[data-role="main"]'), latestAnalysisState);
+  }
 });
 
+analysisWorker.addEventListener('message', (event) => {
+  const { type, payload } = event.data || {};
+  if (!payload || payload.requestId !== analysisRequestId) return;
+  if (type === 'error') {
+    console.error('Analysis worker failed:', payload.message);
+    return;
+  }
+  if (type !== 'analyzed' || !payload.state) return;
+  latestAnalysisState = payload.state;
+  renderAnalysisState(latestAnalysisState);
+});
 function checkerBackground(a, b, size = 2) {
   return `repeating-conic-gradient(${a} 0 25%, #0000 0 50%) 50% / ${size}px ${size}px, ${b}`;
 }
@@ -755,17 +799,6 @@ function applyBeamPalette(colors) {
   updateAll();
 }
 
-function scheduleBeamPaletteUpdate(colors) {
-  pendingBeamPalette = capPalette(colors);
-  if (beamSyncTimer !== null) return;
-  beamSyncTimer = window.setTimeout(() => {
-    beamSyncTimer = null;
-    const nextPalette = pendingBeamPalette;
-    pendingBeamPalette = null;
-    if (nextPalette?.length) applyBeamPalette(nextPalette);
-  }, BEAM_SYNC_THROTTLE_MS);
-}
-
 function initTokenBeamControls() {
   if (!$beam) return;
   $beamToken = $beam.querySelector('[data-beam-token]');
@@ -807,7 +840,7 @@ function initTokenBeamControls() {
     beamSession.on('sync', ({ payload }) => {
       const hexColors = [...new Set(extractColorTokens(payload).map((entry) => entry.hex))];
       if (hexColors.length >= 1) {
-        scheduleBeamPaletteUpdate(hexColors);
+        applyBeamPalette(hexColors);
       }
     });
 
@@ -2337,7 +2370,7 @@ function renderBars($panel, title, items, accessor, max) {
   $panel.appendChild($bars);
 }
 
-function renderAnalysis() {
+function renderAnalysisState(state) {
   for (let index = vizzes.length - 1; index >= 0; index--) {
     if (vizzes[index].dynamic) {
       vizzes[index].viz.destroy();
@@ -2345,7 +2378,6 @@ function renderAnalysis() {
     }
   }
 
-  const state = stateForPalette(palette);
   renderOverview($grid.querySelector('[data-role="overview"]'), state);
   renderStats($grid.querySelector('[data-role="stats"]'), state);
   renderSpectrumPanel($grid.querySelector('[data-role="spectrum"]'), state);
@@ -2366,6 +2398,13 @@ function renderAnalysis() {
   renderHkPanel($grid.querySelector('[data-role="hk"]'), state);
   renderStereopsisPanel($grid.querySelector('[data-role="stereopsis"]'), state);
   renderTemperaturePanel($grid.querySelector('[data-role="temperature"]'), state);
+}
+
+function renderAnalysis() {
+  latestAnalysisState = null;
+  cancelAnalysisRequest();
+  const requestId = analysisRequestId;
+  analysisWorker.postMessage({ colors: [...palette], requestId });
 }
 
 function updateHeader() {
