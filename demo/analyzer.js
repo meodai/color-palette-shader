@@ -260,6 +260,17 @@ const $probe = document.querySelector('.cursor-probe');
 const $probeDot = $probe.querySelector('.cursor-probe__dot');
 const $probeLabel = $probe.querySelector('.cursor-probe__label');
 
+function updateMetricHeader() {
+  $hdrR.textContent = '';
+  $hdrR.style.display = 'inline-flex';
+  $hdrR.style.alignItems = 'center';
+  $hdrR.style.gap = '6px';
+  const $label = document.createElement('span');
+  $label.textContent = 'Colour difference:';
+  $hdrR.appendChild($label);
+  $hdrR.appendChild($metric);
+}
+
 const palettes = [
   ['#f0dab1', '#e39aac', '#c45d9f', '#634b7d', '#6461c2', '#2ba9b4', '#93d4b5', '#f0f6e8'],
   [
@@ -393,7 +404,7 @@ const polarTileConfigs = [
 const hueSideConfigs = [
   {
     id: 'side-0',
-    colorModel: 'oklchDiag',
+    colorModel: 'oklrchDiag',
     label: 'Purple / seaweed',
     axis: 'x',
     controlLabel: 'H',
@@ -401,7 +412,7 @@ const hueSideConfigs = [
   },
   {
     id: 'side-1',
-    colorModel: 'oklchDiag',
+    colorModel: 'oklrchDiag',
     label: 'Red / cyan',
     axis: 'x',
     controlLabel: 'H',
@@ -409,7 +420,7 @@ const hueSideConfigs = [
   },
   {
     id: 'side-2',
-    colorModel: 'oklchDiag',
+    colorModel: 'oklrchDiag',
     label: 'Orange / blue',
     axis: 'x',
     controlLabel: 'H',
@@ -417,7 +428,7 @@ const hueSideConfigs = [
   },
   {
     id: 'side-3',
-    colorModel: 'oklchDiag',
+    colorModel: 'oklrchDiag',
     label: 'Olive / ultramarine',
     axis: 'x',
     controlLabel: 'H',
@@ -425,7 +436,7 @@ const hueSideConfigs = [
   },
   {
     id: 'side-4',
-    colorModel: 'oklchDiag',
+    colorModel: 'oklrchDiag',
     label: 'Lime / violet',
     axis: 'x',
     controlLabel: 'H',
@@ -433,7 +444,7 @@ const hueSideConfigs = [
   },
   {
     id: 'side-5',
-    colorModel: 'oklchDiag',
+    colorModel: 'oklrchDiag',
     label: 'Emerald / rose',
     axis: 'x',
     controlLabel: 'H',
@@ -459,8 +470,8 @@ function createVizEntry(cfg, width, height, dynamic = false, pixelRatio = device
     width,
     height,
     pixelRatio,
-    colorModel: cfg.colorModel,
-    distanceMetric: $metric?.value ?? 'oklab',
+    colorModel: cfg.colorModel ?? 'oklrab',
+    distanceMetric: $metric?.value ?? 'oklrab',
     axis: cfg.axis,
     position: cfg.position,
     invertAxes: cfg.invertAxes ?? [],
@@ -557,7 +568,7 @@ function buildGrid() {
   $top.appendChild($rects);
   $top.appendChild($meta);
   $top.appendChild(makePanel('limatch', 'Li-match', 'cell-limatch'));
-  $top.appendChild(makePanel('cubes', 'OKLab colourspace', 'cell-cubes'));
+  $top.appendChild(makePanel('cubes', 'OK colourspace', 'cell-cubes'));
 
   const $strips = document.createElement('div');
   $strips.className = 'section section-strips';
@@ -884,7 +895,7 @@ function makeIsoCubeSvg(state) {
   const svg = svgEl('svg', {
     class: 'iso-cube',
     role: 'img',
-    'aria-label': 'OKLab colourspace scatter plot',
+    'aria-label': 'OK colourspace scatter plot',
   });
   let dragging = false;
   let startX = 0;
@@ -893,7 +904,7 @@ function makeIsoCubeSvg(state) {
   const render = () => {
     svg.setAttribute(
       'aria-label',
-      isoPlotMode === 'cylinder' ? 'OKLCh cylindrical scatter plot' : 'OKLab colourspace scatter plot',
+      isoPlotMode === 'cylinder' ? 'cylindrical colourspace scatter plot' : 'OK colourspace scatter plot',
     );
     if (isoPlotMode === 'cylinder') {
       renderIsoCylinderSvg(svg, state, isoCubeRotation);
@@ -1162,7 +1173,7 @@ function renderLiMatch($panel, state) {
 }
 
 function renderIsocubes($panel, state) {
-  clearPanel($panel, 'OKLab colourspace');
+  clearPanel($panel, 'OK colourspace');
   const $wrap = document.createElement('div');
   $wrap.className = 'iso-cube-wrap';
   const $toolbar = document.createElement('div');
@@ -1195,7 +1206,7 @@ function renderIsocubes($panel, state) {
   $isoPanel.appendChild(makeIsoCubeSvg(state));
   const $hint = document.createElement('div');
   $hint.className = 'iso-cube__hint';
-  $hint.textContent = isoPlotMode === 'cylinder' ? 'drag to rotate OKLCh' : 'drag to rotate OKLab';
+  $hint.textContent = isoPlotMode === 'cylinder' ? 'drag to rotate cylinder' : 'drag to rotate cube';
   $isoPanel.appendChild($hint);
 
   const $polarPanel = document.createElement('div');
@@ -1409,11 +1420,11 @@ $metric.innerHTML = `
   <optgroup label="CIE"><option value="deltaE76">DeltaE76</option><option value="deltaE94">DeltaE94</option><option value="deltaE2000">DeltaE2000</option><option value="cielabD50">CIELab D50</option></optgroup>
   <optgroup label="Simple"><option value="rgb">RGB</option></optgroup>
 `;
+$metric.value = 'oklrab';
 $metric.addEventListener('change', () => {
   vizzes.forEach((entry) => {
     if (!entry.lockMetric) entry.viz.distanceMetric = $metric.value;
   });
-  $hdrR.textContent = `Colour difference: ${$metric.selectedOptions[0].text}`;
 });
 
 $outline = document.createElement('input');
@@ -1436,9 +1447,9 @@ $raw.addEventListener('change', () => {
   });
 });
 
-$ctl.insertBefore(controlLabel('Metric', $metric), $paste);
 $ctl.insertBefore(controlLabel('Outline', $outline), $paste);
 $ctl.insertBefore(controlLabel('Raw', $raw), $paste);
+updateMetricHeader();
 
 $paste.value = palette.join(' ');
 $paste.addEventListener('input', () => {
