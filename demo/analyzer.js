@@ -1,24 +1,24 @@
 import { PaletteViz } from 'palette-shader';
-import { converter } from 'culori';
+import {
+  converter,
+  wcagLuminance,
+  filterDeficiencyProt,
+  filterDeficiencyDeuter,
+  filterDeficiencyTrit,
+  interpolate as culoriInterpolate,
+} from 'culori';
 
 const toSRGB = converter('rgb');
 const toOKLab = converter('oklab');
 const toOKLch = converter('oklch');
+const simulateProtan = filterDeficiencyProt(1);
+const simulateDeutan = filterDeficiencyDeuter(1);
+const simulateTritan = filterDeficiencyTrit(1);
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 const normHue = (value) => (((value ?? 0) % 360) + 360) % 360;
-const toHex = (value) =>
-  Math.round(clamp01(value) * 255)
-    .toString(16)
-    .padStart(2, '0');
-const rgbToHex = (rgb) => `#${toHex(rgb[0])}${toHex(rgb[1])}${toHex(rgb[2])}`;
 const rgbToObject = (rgb) => ({ mode: 'rgb', r: rgb[0], g: rgb[1], b: rgb[2] });
-const mixRGB = (a, b, t) => [
-  a[0] * (1 - t) + b[0] * t,
-  a[1] * (1 - t) + b[1] * t,
-  a[2] * (1 - t) + b[2] * t,
-];
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ISO_PLOT_SIZE = 104;
 const ISO_PLOT_SCALE = 58;
@@ -90,10 +90,6 @@ function okLch(input) {
   };
 }
 
-function oklchToHex(l, c, h) {
-  return rgbToHex(srgbArray({ mode: 'oklch', l: clamp01(l), c: Math.max(0, c), h: normHue(h) }));
-}
-
 function labDistance(a, b) {
   return Math.sqrt((a.l - b.l) ** 2 + (a.a - b.a) ** 2 + (a.b - b.b) ** 2);
 }
@@ -103,19 +99,8 @@ function hueDistance(a, b) {
   return Math.min(delta, 360 - delta);
 }
 
-function srgbToLinear(value) {
-  if (value <= 0.04045) return value / 12.92;
-  return ((value + 0.055) / 1.055) ** 2.4;
-}
-
-function linearToSrgb(value) {
-  if (value <= 0.0031308) return value * 12.92;
-  return 1.055 * value ** (1 / 2.4) - 0.055;
-}
-
 function relativeLuminance(rgb) {
-  const [r, g, b] = rgb.map((value) => srgbToLinear(clamp01(value)));
-  return 0.2126729 * r + 0.7151522 * g + 0.072175 * b;
+  return wcagLuminance(rgbToObject(rgb));
 }
 
 function apcaContrast(textRgb, backgroundRgb) {
@@ -135,44 +120,11 @@ function apcaContrast(textRgb, backgroundRgb) {
 }
 
 const CVD_THRESHOLD = 0.045;
-const CVD_MATRICES = [
-  {
-    id: 'protan',
-    label: 'Protan',
-    matrix: [
-      [0.56667, 0.43333, 0],
-      [0.55833, 0.44167, 0],
-      [0, 0.24167, 0.75833],
-    ],
-  },
-  {
-    id: 'deutan',
-    label: 'Deutan',
-    matrix: [
-      [0.625, 0.375, 0],
-      [0.7, 0.3, 0],
-      [0, 0.3, 0.7],
-    ],
-  },
-  {
-    id: 'tritan',
-    label: 'Tritan',
-    matrix: [
-      [0.95, 0.05, 0],
-      [0, 0.43333, 0.56667],
-      [0, 0.475, 0.525],
-    ],
-  },
+const CVD_FILTERS = [
+  { id: 'protan', label: 'Protan', filter: simulateProtan },
+  { id: 'deutan', label: 'Deutan', filter: simulateDeutan },
+  { id: 'tritan', label: 'Tritan', filter: simulateTritan },
 ];
-
-function transformRgb(rgb, matrix) {
-  const lin = rgb.map(srgbToLinear);
-  return [
-    clamp01(linearToSrgb(lin[0] * matrix[0][0] + lin[1] * matrix[0][1] + lin[2] * matrix[0][2])),
-    clamp01(linearToSrgb(lin[0] * matrix[1][0] + lin[1] * matrix[1][1] + lin[2] * matrix[1][2])),
-    clamp01(linearToSrgb(lin[0] * matrix[2][0] + lin[1] * matrix[2][1] + lin[2] * matrix[2][2])),
-  ];
-}
 
 function apparentAgainstNeighbour(sourceLab, neighbourLab) {
   return {
@@ -201,14 +153,12 @@ function usefulMixes(data, limit) {
   const mixes = [];
   for (let i = 0; i < data.length; i++) {
     for (let j = i + 1; j < data.length; j++) {
-      const mixed = mixRGB(data[i].rgb, data[j].rgb, 0.5);
-      const mixedLab = okLab(rgbToObject(mixed));
+      const mixedLab = okLab(culoriInterpolate([data[i].hex, data[j].hex], 'rgb')(0.5));
       let nearest = Infinity;
       for (const entry of data) nearest = Math.min(nearest, labDistance(mixedLab, entry.lab));
       mixes.push({
         a: data[i],
         b: data[j],
-        mixed,
         score: nearest - labDistance(data[i].lab, data[j].lab) * 0.12,
       });
     }
@@ -429,10 +379,10 @@ function stateForPalette(colors) {
     };
   });
 
-  const cvdAnalyses = CVD_MATRICES.map(({ id, label, matrix }) => {
+  const cvdAnalyses = CVD_FILTERS.map(({ id, label, filter }) => {
     const simulated = data.map((entry) => ({
       ...entry,
-      simLab: okLab(rgbToObject(transformRgb(entry.rgb, matrix))),
+      simLab: okLab(filter(rgbToObject(entry.rgb))),
     }));
     const simulatedPairs = [];
     for (let i = 0; i < simulated.length; i++) {
