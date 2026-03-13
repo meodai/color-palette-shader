@@ -2394,20 +2394,9 @@ function formatContrast(value) {
 }
 
 function sortedContrastPairs(state) {
-  const pairs = [...state.contrastPairs];
-  if (contrastSortMode === 'dark-on-light') {
-    pairs.sort((a, b) => Math.abs(a.sourceOnTarget) - Math.abs(b.sourceOnTarget));
-    return pairs;
-  }
-  if (contrastSortMode === 'light-on-dark') {
-    pairs.sort((a, b) => Math.abs(a.targetOnSource) - Math.abs(b.targetOnSource));
-    return pairs;
-  }
-  pairs.sort((a, b) => {
-    if (a.bestContrast !== b.bestContrast) return a.bestContrast - b.bestContrast;
-    return b.contrastDelta - a.contrastDelta;
-  });
-  return pairs;
+  if (contrastSortMode === 'dark-on-light') return [...(state.contrastPairs?.darkOnLight ?? [])];
+  if (contrastSortMode === 'light-on-dark') return [...(state.contrastPairs?.lightOnDark ?? [])];
+  return [...(state.contrastPairs?.worst ?? [])];
 }
 
 function metricToolbarSelect(options, value, onChange) {
@@ -2610,9 +2599,8 @@ function renderLuminancePanel($panel, state) {
   $panel.appendChild($bars);
 
   const histogram = new Array(6).fill(0);
-  state.luminancePairs.forEach((pair) => {
-    const index = Math.min(histogram.length - 1, Math.floor(pair.deltaY * histogram.length));
-    histogram[index] += 1;
+  (state.luminanceHistogram ?? []).forEach((count, index) => {
+    if (index < histogram.length) histogram[index] = count;
   });
   const histogramMax = Math.max(...histogram, 1);
   const $distBars = document.createElement('div');
@@ -2719,11 +2707,11 @@ function renderHkPanel($panel, state) {
     $list.appendChild($row);
   });
 
-  const flipped = state.hkPairs.filter((p) => p.flipped);
-  if (flipped.length > 0) {
+  const flippedCount = state.hkFlippedCount ?? state.hkPairs.filter((p) => p.flipped).length;
+  if (flippedCount > 0) {
     const $warn = document.createElement('div');
     $warn.className = 'metric-note';
-    $warn.textContent = `${flipped.length} pair${flipped.length !== 1 ? 's' : ''} where perceived brightness order disagrees with luminance order`;
+    $warn.textContent = `${flippedCount} pair${flippedCount !== 1 ? 's' : ''} where perceived brightness order disagrees with luminance order`;
     $panel.appendChild($warn);
   }
   $panel.appendChild($list);
@@ -2731,8 +2719,8 @@ function renderHkPanel($panel, state) {
 
 function renderStereopsisPanel($panel, state) {
   clearPanel($panel);
-  const atRiskCount = state.stereopsisPairs.filter((pair) => pair.severity >= 0.05).length;
-  const totalPairs = state.pairs.length;
+  const atRiskCount = state.stereopsisAtRiskCount ?? state.stereopsisPairs.filter((pair) => pair.severity >= 0.05).length;
+  const totalPairs = state.pairCount ?? 0;
   const riskRatio = totalPairs ? atRiskCount / totalPairs : 0;
   const riskColor = `hsl(${120 * (1 - riskRatio)} 72% 46%)`;
 
