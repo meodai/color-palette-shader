@@ -1849,13 +1849,26 @@ function appendMetricLinks($panel, links) {
 }
 
 function renderContrastPanel($panel, state) {
-  clearPanel($panel, 'Perceptual contrast');
-  $panel.appendChild(
-    metricToolbarSelect(CONTRAST_SORT_OPTIONS, contrastSortMode, (value) => {
-      contrastSortMode = value;
-      renderContrastPanel($panel, state);
-    }),
-  );
+  clearPanel($panel);
+  const $head = document.createElement('div');
+  $head.className = 'pnl__head';
+  const $title = document.createElement('div');
+  $title.className = 'pnl__t';
+  $title.textContent = 'Perceptual contrast';
+  $head.appendChild($title);
+
+  const $sort = metricToolbarSelect(CONTRAST_SORT_OPTIONS, contrastSortMode, (value) => {
+    contrastSortMode = value;
+    renderContrastPanel($panel, state);
+  });
+  $sort.classList.add('metric-toolbar--inline');
+  const $sortLabel = document.createElement('span');
+  $sortLabel.className = 'metric-toolbar__label';
+  $sortLabel.textContent = 'Sort';
+  $sort.insertBefore($sortLabel, $sort.firstChild);
+  $head.appendChild($sort);
+  $panel.appendChild($head);
+
   appendMetricLinks($panel, ARTICLE_LINKS.contrast);
   const $note = document.createElement('div');
   $note.className = 'metric-note';
@@ -2139,7 +2152,7 @@ function renderStereopsisPanel($panel, state) {
 
   const $status = document.createElement('div');
   $status.className = 'panel-status';
-  $status.innerHTML = `<span class="panel-status__dot" style="background:${riskColor}"></span><span>${atRiskCount}/${totalPairs} at risk</span>`;
+  $status.innerHTML = `<span>${atRiskCount}/${totalPairs} at risk</span><span class="panel-status__dot" style="background:${riskColor}"></span>`;
   $head.appendChild($status);
   $panel.appendChild($head);
 
