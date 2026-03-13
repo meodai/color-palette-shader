@@ -1273,7 +1273,7 @@ function buildGrid() {
   $top.appendChild($rects);
   $top.appendChild($meta);
   $top.appendChild(makePanel('limatch', 'Li-match', 'cell-limatch'));
-  $top.appendChild(makePanel('cubes', 'OK colourspace', 'cell-cubes'));
+  $top.appendChild(makePanel('cubes', '', 'cell-cubes'));
 
   const $strips = document.createElement('div');
   $strips.className = 'section section-strips';
@@ -2053,7 +2053,7 @@ function renderLiMatch($panel, state) {
 }
 
 function renderIsocubes($panel, state) {
-  clearPanel($panel, 'OK colourspace');
+  clearPanel($panel, '');
   const $wrap = document.createElement('div');
   $wrap.className = 'iso-cube-wrap';
   const $toolbar = document.createElement('div');
@@ -2813,6 +2813,7 @@ function renderAnalysisState(state) {
   renderStats($grid.querySelector('[data-role="stats"]'), state);
   renderSpectrumPanel($grid.querySelector('[data-role="spectrum"]'), state);
   renderLiMatch($grid.querySelector('[data-role="limatch"]'), state);
+  renderIsocubes($grid.querySelector('[data-role="cubes"]'), state);
   renderIsocubes($grid.querySelector('[data-role="cubes"]'), state);
   renderLCBars($grid.querySelector('[data-role="lc-bars"]'), state);
   renderMainPalette($grid.querySelector('[data-role="main"]'), state);
