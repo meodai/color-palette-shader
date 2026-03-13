@@ -22,6 +22,7 @@ const mixRGB = (a, b, t) => [
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ISO_PLOT_SIZE = 104;
 const ISO_PLOT_SCALE = 58;
+const DETAIL_PIXEL_RATIO = devicePixelRatio * 2;
 
 let $metric;
 let $outline;
@@ -507,7 +508,7 @@ function makeVizLabel(cfg, viz, className) {
 function makeVizCell(cfg, extraClass = '') {
   const $cell = document.createElement('div');
   $cell.className = `g ${extraClass}`.trim();
-  const entry = createVizEntry(cfg, TILE_SIZE, TILE_SIZE, false);
+  const entry = createVizEntry(cfg, TILE_SIZE, TILE_SIZE, false, DETAIL_PIXEL_RATIO);
   $cell.appendChild(entry.viz.canvas);
   $cell.appendChild(makeVizLabel(cfg, entry.viz, 'g__lbl'));
   return $cell;
@@ -529,7 +530,7 @@ function makePanel(role, title, extraClass = '') {
 function makePanelShader(cfg, width, height) {
   const $card = document.createElement('div');
   $card.className = 'viz-card';
-  const entry = createVizEntry(cfg, width, height, true);
+  const entry = createVizEntry(cfg, width, height, true, DETAIL_PIXEL_RATIO);
   $card.appendChild(entry.viz.canvas);
   $card.appendChild(makeVizLabel(cfg, entry.viz, 'viz-card__lbl'));
   return $card;
@@ -1151,6 +1152,7 @@ function renderLiMatch($panel, state) {
     40,
     200,
     true,
+    DETAIL_PIXEL_RATIO,
   );
   entry.viz.distanceMetric = 'liMatch';
   entry.lockMetric = true;
@@ -1331,7 +1333,7 @@ function renderHueSideviews($panel) {
   hueSideConfigs.forEach((cfg) => {
     const $card = document.createElement('div');
     $card.className = 'viz-card';
-    const entry = createVizEntry(cfg, renderSize, renderSize, true, devicePixelRatio * 2);
+    const entry = createVizEntry(cfg, renderSize, renderSize, true, DETAIL_PIXEL_RATIO);
     entry.viz.canvas.style.imageRendering = 'auto';
     $card.appendChild(entry.viz.canvas);
     const $lbl = makeVizLabel(cfg, entry.viz, 'viz-card__lbl');
