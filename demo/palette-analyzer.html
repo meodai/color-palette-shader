@@ -157,7 +157,7 @@
 
       .ctl {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         align-items: center;
         gap: 0;
         border-bottom: var(--s-line) solid var(--c-border);
@@ -176,10 +176,10 @@
       }
 
       .ctl textarea {
-        flex: 0 1 clamp(180px, 34vw, 280px);
-        width: clamp(180px, 34vw, 280px);
-        min-width: 120px;
-        max-width: 100%;
+        flex: 1 1 auto;
+        width: auto;
+        min-width: 0;
+        max-width: none;
         height: 24px;
         resize: none;
         border: none;
@@ -197,6 +197,7 @@
       .beam {
         display: inline-flex;
         align-items: center;
+        flex: 0 0 auto;
         gap: 0;
         margin-left: auto;
         border-left: var(--s-line) solid var(--c-grid);
