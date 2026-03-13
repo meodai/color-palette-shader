@@ -366,6 +366,7 @@
         grid-template-columns: 1fr;
         grid-template-areas:
           'main'
+          'names'
           'neutral';
       }
 
@@ -439,6 +440,9 @@
       }
       .cell-main {
         grid-area: main;
+      }
+      .cell-names {
+        grid-area: names;
       }
       .cell-neutralisers {
         grid-area: neutral;
@@ -1034,6 +1038,51 @@
       .metric-row:last-child {
         border-bottom: none;
         padding-bottom: 0;
+      }
+
+      .name-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 4px;
+      }
+
+      .name-chip {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-width: 0;
+        padding: 4px;
+        border: var(--s-line) solid var(--c-grid);
+        background: color-mix(in srgb, var(--c-surface) 72%, transparent);
+      }
+
+      .name-chip__swatch {
+        flex: 0 0 12px;
+        width: 12px;
+        height: 12px;
+        border: var(--s-line) solid var(--c-border);
+      }
+
+      .name-chip__copy {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+
+      .name-chip__title,
+      .name-chip__meta {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
+      .name-chip__title {
+        color: var(--c-ink);
+      }
+
+      .name-chip__meta {
+        color: var(--c-muted);
+        font-size: 8px;
       }
 
       .metric-name {

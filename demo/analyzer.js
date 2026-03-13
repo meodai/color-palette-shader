@@ -25,6 +25,7 @@ const ISO_PLOT_SIZE = 104;
 const ISO_PLOT_SCALE = 58;
 const DETAIL_PIXEL_RATIO = devicePixelRatio * 2;
 const MAX_PALETTE_COLORS = 128;
+const COLOR_NAME_FETCH_THROTTLE_MS = 100;
 const APCA_MIN_CONTRAST = 15;
 const APCA_LOW_CLIP = 0.1;
 const CONTRAST_SORT_OPTIONS = [
@@ -101,6 +102,7 @@ let autoSortRequestId = 0;
 let beamSession = null;
 
 const TOKEN_BEAM_SERVER_URL = import.meta.env?.VITE_SYNC_SERVER_URL || 'wss://tokenbeam.dev';
+const COLOR_NAME_API_URL = 'https://api.color.pizza/v1/';
 
 const mainPaletteSortWorker = new Worker(new URL('./sort-worker.js', import.meta.url), {
   type: 'module',
@@ -109,6 +111,13 @@ let analysisWorker = null;
 
 let analysisRequestId = 0;
 let latestAnalysisState = null;
+let colorNamesTimer = null;
+let colorNamesAbortController = null;
+let colorNamesRequestId = 0;
+let colorNamesLoading = false;
+let colorNamesError = '';
+let colorNameEntries = [];
+let colorNamePaletteKey = '';
 
 function attachAnalysisWorker(worker) {
   worker.addEventListener('message', (event) => {
@@ -143,6 +152,10 @@ analysisWorker = createAnalysisWorker();
 function srgbArray(input) {
   const color = toSRGB(input);
   return [clamp01(color?.r ?? 0), clamp01(color?.g ?? 0), clamp01(color?.b ?? 0)];
+}
+
+function paletteKeyOf(colors) {
+  return colors.map((hex) => String(hex).toLowerCase()).join(',');
 }
 
 function okLab(input) {
@@ -761,6 +774,61 @@ function buildProgram(gl, vertexSource, fragmentSource) {
   return program;
 }
 
+function renderColorNamesIfReady() {
+  if (!latestAnalysisState) return;
+  renderColorNamesPanel($grid.querySelector('[data-role="names"]'), latestAnalysisState);
+}
+
+function abortColorNamesFetch() {
+  if (colorNamesTimer !== null) {
+    window.clearTimeout(colorNamesTimer);
+    colorNamesTimer = null;
+  }
+  if (colorNamesAbortController) {
+    colorNamesAbortController.abort();
+    colorNamesAbortController = null;
+  }
+}
+
+async function fetchColorNames(colors, requestId, controller, paletteKey) {
+  const values = colors.map((hex) => String(hex).replace(/^#/, '')).join(',');
+  const url = `${COLOR_NAME_API_URL}?values=${encodeURIComponent(values)}&noduplicates=false`;
+  const response = await fetch(url, { signal: controller.signal });
+  if (!response.ok) throw new Error(`Color name API returned ${response.status}`);
+  const payload = await response.json();
+  if (requestId !== colorNamesRequestId || paletteKey !== colorNamePaletteKey) return;
+  colorNamesAbortController = null;
+  colorNamesLoading = false;
+  colorNamesError = '';
+  colorNameEntries = Array.isArray(payload?.colors) ? payload.colors : [];
+  renderColorNamesIfReady();
+}
+
+function scheduleColorNamesFetch(colors) {
+  const nextColors = [...colors];
+  colorNamePaletteKey = paletteKeyOf(nextColors);
+  colorNamesLoading = true;
+  colorNamesError = '';
+  colorNameEntries = [];
+  renderColorNamesIfReady();
+  abortColorNamesFetch();
+  const requestId = ++colorNamesRequestId;
+  const requestPaletteKey = colorNamePaletteKey;
+  colorNamesTimer = window.setTimeout(() => {
+    colorNamesTimer = null;
+    const controller = new AbortController();
+    colorNamesAbortController = controller;
+    fetchColorNames(nextColors, requestId, controller, requestPaletteKey).catch((error) => {
+      if (controller.signal.aborted || requestId !== colorNamesRequestId) return;
+      colorNamesAbortController = null;
+      colorNamesLoading = false;
+      colorNamesError = error instanceof Error ? error.message : String(error);
+      colorNameEntries = [];
+      renderColorNamesIfReady();
+    });
+  }, COLOR_NAME_FETCH_THROTTLE_MS);
+}
+
 const $grid = document.querySelector('[data-grid]');
 const $ctl = document.querySelector('[data-ctl]');
 const $paste = document.querySelector('[data-paste]');
@@ -1133,6 +1201,7 @@ function buildGrid() {
   const $strips = document.createElement('div');
   $strips.className = 'section section-strips';
   $strips.appendChild(makePanel('main', 'Main palette', 'cell-main'));
+  $strips.appendChild(makePanel('names', 'Color names', 'cell-names'));
   $strips.appendChild(makePanel('neutralisers', 'Neutralisers', 'cell-neutralisers'));
 
   const $bottom = document.createElement('div');
@@ -1875,6 +1944,66 @@ function renderMainPalette($panel, state) {
   $panel.appendChild($row);
 }
 
+function renderColorNamesPanel($panel, state) {
+  clearPanel($panel, 'Color names');
+  appendMetricLinks($panel, [{ label: 'API', href: 'https://meodai.github.io/color-name-api/' }]);
+
+  const $note = document.createElement('div');
+  $note.className = 'metric-note';
+  if (colorNamesLoading) {
+    $note.textContent = 'Fetching names...';
+    $panel.appendChild($note);
+    return;
+  }
+  if (colorNamesError) {
+    $note.textContent = `Could not load names: ${colorNamesError}`;
+    $panel.appendChild($note);
+    return;
+  }
+
+  const currentKey = paletteKeyOf(state.data.map((entry) => entry.hex));
+  if (colorNamePaletteKey !== currentKey) {
+    $note.textContent = 'Waiting for current palette names...';
+    $panel.appendChild($note);
+    return;
+  }
+
+  const $gridEl = document.createElement('div');
+  $gridEl.className = 'name-grid';
+  state.data.forEach((entry, index) => {
+    const match = colorNameEntries[index];
+    const title = match?.name ?? 'Unknown';
+    const matchedHex = match?.hex ?? entry.hex;
+    const distance = Number.isFinite(match?.distance) ? match.distance.toFixed(2) : '0.00';
+
+    const $chip = document.createElement('div');
+    $chip.className = 'name-chip';
+    $chip.title = `${entry.hex} -> ${title}`;
+
+    const $swatch = document.createElement('span');
+    $swatch.className = 'name-chip__swatch';
+    $swatch.style.background = entry.hex;
+
+    const $copy = document.createElement('span');
+    $copy.className = 'name-chip__copy';
+
+    const $title = document.createElement('span');
+    $title.className = 'name-chip__title';
+    $title.textContent = title;
+
+    const $meta = document.createElement('span');
+    $meta.className = 'name-chip__meta';
+    $meta.textContent = `${matchedHex} · Δ ${distance}`;
+
+    $copy.appendChild($title);
+    $copy.appendChild($meta);
+    $chip.appendChild($swatch);
+    $chip.appendChild($copy);
+    $gridEl.appendChild($chip);
+  });
+  $panel.appendChild($gridEl);
+}
+
 function renderNeutralisers($panel, state) {
   clearPanel($panel, 'Neutralisers');
   const $strip = document.createElement('div');
@@ -2385,6 +2514,7 @@ function renderAnalysisState(state) {
   renderIsocubes($grid.querySelector('[data-role="cubes"]'), state);
   renderLCBars($grid.querySelector('[data-role="lc-bars"]'), state);
   renderMainPalette($grid.querySelector('[data-role="main"]'), state);
+  renderColorNamesPanel($grid.querySelector('[data-role="names"]'), state);
   renderNeutralisers($grid.querySelector('[data-role="neutralisers"]'), state);
   renderUsefulMixes($grid.querySelector('[data-role="mixes"]'), state);
   renderPolarGroup($grid.querySelector('[data-role="polars"]'));
@@ -2415,6 +2545,7 @@ function updateAll() {
   const vizPalette = palette.map((hex) => srgbArray(hex));
   autoSortedPaletteHexes = null;
   requestAutoPaletteSort();
+  scheduleColorNamesFetch(palette);
   vizzes.forEach(({ viz }) => {
     viz.palette = vizPalette;
   });
