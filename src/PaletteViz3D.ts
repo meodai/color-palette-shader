@@ -26,11 +26,7 @@ import {
   mat4RotateY,
   mat4Translate,
 } from './math.ts';
-import {
-  BasePaletteRenderer,
-  COLOR_MODEL_MAP,
-  DISTANCE_METRIC_MAP,
-} from './rendererShared.ts';
+import { BasePaletteRenderer, COLOR_MODEL_MAP, DISTANCE_METRIC_MAP } from './rendererShared.ts';
 
 const GUTTERED_CLIP_PADDING = 0.42;
 const SETTLED_CLIP_PASS_COUNT = 2;
@@ -499,7 +495,10 @@ export class PaletteViz3D extends BasePaletteRenderer {
     this.renderFrame();
 
     const gl = this.glContext;
-    const px = Math.min(this.canvas.width - 1, Math.max(0, Math.round(x * (this.canvas.width - 1))));
+    const px = Math.min(
+      this.canvas.width - 1,
+      Math.max(0, Math.round(x * (this.canvas.width - 1))),
+    );
     const py = Math.min(
       this.canvas.height - 1,
       Math.max(0, Math.round((1 - y) * (this.canvas.height - 1))),

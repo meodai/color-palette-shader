@@ -79,22 +79,22 @@ new PaletteViz(options?: PaletteVizOptions)
 
 All options are optional. The palette defaults to a random 20-color set.
 
-| Option           | Type                         | Default            | Description                                                                                                                                                            |
-| ---------------- | ---------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `palette`        | `[number, number, number][]` | random             | sRGB colors as `[r, g, b]` arrays, each component in the `0–1` range                                                                                                   |
-| `container`      | `HTMLElement`                | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself                                                                                      |
-| `width`          | `number`                     | `512`              | Canvas width in CSS pixels                                                                                                                                             |
-| `height`         | `number`                     | `512`              | Canvas height in CSS pixels                                                                                                                                            |
-| `pixelRatio`     | `number`                     | `devicePixelRatio` | Renderer pixel ratio                                                                                                                                                   |
+| Option           | Type                         | Default            | Description                                                                                                                                                                                          |
+| ---------------- | ---------------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `palette`        | `[number, number, number][]` | random             | sRGB colors as `[r, g, b]` arrays, each component in the `0–1` range                                                                                                                                 |
+| `container`      | `HTMLElement`                | `undefined`        | Element the canvas is appended to. Omit and use `viz.canvas` to place it yourself                                                                                                                    |
+| `width`          | `number`                     | `512`              | Canvas width in CSS pixels                                                                                                                                                                           |
+| `height`         | `number`                     | `512`              | Canvas height in CSS pixels                                                                                                                                                                          |
+| `pixelRatio`     | `number`                     | `devicePixelRatio` | Renderer pixel ratio                                                                                                                                                                                 |
 | `observeResize`  | `boolean`                    | `false`            | When `true`, a `ResizeObserver` tracks the laid-out canvas size and updates the backing resolution to match CSS layout. When `false`, `width` and `height` are treated as the explicit display size. |
-| `colorModel`     | `string`                     | `'okhsv'`          | Color space for the visualization (see [Color models](#color-models))                                                                                                  |
-| `distanceMetric` | `string`                     | `'oklab'`          | Distance function for nearest-color matching (see [Distance metrics](#distance-metrics))                                                                               |
-| `axis`           | `'x' \| 'y' \| 'z'`          | `'y'`              | Which axis the `position` value controls                                                                                                                               |
-| `position`       | `number`                     | `0`                | 0–1 position along the chosen axis                                                                                                                                     |
-| `invertAxes`     | `('x' \| 'y' \| 'z')[]`      | `[]`               | Invert one or more axes, for example `['z']` or `['x', 'z']`. In 2-D polar views, `y` inversion is resolved as a vertical view flip to avoid the mirrored center seam. |
-| `showRaw`        | `boolean`                    | `false`            | Bypass nearest-color matching (shows the raw color space)                                                                                                              |
-| `outlineWidth`   | `number`                     | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead).                                                           |
-| `gamutClip`      | `boolean`                    | `false`            | Discard out-of-sRGB-gamut pixels instead of clamping. Reveals the true gamut boundary of the color model.                                                              |
+| `colorModel`     | `string`                     | `'okhsv'`          | Color space for the visualization (see [Color models](#color-models))                                                                                                                                |
+| `distanceMetric` | `string`                     | `'oklab'`          | Distance function for nearest-color matching (see [Distance metrics](#distance-metrics))                                                                                                             |
+| `axis`           | `'x' \| 'y' \| 'z'`          | `'y'`              | Which axis the `position` value controls                                                                                                                                                             |
+| `position`       | `number`                     | `0`                | 0–1 position along the chosen axis                                                                                                                                                                   |
+| `invertAxes`     | `('x' \| 'y' \| 'z')[]`      | `[]`               | Invert one or more axes, for example `['z']` or `['x', 'z']`. In 2-D polar views, `y` inversion is resolved as a vertical view flip to avoid the mirrored center seam.                               |
+| `showRaw`        | `boolean`                    | `false`            | Bypass nearest-color matching (shows the raw color space)                                                                                                                                            |
+| `outlineWidth`   | `number`                     | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead).                                                                                         |
+| `gamutClip`      | `boolean`                    | `false`            | Discard out-of-sRGB-gamut pixels instead of clamping. Reveals the true gamut boundary of the color model.                                                                                            |
 
 ---
 
@@ -228,10 +228,10 @@ Controls the 3-D color space the visualization is rendered in. Polar variants (`
 
 **CAM16-UCS — D65**
 
-| Value                | Shape | Description                                                                                  |
-| -------------------- | ----- | -------------------------------------------------------------------------------------------- |
-| `'cam16ucsD65'`      | cube  | CAM16-UCS under fixed D65 CAT16 viewing conditions, rendered with an analytic inverse.      |
-| `'cam16ucsD65Polar'` | wheel | Polar CAM16-UCS view under the same fixed D65 conditions.                                    |
+| Value                | Shape | Description                                                                            |
+| -------------------- | ----- | -------------------------------------------------------------------------------------- |
+| `'cam16ucsD65'`      | cube  | CAM16-UCS under fixed D65 CAT16 viewing conditions, rendered with an analytic inverse. |
+| `'cam16ucsD65Polar'` | wheel | Polar CAM16-UCS view under the same fixed D65 conditions.                              |
 
 **Classic**
 
@@ -283,10 +283,10 @@ Controls how "nearest palette color" is determined per pixel.
 
 | Value           | Description                                                                                                                                | Cost |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| `'oklab'`       | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice.                                   | low  |
-| `'oklrab'`      | Euclidean in OKLab with toe-corrected lightness. Slightly better uniformity in dark tones than OKLab.                                     | low  |
-| `'okLightness'` | Absolute lightness difference in OKLab (`ΔL`). Ignores hue and chroma, so regions are grouped by brightness only.                        | low  |
-| `'liMatch'`     | Spatially varying blend: full OKLab distance at the left edge, pure lightness match at the right. Inspired by censor's li-match.         | low  |
+| `'oklab'`       | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice.                                    | low  |
+| `'oklrab'`      | Euclidean in OKLab with toe-corrected lightness. Slightly better uniformity in dark tones than OKLab.                                      | low  |
+| `'okLightness'` | Absolute lightness difference in OKLab (`ΔL`). Ignores hue and chroma, so regions are grouped by brightness only.                          | low  |
+| `'liMatch'`     | Spatially varying blend: full OKLab distance at the left edge, pure lightness match at the right. Inspired by censor's li-match.           | low  |
 | `'cam16ucsD65'` | Euclidean distance in CAM16-UCS under fixed D65 CAT16 viewing conditions. Useful when you want a full appearance-model metric like censor. | high |
 
 **CIE — D65**

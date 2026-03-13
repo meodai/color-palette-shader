@@ -84,17 +84,17 @@ Quantizes the color space to a hardware palette. Useful for checking whether a p
 
 The distance metric controls how "nearest palette color" is decided per pixel. It does not change the shape of the visualization — only which palette color claims each region.
 
-| Metric            | Speed   | Best for                                  | Avoid when…                                       |
-| ----------------- | ------- | ----------------------------------------- | ------------------------------------------------- |
-| `oklab`           | fast    | General-purpose default                   | You need strict CIE compliance                    |
-| `oklrab`          | fast    | Better shadow differentiation             | —                                                 |
-| `deltaE76`        | medium  | Classic CIE baseline                      | Colors in highly saturated or blue/purple ranges  |
-| `deltaE94`        | medium  | Better than ΔE76, cheaper than ΔE2000     | You need the most accurate result                 |
-| `deltaE2000`      | slow    | Most perceptually accurate CIE formula    | GPU-heavy, may affect framerate on large palettes |
+| Metric            | Speed   | Best for                                      | Avoid when…                                                   |
+| ----------------- | ------- | --------------------------------------------- | ------------------------------------------------------------- |
+| `oklab`           | fast    | General-purpose default                       | You need strict CIE compliance                                |
+| `oklrab`          | fast    | Better shadow differentiation                 | —                                                             |
+| `deltaE76`        | medium  | Classic CIE baseline                          | Colors in highly saturated or blue/purple ranges              |
+| `deltaE94`        | medium  | Better than ΔE76, cheaper than ΔE2000         | You need the most accurate result                             |
+| `deltaE2000`      | slow    | Most perceptually accurate CIE formula        | GPU-heavy, may affect framerate on large palettes             |
 | `cam16ucsD65`     | slow    | Palette analysis with a full appearance model | You need configurable viewing conditions or a cheaper default |
-| `cielabD50`       | medium  | Print / ICC workflows                     | Screen-only contexts                              |
-| `kotsarenkoRamos` | fastest | Quick cheap approximation                 | Any accuracy-sensitive use                        |
-| `rgb`             | fastest | Debugging, computer/external tool context | Perceptual quality matters                        |
+| `cielabD50`       | medium  | Print / ICC workflows                         | Screen-only contexts                                          |
+| `kotsarenkoRamos` | fastest | Quick cheap approximation                     | Any accuracy-sensitive use                                    |
+| `rgb`             | fastest | Debugging, computer/external tool context     | Perceptual quality matters                                    |
 
 For most use-cases `oklab` is the right default. Upgrade to `deltaE2000` when you specifically need the closest match to how a human observer perceives color differences.
 

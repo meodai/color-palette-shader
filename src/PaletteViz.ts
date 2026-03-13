@@ -6,11 +6,7 @@ import {
   DistanceMetric,
 } from './types.ts';
 import { paletteToRGBA, randomPalette } from './palette.ts';
-import {
-  Defines,
-  buildProgram,
-  uploadPaletteTexture,
-} from './webgl.ts';
+import { Defines, buildProgram, uploadPaletteTexture } from './webgl.ts';
 import { vertexShaderSrc, assembleFragShader, outlineFragmentShaderSrc } from './shaderSrc.ts';
 import {
   AXIS_MAP,
@@ -235,7 +231,8 @@ export class PaletteViz extends BasePaletteRenderer {
   // ── Palette ─────────────────────────────────────────────────────────────────
 
   setColor(color: ColorRGB, index: number): void {
-    if (index < 0 || index >= this.paletteState.length) throw new Error(`Index ${index} out of range`);
+    if (index < 0 || index >= this.paletteState.length)
+      throw new Error(`Index ${index} out of range`);
     this.paletteState[index] = color;
     uploadPaletteTexture(this.glContext, this.paletteTexture, this.paletteState);
     this.metricPaletteDirty = true;
@@ -262,7 +259,8 @@ export class PaletteViz extends BasePaletteRenderer {
               Math.abs(c[2] - indexOrColor[2]) < 1e-9,
           );
     if (index === -1) throw new Error('Color not found in palette');
-    if (index < 0 || index >= this.paletteState.length) throw new Error(`Index ${index} out of range`);
+    if (index < 0 || index >= this.paletteState.length)
+      throw new Error(`Index ${index} out of range`);
     if (this.paletteState.length === 1) throw new Error('Palette must contain at least one color');
     this.paletteState.splice(index, 1);
     uploadPaletteTexture(this.glContext, this.paletteTexture, this.paletteState);
@@ -278,8 +276,14 @@ export class PaletteViz extends BasePaletteRenderer {
     this.renderFrame();
 
     const gl = this.glContext;
-    const px = Math.min(this.canvas.width - 1, Math.max(0, Math.round(x * (this.canvas.width - 1))));
-    const py = Math.min(this.canvas.height - 1, Math.max(0, Math.round(y * (this.canvas.height - 1))));
+    const px = Math.min(
+      this.canvas.width - 1,
+      Math.max(0, Math.round(x * (this.canvas.width - 1))),
+    );
+    const py = Math.min(
+      this.canvas.height - 1,
+      Math.max(0, Math.round(y * (this.canvas.height - 1))),
+    );
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
     const out = new Uint8Array(4);
     gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);

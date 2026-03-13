@@ -126,9 +126,7 @@ function _xyzToCam16ucsD65(x: number, y: number, z: number): [number, number, nu
       ? 0
       : ((50000 / 13) * CAM16_D65.SN_c * CAM16_D65.N_cb * e_t * Math.hypot(a, b)) / denom;
   const C =
-    Math.max(t, 0) ** 0.9 *
-    Math.sqrt(Math.max(J, 0) / 100) *
-    (1.64 - 0.29 ** CAM16_D65.n) ** 0.73;
+    Math.max(t, 0) ** 0.9 * Math.sqrt(Math.max(J, 0) / 100) * (1.64 - 0.29 ** CAM16_D65.n) ** 0.73;
   const M = C * CAM16_D65.F_L ** 0.25;
   const Jp = (J * 1.7) / (1 + 0.007 * J);
   const Mp = Math.log(1 + 0.0228 * M) / 0.0228;
