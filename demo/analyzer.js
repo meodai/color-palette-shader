@@ -1726,14 +1726,27 @@ function renderLCBars($panel, state) {
 }
 
 function renderMainPalette($panel, state) {
-  clearPanel($panel, 'Main palette');
-  $panel.appendChild(
-    metricToolbarSelect(MAIN_PALETTE_SORT_OPTIONS, mainPaletteSortMode, (value) => {
-      mainPaletteSortMode = value;
-      if (mainPaletteSortMode === 'auto' && !autoSortedPaletteHexes) requestAutoPaletteSort();
-      renderMainPalette($panel, state);
-    }),
-  );
+  clearPanel($panel);
+  const $head = document.createElement('div');
+  $head.className = 'pnl__head';
+  const $title = document.createElement('div');
+  $title.className = 'pnl__t';
+  $title.textContent = 'Main palette';
+  $head.appendChild($title);
+
+  const $sort = metricToolbarSelect(MAIN_PALETTE_SORT_OPTIONS, mainPaletteSortMode, (value) => {
+    mainPaletteSortMode = value;
+    if (mainPaletteSortMode === 'auto' && !autoSortedPaletteHexes) requestAutoPaletteSort();
+    renderMainPalette($panel, state);
+  });
+  $sort.classList.add('metric-toolbar--inline');
+  const $sortLabel = document.createElement('span');
+  $sortLabel.className = 'metric-toolbar__label';
+  $sortLabel.textContent = 'Sort';
+  $sort.insertBefore($sortLabel, $sort.firstChild);
+  $head.appendChild($sort);
+  $panel.appendChild($head);
+
   const $row = document.createElement('div');
   $row.className = 'strip-row';
   const $strip = document.createElement('div');
