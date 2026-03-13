@@ -38,6 +38,24 @@ const MAIN_PALETTE_SORT_OPTIONS = [
   { value: 'current', label: 'Lightness' },
   { value: 'auto', label: 'Auto' },
 ];
+const COLOR_NAME_LIST_VALUES = [
+  'bestOf',
+  'default',
+  'short',
+  'wikipedia',
+  'french',
+  'spanish',
+  'german',
+  'hindi',
+  'chineseTraditional',
+  'html',
+  'japaneseTraditional',
+  'nbsIscc',
+  'ntc',
+  'sanzoWadaI',
+  'thesaurus',
+  'xkcd',
+];
 const ARTICLE_LINKS = {
   contrast: [
     { label: 'APCA', href: 'https://colorandcontrast.com/#/apca' },
@@ -117,7 +135,10 @@ let colorNamesRequestId = 0;
 let colorNamesLoading = false;
 let colorNamesError = '';
 let colorNameEntries = [];
-let colorNamePaletteKey = '';
+let colorNameRequestKey = '';
+let colorNameList = 'bestOf';
+let colorNameListTitles = new Map(COLOR_NAME_LIST_VALUES.map((value) => [value, value]));
+let colorNameListMetaLoaded = false;
 
 function attachAnalysisWorker(worker) {
   worker.addEventListener('message', (event) => {
@@ -156,6 +177,17 @@ function srgbArray(input) {
 
 function paletteKeyOf(colors) {
   return colors.map((hex) => String(hex).toLowerCase()).join(',');
+}
+
+function colorNameListOptions() {
+  return COLOR_NAME_LIST_VALUES.map((value) => ({
+    value,
+    label: colorNameListTitles.get(value) ?? value,
+  }));
+}
+
+function colorNameRequestKeyOf(colors, list) {
+  return `${list}::${paletteKeyOf(colors)}`;
 }
 
 function okLab(input) {
@@ -779,6 +811,24 @@ function renderColorNamesIfReady() {
   renderColorNamesPanel($grid.querySelector('[data-role="names"]'), latestAnalysisState);
 }
 
+async function loadColorNameListMetadata() {
+  if (colorNameListMetaLoaded) return;
+  colorNameListMetaLoaded = true;
+  try {
+    const response = await fetch(`${COLOR_NAME_API_URL}lists/`);
+    if (!response.ok) throw new Error(`Color name list metadata returned ${response.status}`);
+    const payload = await response.json();
+    const listDescriptions = payload?.listDescriptions ?? {};
+    COLOR_NAME_LIST_VALUES.forEach((value) => {
+      const title = listDescriptions?.[value]?.title;
+      if (typeof title === 'string' && title.trim()) colorNameListTitles.set(value, title.trim());
+    });
+    renderColorNamesIfReady();
+  } catch (error) {
+    console.error('Could not load color-name list metadata:', error);
+  }
+}
+
 function abortColorNamesFetch() {
   if (colorNamesTimer !== null) {
     window.clearTimeout(colorNamesTimer);
@@ -792,11 +842,11 @@ function abortColorNamesFetch() {
 
 async function fetchColorNames(colors, requestId, controller, paletteKey) {
   const values = colors.map((hex) => String(hex).replace(/^#/, '')).join(',');
-  const url = `${COLOR_NAME_API_URL}?values=${encodeURIComponent(values)}&noduplicates=false`;
+  const url = `${COLOR_NAME_API_URL}?values=${encodeURIComponent(values)}&list=${encodeURIComponent(colorNameList)}&noduplicates=false`;
   const response = await fetch(url, { signal: controller.signal });
   if (!response.ok) throw new Error(`Color name API returned ${response.status}`);
   const payload = await response.json();
-  if (requestId !== colorNamesRequestId || paletteKey !== colorNamePaletteKey) return;
+  if (requestId !== colorNamesRequestId || paletteKey !== colorNameRequestKey) return;
   colorNamesAbortController = null;
   colorNamesLoading = false;
   colorNamesError = '';
@@ -806,14 +856,14 @@ async function fetchColorNames(colors, requestId, controller, paletteKey) {
 
 function scheduleColorNamesFetch(colors) {
   const nextColors = [...colors];
-  colorNamePaletteKey = paletteKeyOf(nextColors);
+  colorNameRequestKey = colorNameRequestKeyOf(nextColors, colorNameList);
   colorNamesLoading = true;
   colorNamesError = '';
   colorNameEntries = [];
   renderColorNamesIfReady();
   abortColorNamesFetch();
   const requestId = ++colorNamesRequestId;
-  const requestPaletteKey = colorNamePaletteKey;
+  const requestPaletteKey = colorNameRequestKey;
   colorNamesTimer = window.setTimeout(() => {
     colorNamesTimer = null;
     const controller = new AbortController();
@@ -1945,13 +1995,33 @@ function renderMainPalette($panel, state) {
 }
 
 function renderColorNamesPanel($panel, state) {
-  clearPanel($panel, 'Color names');
+  clearPanel($panel);
+  const $head = document.createElement('div');
+  $head.className = 'pnl__head';
+  const $title = document.createElement('div');
+  $title.className = 'pnl__t';
+  $title.textContent = 'Color names';
+  $head.appendChild($title);
+
+  const $listSelect = metricToolbarSelect(colorNameListOptions(), colorNameList, (value) => {
+    colorNameList = value;
+    scheduleColorNamesFetch(palette);
+    renderColorNamesPanel($panel, state);
+  });
+  $listSelect.classList.add('metric-toolbar--inline');
+  const $listLabel = document.createElement('span');
+  $listLabel.className = 'metric-toolbar__label';
+  $listLabel.textContent = 'List';
+  $listSelect.insertBefore($listLabel, $listSelect.firstChild);
+  $head.appendChild($listSelect);
+  $panel.appendChild($head);
+
   appendMetricLinks($panel, [{ label: 'API', href: 'https://meodai.github.io/color-name-api/' }]);
 
   const $note = document.createElement('div');
   $note.className = 'metric-note';
   if (colorNamesLoading) {
-    $note.textContent = 'Fetching names...';
+    $note.textContent = `Fetching ${colorNameList} names...`;
     $panel.appendChild($note);
     return;
   }
@@ -1961,9 +2031,9 @@ function renderColorNamesPanel($panel, state) {
     return;
   }
 
-  const currentKey = paletteKeyOf(state.data.map((entry) => entry.hex));
-  if (colorNamePaletteKey !== currentKey) {
-    $note.textContent = 'Waiting for current palette names...';
+  const currentKey = colorNameRequestKeyOf(state.data.map((entry) => entry.hex), colorNameList);
+  if (colorNameRequestKey !== currentKey) {
+    $note.textContent = `Waiting for ${colorNameList} names...`;
     $panel.appendChild($note);
     return;
   }
@@ -2562,6 +2632,7 @@ function controlLabel(text, field) {
 
 buildGrid();
 initTokenBeamControls();
+loadColorNameListMetadata();
 
 $metric = document.createElement('select');
 $metric.innerHTML = `
