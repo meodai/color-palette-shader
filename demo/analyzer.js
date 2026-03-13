@@ -1462,11 +1462,11 @@ function renderIsoCubeSvg(svg, state, angle) {
 
   const points = state.data
     .map((entry) => {
-      const axisA = clamp(entry.lab.a / 0.45, -1, 1) * 0.5;
-      const axisB = clamp(entry.lab.b / 0.45, -1, 1) * 0.5;
+      const axisA = clamp(entry.okhsv.h / 360, 0, 1) - 0.5;
+      const axisB = clamp(entry.okhsv.s, 0, 1) - 0.5;
       return {
         entry,
-        projected: projectIsoPoint(entry.lab.l, axisA, axisB, cosY, sinY, ISO_PLOT_SCALE),
+        projected: projectIsoPoint(entry.okhsv.v, axisA, axisB, cosY, sinY, ISO_PLOT_SCALE),
       };
     })
     .sort((a, b) => a.projected.z - b.projected.z);
@@ -1553,12 +1553,12 @@ function renderIsoCylinderSvg(svg, state, angle) {
 
   const points = state.data
     .map((entry) => {
-      const theta = (entry.lch.h * Math.PI) / 180;
-      const axisA = Math.cos(theta) * clamp(entry.lch.c / 0.322, 0, 1) * 0.5;
-      const axisB = Math.sin(theta) * clamp(entry.lch.c / 0.322, 0, 1) * 0.5;
+      const theta = (entry.okhsv.h * Math.PI) / 180;
+      const axisA = Math.cos(theta) * clamp(entry.okhsv.s, 0, 1) * 0.5;
+      const axisB = Math.sin(theta) * clamp(entry.okhsv.s, 0, 1) * 0.5;
       return {
         entry,
-        projected: projectIsoPoint(entry.lab.l, axisA, axisB, cosY, sinY, ISO_PLOT_SCALE),
+        projected: projectIsoPoint(entry.okhsv.v, axisA, axisB, cosY, sinY, ISO_PLOT_SCALE),
       };
     })
     .sort((a, b) => a.projected.z - b.projected.z);
@@ -1569,7 +1569,7 @@ function renderIsoCylinderSvg(svg, state, angle) {
       x: projected.x + cx,
       y: projected.y + cy - projectIsoPoint(0.5, 0, 0, cosY, sinY, ISO_PLOT_SCALE).y,
     };
-    const radiusScale = clamp(entry.lch.c / 0.322, 0, 1);
+    const radiusScale = clamp(entry.okhsv.s, 0, 1);
     const circle = svgEl('circle', {
       class: 'iso-cube__dot',
       cx: point.x,
@@ -1589,16 +1589,23 @@ function makeIsoCubeSvg(state) {
   const svg = svgEl('svg', {
     class: 'iso-cube',
     role: 'img',
-    'aria-label': 'OK colourspace scatter plot',
+    'aria-label': 'OKHSV scatter plot',
   });
   let dragging = false;
   let startX = 0;
   let startAngle = isoCubeRotation;
+  let activePointerId = null;
+
+  const detachWindowStop = () => {
+    window.removeEventListener('pointerup', stopDrag);
+    window.removeEventListener('pointercancel', stopDrag);
+    window.removeEventListener('blur', stopDrag);
+  };
 
   const render = () => {
     svg.setAttribute(
       'aria-label',
-      isoPlotMode === 'cylinder' ? 'cylindrical colourspace scatter plot' : 'OK colourspace scatter plot',
+      isoPlotMode === 'cylinder' ? 'cylindrical OKHSV scatter plot' : 'OKHSV scatter plot',
     );
     if (isoPlotMode === 'cylinder') {
       renderIsoCylinderSvg(svg, state, isoCubeRotation);
@@ -1609,9 +1616,13 @@ function makeIsoCubeSvg(state) {
 
   svg.addEventListener('pointerdown', (event) => {
     dragging = true;
+    activePointerId = event.pointerId;
     startX = event.clientX;
     startAngle = isoCubeRotation;
     svg.setPointerCapture?.(event.pointerId);
+    window.addEventListener('pointerup', stopDrag);
+    window.addEventListener('pointercancel', stopDrag);
+    window.addEventListener('blur', stopDrag);
     event.preventDefault();
   });
 
@@ -1624,13 +1635,17 @@ function makeIsoCubeSvg(state) {
 
   const stopDrag = (event) => {
     if (!dragging) return;
+    if (event?.type?.startsWith('pointer') && activePointerId !== null && event.pointerId !== activePointerId) return;
     dragging = false;
-    svg.releasePointerCapture?.(event.pointerId);
-    event.preventDefault();
+    detachWindowStop();
+    if (activePointerId !== null) svg.releasePointerCapture?.(activePointerId);
+    activePointerId = null;
+    event?.preventDefault?.();
   };
 
   svg.addEventListener('pointerup', stopDrag);
   svg.addEventListener('pointercancel', stopDrag);
+  svg.addEventListener('lostpointercapture', stopDrag);
 
   render();
   return svg;
@@ -1705,7 +1720,7 @@ function drawOkLabTop(state) {
   const svg = svgEl('svg', {
     class: 'canvas-box polar-plot',
     role: 'img',
-    'aria-label': 'OKLab top view',
+    'aria-label': 'OKHSV top view',
     viewBox: `0 0 ${width} ${height}`,
     width,
     height,
@@ -1794,7 +1809,7 @@ function drawOkLabTop(state) {
     'text-anchor': 'end',
     'dominant-baseline': 'alphabetic',
   });
-  axisX.textContent = 'a';
+  axisX.textContent = 'H';
   svg.appendChild(axisX);
 
   const axisY = svgEl('text', {
@@ -1806,13 +1821,13 @@ function drawOkLabTop(state) {
     'text-anchor': 'middle',
     transform: `rotate(-90 9 10)`,
   });
-  axisY.textContent = 'b';
+  axisY.textContent = 'S';
   svg.appendChild(axisY);
 
   state.data.forEach((entry) => {
-    const x = mapX((entry.lab.a + 0.45) / 0.9);
-    const y = mapY((entry.lab.b + 0.45) / 0.9);
-    const dotSize = colourspaceDotRadius(state, clamp(entry.lch.c / 0.322, 0, 1));
+    const x = mapX(entry.okhsv.h / 360);
+    const y = mapY(entry.okhsv.s);
+    const dotSize = colourspaceDotRadius(state, entry.okhsv.s);
     svg.appendChild(
       svgEl('circle', {
         cx: x,
@@ -1840,7 +1855,7 @@ function drawHuePolar(state) {
   const svg = svgEl('svg', {
     class: 'canvas-box polar-plot',
     role: 'img',
-    'aria-label': 'Polar hue-chroma plot',
+    'aria-label': 'Polar OKHSV hue-saturation plot',
     viewBox: `0 0 ${width} ${height}`,
     width,
     height,
@@ -1918,8 +1933,8 @@ function drawHuePolar(state) {
   });
 
   state.data.forEach((entry) => {
-    const angle = (entry.lch.h * Math.PI) / 180;
-    const chromaNorm = clamp(entry.lch.c / 0.322, 0, 1);
+    const angle = (entry.okhsv.h * Math.PI) / 180;
+    const chromaNorm = clamp(entry.okhsv.s, 0, 1);
     const r = chromaNorm * radius;
     const dotSize = colourspaceDotRadius(state, chromaNorm);
     const x = cx + Math.cos(angle) * r;
@@ -2069,9 +2084,9 @@ function renderIsocubes($panel, state) {
   const $hint = document.createElement('div');
   $hint.className = 'iso-cube__hint';
   if (isoPlotView === 'top') {
-    $hint.textContent = isoPlotMode === 'cylinder' ? 'top view: polar hue-chroma' : 'top view: OKLab a/b';
+    $hint.textContent = isoPlotMode === 'cylinder' ? 'top view: OKHSV hue/saturation' : 'top view: OKHSV h/s';
   } else {
-    $hint.textContent = isoPlotMode === 'cylinder' ? 'front view: drag to rotate cylinder' : 'front view: drag to rotate cube';
+    $hint.textContent = isoPlotMode === 'cylinder' ? 'front view: OKHSV cylinder, drag to rotate' : 'front view: OKHSV cube, drag to rotate';
   }
   $plotPanel.appendChild($hint);
 

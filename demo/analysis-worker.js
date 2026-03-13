@@ -10,6 +10,7 @@ import {
 const toSRGB = converter('rgb');
 const toOKLab = converter('oklab');
 const toOKLch = converter('oklch');
+const toOKHSV = converter('okhsv');
 const simulateProtan = filterDeficiencyProt(1);
 const simulateDeutan = filterDeficiencyDeuter(1);
 const simulateTritan = filterDeficiencyTrit(1);
@@ -52,6 +53,15 @@ function okLch(input) {
     l: clamp01(color?.l ?? 0),
     c: Math.max(0, color?.c ?? 0),
     h: normHue(color?.h),
+  };
+}
+
+function okHsv(input) {
+  const color = toOKHSV(input);
+  return {
+    h: normHue(color?.h),
+    s: clamp01(color?.s ?? 0),
+    v: clamp01(color?.v ?? 0),
   };
 }
 
@@ -104,6 +114,7 @@ function paletteDataOf(colors) {
     rgb: srgbArray(hex),
     lab: okLab(hex),
     lch: okLch(hex),
+    okhsv: okHsv(hex),
   }));
 }
 
