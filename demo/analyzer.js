@@ -1201,6 +1201,7 @@ function makeVizLabel(cfg, viz, className) {
   $slider.type = 'range';
   $slider.min = '0';
   $slider.max = '1';
+  $slider.step = '0.001';
   $slider.value = String(cfg.position);
   $slider.title = `${cfg.controlLabel} slice`;
   $slider.addEventListener('input', () => {
