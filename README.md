@@ -191,16 +191,16 @@ Controls the 3-D color space the visualization is rendered in. Polar variants (`
 
 **OK — Lab / LCH**
 
-| Value            | Shape    | Description                                                                          |
-| ---------------- | -------- | ------------------------------------------------------------------------------------ |
-| `'oklab'`        | cube     | Raw OKLab: x→a, y→b, z→L.                                                            |
-| `'oklch'`        | cube     | OKLab in cylindrical LCH coordinates. Ideal for chroma or lightness slices.          |
-| `'oklchPolar'`   | wheel    | Polar form of OKLch.                                                                 |
-| `'oklchDiag'`    | diagonal | Complementary hue plane: lightness on the diagonal, signed chroma on the anti-diagonal. Two opposite hues share the same view — no gray band in the middle. |
-| `'oklrab'`       | cube     | OKLab with toe-corrected lightness (Lr). Better perceptual uniformity in dark tones. |
-| `'oklrch'`       | cube     | OKLrab in cylindrical LCH coordinates.                                               |
-| `'oklrchPolar'`  | wheel    | Polar form of OKLrch.                                                                |
-| `'oklrchDiag'`   | diagonal | Complementary hue plane in OKLrch. Same diagonal layout as `oklchDiag` with toe-corrected lightness. |
+| Value           | Shape    | Description                                                                                                                                                 |
+| --------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `'oklab'`       | cube     | Raw OKLab: x→a, y→b, z→L.                                                                                                                                   |
+| `'oklch'`       | cube     | OKLab in cylindrical LCH coordinates. Ideal for chroma or lightness slices.                                                                                 |
+| `'oklchPolar'`  | wheel    | Polar form of OKLch.                                                                                                                                        |
+| `'oklchDiag'`   | diagonal | Complementary hue plane: lightness on the diagonal, signed chroma on the anti-diagonal. Two opposite hues share the same view — no gray band in the middle. |
+| `'oklrab'`      | cube     | OKLab with toe-corrected lightness (Lr). Better perceptual uniformity in dark tones.                                                                        |
+| `'oklrch'`      | cube     | OKLrab in cylindrical LCH coordinates.                                                                                                                      |
+| `'oklrchPolar'` | wheel    | Polar form of OKLrch.                                                                                                                                       |
+| `'oklrchDiag'`  | diagonal | Complementary hue plane in OKLrch. Same diagonal layout as `oklchDiag` with toe-corrected lightness.                                                        |
 
 **CIE Lab / LCH — D65**
 
@@ -232,18 +232,18 @@ Controls the 3-D color space the visualization is rendered in. Polar variants (`
 
 **Quantized RGB**
 
-| Value        | Shape | Description                                                      |
-| ------------ | ----- | ---------------------------------------------------------------- |
-| `'rgb6bit'`  | cube  | 2-bit per channel (64 colors). Game Boy–era palettes.            |
-| `'rgb8bit'`  | cube  | 3-3-2 bit (256 colors). CGA-style quantization.                 |
-| `'rgb12bit'` | cube  | 4-bit per channel (4096 colors). Amiga / NTSC.                  |
-| `'rgb15bit'` | cube  | 5-bit per channel (32768 colors). SVGA HiColor.                 |
-| `'rgb18bit'` | cube  | 6-bit per channel (262144 colors). VGA.                          |
+| Value        | Shape | Description                                           |
+| ------------ | ----- | ----------------------------------------------------- |
+| `'rgb6bit'`  | cube  | 2-bit per channel (64 colors). Game Boy–era palettes. |
+| `'rgb8bit'`  | cube  | 3-3-2 bit (256 colors). CGA-style quantization.       |
+| `'rgb12bit'` | cube  | 4-bit per channel (4096 colors). Amiga / NTSC.        |
+| `'rgb15bit'` | cube  | 5-bit per channel (32768 colors). SVGA HiColor.       |
+| `'rgb18bit'` | cube  | 6-bit per channel (262144 colors). VGA.               |
 
 **Spectral**
 
-| Value        | Shape | Description                                                                                                                                                     |
-| ------------ | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Value        | Shape | Description                                                                                                                                                    |
+| ------------ | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `'spectrum'` | cube  | Visible light wavelengths (410–665 nm) plus purple line, modulated in OKLab. Inspired by censor's SpectroBoxWidget. X→wavelength, Y→lightness, Z→chroma scale. |
 
 The OK-variants rely on Björn Ottosson's gamut-aware implementation and produce significantly more even hue distributions than the classic variants at the same GPU cost.
@@ -266,11 +266,11 @@ Controls how "nearest palette color" is determined per pixel.
 
 **OK**
 
-| Value           | Description                                                                                             | Cost |
-| --------------- | ------------------------------------------------------------------------------------------------------- | ---- |
-| `'oklab'`       | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice. | low  |
-| `'oklrab'`      | Euclidean in OKLab with toe-corrected lightness. Slightly better uniformity in dark tones than OKLab.   | low  |
-| `'okLightness'` | Absolute lightness difference in OKLab (`|ΔL|`). Ignores hue and chroma — groups by brightness only.   | low  |
+| Value           | Description                                                                                                                                                              | Cost |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- | ------------------------------------------------------- | --- |
+| `'oklab'`       | **Default.** Euclidean distance in OKLab. Fast, perceptually uniform, excellent general-purpose choice.                                                                  | low  |
+| `'oklrab'`      | Euclidean in OKLab with toe-corrected lightness. Slightly better uniformity in dark tones than OKLab.                                                                    | low  |
+| `'okLightness'` | Absolute lightness difference in OKLab (`                                                                                                                                | ΔL   | `). Ignores hue and chroma — groups by brightness only. | low |
 | `'liMatch'`     | Spatially varying blend: full OKLab distance at the left edge, pure lightness match at the right. Inspired by censor's li-match. Useful for visualising tonal structure. | low  |
 
 **CIE — D65**

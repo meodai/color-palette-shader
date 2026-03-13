@@ -216,7 +216,6 @@ function makeCanvas(width, height) {
   return { canvas, ctx, width, height };
 }
 
-
 function buildShader(gl, type, source) {
   const shader = gl.createShader(type);
   gl.shaderSource(shader, source);
@@ -349,19 +348,91 @@ const rectTileConfigs = [
 ];
 
 const polarTileConfigs = [
-  { id: 'polar-lo', colorModel: 'oklchPolar', label: 'Low chroma', axis: 'y', controlLabel: 'C', position: 0.8, invertAxes: ['z'] },
-  { id: 'polar-lo-inv', colorModel: 'oklchPolar', label: 'Low chroma', axis: 'y', controlLabel: 'C', position: 0.8 },
-  { id: 'polar-hi', colorModel: 'oklchPolar', label: 'High chroma', axis: 'y', controlLabel: 'C', position: 0.3, invertAxes: ['z'] },
-  { id: 'polar-hi-inv', colorModel: 'oklchPolar', label: 'High chroma', axis: 'y', controlLabel: 'C', position: 0.3 },
+  {
+    id: 'polar-lo',
+    colorModel: 'oklchPolar',
+    label: 'Low chroma',
+    axis: 'y',
+    controlLabel: 'C',
+    position: 0.8,
+    invertAxes: ['z'],
+  },
+  {
+    id: 'polar-lo-inv',
+    colorModel: 'oklchPolar',
+    label: 'Low chroma',
+    axis: 'y',
+    controlLabel: 'C',
+    position: 0.8,
+  },
+  {
+    id: 'polar-hi',
+    colorModel: 'oklchPolar',
+    label: 'High chroma',
+    axis: 'y',
+    controlLabel: 'C',
+    position: 0.3,
+    invertAxes: ['z'],
+  },
+  {
+    id: 'polar-hi-inv',
+    colorModel: 'oklchPolar',
+    label: 'High chroma',
+    axis: 'y',
+    controlLabel: 'C',
+    position: 0.3,
+  },
 ];
 
 const hueSideConfigs = [
-  { id: 'side-0', colorModel: 'oklchDiag', label: 'Purple / seaweed', axis: 'x', controlLabel: 'H', position: 0.805 },
-  { id: 'side-1', colorModel: 'oklchDiag', label: 'Red / cyan', axis: 'x', controlLabel: 'H', position: 0.224 },
-  { id: 'side-2', colorModel: 'oklchDiag', label: 'Orange / blue', axis: 'x', controlLabel: 'H', position: 0.406 },
-  { id: 'side-3', colorModel: 'oklchDiag', label: 'Olive / ultramarine', axis: 'x', controlLabel: 'H', position: 0.635 },
-  { id: 'side-4', colorModel: 'oklchDiag', label: 'Lime / violet', axis: 'x', controlLabel: 'H', position: 0.699 },
-  { id: 'side-5', colorModel: 'oklchDiag', label: 'Emerald / rose', axis: 'x', controlLabel: 'H', position: 1 },
+  {
+    id: 'side-0',
+    colorModel: 'oklchDiag',
+    label: 'Purple / seaweed',
+    axis: 'x',
+    controlLabel: 'H',
+    position: 0.805,
+  },
+  {
+    id: 'side-1',
+    colorModel: 'oklchDiag',
+    label: 'Red / cyan',
+    axis: 'x',
+    controlLabel: 'H',
+    position: 0.224,
+  },
+  {
+    id: 'side-2',
+    colorModel: 'oklchDiag',
+    label: 'Orange / blue',
+    axis: 'x',
+    controlLabel: 'H',
+    position: 0.406,
+  },
+  {
+    id: 'side-3',
+    colorModel: 'oklchDiag',
+    label: 'Olive / ultramarine',
+    axis: 'x',
+    controlLabel: 'H',
+    position: 0.635,
+  },
+  {
+    id: 'side-4',
+    colorModel: 'oklchDiag',
+    label: 'Lime / violet',
+    axis: 'x',
+    controlLabel: 'H',
+    position: 0.699,
+  },
+  {
+    id: 'side-5',
+    colorModel: 'oklchDiag',
+    label: 'Emerald / rose',
+    axis: 'x',
+    controlLabel: 'H',
+    position: 1,
+  },
 ];
 
 const specBoxConfig = {
@@ -552,7 +623,6 @@ function addPairRow($panel, pair, state) {
   if (pair.i === state.darkest || pair.j === state.darkest) $row.style.fontWeight = '600';
   $panel.appendChild($row);
 }
-
 
 function drawIsoCube(state, rotate) {
   const { canvas, ctx, width, height } = makeCanvas(104, 104);
