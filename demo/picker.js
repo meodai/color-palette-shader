@@ -868,6 +868,7 @@ function setPalette(colors) {
   syncVizPalette();
   renderSwatches();
   syncPasteField();
+  updateView();
   scheduleMaskUpdate();
   scheduleHashUpdate();
   beamSendPalette();
@@ -982,7 +983,7 @@ function beamClearStatus() {
 }
 
 function beamSendPalette() {
-  if (!beamSession || !beamSession.hasPeers() || palette.length === 0) return;
+  if (!beamSession || $beamMode.value !== 'send' || !beamSession.hasPeers() || palette.length === 0) return;
   const tokens = {};
   palette.forEach((hex, i) => {
     tokens[`color-${i}`] = hex;
@@ -1086,7 +1087,7 @@ function connectBeamTarget() {
 
   beamSession = new TargetSession({
     serverUrl: 'wss://tokenbeam.dev',
-    clientType: 'web',
+    clientType: 'palette-shader',
     sessionToken: token,
   });
 
@@ -1147,6 +1148,10 @@ $beamMode.addEventListener('change', () => {
 // Auto-start in send mode
 initBeamSource();
 
+window.addEventListener('beforeunload', () => {
+  if (beamSession) beamSession.disconnect();
+});
+
 // ── Resize handling ───────────────────────────────────────────────────────────
 
 const resizeObserver = new ResizeObserver((entries) => {
@@ -1163,7 +1168,7 @@ resizeObserver.observe($canvasWrap);
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 
-renderColorList();
+renderSwatches();
 updateView();
 
 // Restore from URL hash after first paint

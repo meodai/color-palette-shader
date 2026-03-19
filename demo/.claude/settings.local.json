@@ -1,5 +1,10 @@
 {
   "permissions": {
-    "allow": ["WebFetch(domain:meodai.github.io)", "Bash(curl:*)"]
+    "allow": [
+      "WebFetch(domain:meodai.github.io)",
+      "Bash(curl:*)",
+      "Read(//Users/meodai/Sites/palette-shader/**)",
+      "Bash(node -e \"import\\(''''token-beam''''\\).then\\(m => { const t = new m.TargetSession\\({serverUrl:''''ws://x'''',sessionToken:''''x'''',clientType:''''web''''}\\); console.log\\(''''hasPeers:'''', typeof t.hasPeers\\); console.log\\(''''sync:'''', typeof t.sync\\); }\\)\")"
+    ]
   }
 }
