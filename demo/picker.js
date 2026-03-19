@@ -938,6 +938,13 @@ function applyHashState(state) {
   $posSlider.value = String(state.pos);
   setAxis(state.axis);
 
+  $outlineCheckbox.checked = state.outline;
+  const outlineW = state.outline ? 2 : 0;
+  vizRaw.outlineWidth = outlineW;
+
+  $settingsToggle.checked = state.settings;
+  $tools.hidden = !state.settings;
+
   vizRaw.colorModel = state.colorModel;
   vizRaw.distanceMetric = state.distanceMetric;
   vizRaw.position = state.pos;
@@ -950,6 +957,7 @@ function applyHashState(state) {
     vizClosest.colorModel = state.colorModel;
     vizClosest.distanceMetric = state.distanceMetric;
     vizClosest.position = state.pos;
+    vizClosest.outlineWidth = outlineW;
   }
 
   updateSliderLabel();
