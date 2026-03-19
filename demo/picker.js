@@ -371,8 +371,11 @@ $posSlider.addEventListener('input', () => {
   scheduleMaskUpdate();
 });
 
+const $sliderCell = document.createElement('div');
+$sliderCell.className = 'picker__slider-cell';
+$sliderCell.appendChild($posSlider);
 $sliderWrap.appendChild($sliderLabel);
-$sliderWrap.appendChild($posSlider);
+$sliderWrap.appendChild($sliderCell);
 
 function updateSliderLabel() {
   const names = AXIS_NAMES[$colorModel.value] || ['X', 'Y', 'Z'];
@@ -440,7 +443,7 @@ function updateSliderGradient() {
   const model = $colorModel.value;
   const culoriMode = SLIDER_CULORI_MODE[model];
   if (!culoriMode) {
-    $posSlider.style.removeProperty('--slider-gradient');
+    $sliderCell.style.removeProperty('--slider-gradient');
     return;
   }
 
@@ -471,7 +474,7 @@ function updateSliderGradient() {
   // Shader inverts z-axis: colorCoords.z = 1 - progress
   if (currentAxis === 'z') stops.reverse();
 
-  $posSlider.style.setProperty('--slider-gradient',
+  $sliderCell.style.setProperty('--slider-gradient',
     `linear-gradient(to right, ${stops.join(', ')})`);
 }
 updateSliderLabel();
