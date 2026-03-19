@@ -891,6 +891,8 @@ function encodeHash() {
     metric: $distanceMetric.value,
     axis: currentAxis,
     pos: parseFloat($posSlider.value).toFixed(4),
+    ...$outlineCheckbox.checked && { outline: '1' },
+    ...$settingsToggle.checked && { settings: '1' },
   });
   return `#colors/${colorStr}?${params}`;
 }
@@ -911,6 +913,8 @@ function decodeHash(hash) {
     distanceMetric: params.get('metric') || 'oklab',
     axis: params.get('axis') || 'z',
     pos: parseFloat(params.get('pos') ?? '0.5'),
+    outline: params.get('outline') === '1',
+    settings: params.get('settings') === '1',
   };
 }
 
