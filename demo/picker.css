@@ -35,7 +35,8 @@ body {
   background: var(--c-surface);
   color: var(--c-surface-on);
   display: flex;
-  justify-content: center;
+  flex-direction: column-reverse;
+  align-items: center;
   padding: 2rem 1rem;
 }
 
@@ -66,6 +67,60 @@ kbd {
 }
 
 /* ── Picker layout ─────────────────────────────────────────────────────── */
+
+.picker__about {
+  width: min(500px, 100%);
+  margin-top: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.picker__about h1 {
+  font-size: 2em;
+  letter-spacing: -0.03em;
+  font-weight: 200;
+  margin-bottom: 0.5rem;
+}
+
+.picker__about p {
+  margin-bottom: 0.5em;
+}
+
+.picker__about p + p {
+  margin-top: 0.75em;
+}
+
+.picker__about a {
+  color: inherit;
+}
+
+.picker__about a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.picker__about .kofi {
+  width: 2.5em;
+  height: 2.5em;
+  margin-top: 1em;
+  margin-left: -0.4em;
+  display: block;
+}
+
+.picker__about .kofi:hover img {
+  animation: 0.5s shakeup;
+}
+
+.picker__about .kofi img {
+  transform-origin: 50%;
+  width: 100%;
+}
+
+@keyframes shakeup {
+  25% { transform: rotate(-15deg); }
+  50% { transform: rotate(15deg); }
+  75% { transform: rotate(-5deg); }
+  100% { transform: rotate(0deg); }
+}
 
 .picker {
   width: min(500px, 100%);
