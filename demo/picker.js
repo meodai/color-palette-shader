@@ -30,6 +30,7 @@ const $settingsToggle = document.querySelector('[data-settings-toggle]');
 
 $settingsToggle.addEventListener('change', () => {
   $tools.hidden = !$settingsToggle.checked;
+  scheduleHashUpdate();
 });
 
 // ── Axis names per color model ────────────────────────────────────────────────
@@ -348,6 +349,7 @@ $outlineCheckbox.addEventListener('change', () => {
   const w = $outlineCheckbox.checked ? 2 : 0;
   vizRaw.outlineWidth = w;
   if (vizClosest) vizClosest.outlineWidth = w;
+  scheduleHashUpdate();
 });
 $tools.appendChild(labeled('Outline', $outlineCheckbox));
 
