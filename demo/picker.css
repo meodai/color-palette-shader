@@ -534,7 +534,7 @@ input[type='range']::-moz-range-thumb {
   display: flex;
   flex-wrap: wrap;
   flex: 0 0 auto;
-  border-top: var(--s-line) solid var(--c-border);
+  border-top: var(--s-line) solid var(--c-surface-on);
 }
 
 .beam__label {
