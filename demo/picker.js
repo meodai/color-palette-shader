@@ -1,0 +1,998 @@
+import { PaletteViz } from 'palette-shader';
+import { converter } from 'culori';
+import { SourceSession, TargetSession, extractColorTokens, createCollection } from 'token-beam';
+
+// ── Color conversion helpers ──────────────────────────────────────────────────
+
+const toSRGB = converter('rgb');
+const hexToRGB = (hex) => {
+  const c = toSRGB(hex);
+  return [c.r, c.g, c.b];
+};
+const toVizPalette = (p) => p.map(hexToRGB);
+const toHexByte = (v) =>
+  Math.min(255, Math.max(0, Math.round(v * 255)))
+    .toString(16)
+    .padStart(2, '0');
+const rgbToHex = (rgb) => `#${toHexByte(rgb[0])}${toHexByte(rgb[1])}${toHexByte(rgb[2])}`;
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+
+const $tools = document.querySelector('[data-tools]');
+const $canvasWrap = document.querySelector('[data-canvas-wrap]');
+const $sliderWrap = document.querySelector('[data-slider-wrap]');
+const $addBtn = document.querySelector('[data-add]');
+const $colors = document.querySelector('[data-colors]');
+
+// ── Axis names per color model ────────────────────────────────────────────────
+
+const AXIS_NAMES = {
+  rgb: ['R', 'G', 'B'],
+  rgb6bit: ['R', 'G', 'B'],
+  rgb8bit: ['R', 'G', 'B'],
+  rgb12bit: ['R', 'G', 'B'],
+  rgb15bit: ['R', 'G', 'B'],
+  rgb18bit: ['R', 'G', 'B'],
+  oklab: ['a', 'b', 'L'],
+  okhsv: ['H', 'S', 'V'],
+  okhsvPolar: ['H', 'S', 'V'],
+  okhsl: ['H', 'S', 'L'],
+  okhslPolar: ['H', 'S', 'L'],
+  oklch: ['H', 'C', 'L'],
+  oklchPolar: ['H', 'C', 'L'],
+  oklrab: ['a', 'b', 'Lr'],
+  oklrch: ['H', 'C', 'Lr'],
+  oklrchPolar: ['H', 'C', 'Lr'],
+  oklchDiag: ['H', 'C↔', 'L'],
+  oklrchDiag: ['H', 'C↔', 'Lr'],
+  hsv: ['H', 'S', 'V'],
+  hsvPolar: ['H', 'S', 'V'],
+  hsl: ['H', 'S', 'L'],
+  hslPolar: ['H', 'S', 'L'],
+  hwb: ['H', 'W', 'B'],
+  hwbPolar: ['H', 'W', 'B'],
+  cielab: ['a*', 'b*', 'L*'],
+  cielch: ['H', 'C', 'L*'],
+  cielchPolar: ['H', 'C', 'L*'],
+  cielabD50: ['a*', 'b*', 'L*'],
+  cielchD50: ['H', 'C', 'L*'],
+  cielchD50Polar: ['H', 'C', 'L*'],
+  cam16ucsD65: ["a'", "b'", "J'"],
+  cam16ucsD65Polar: ['H', "M'", "J'"],
+  spectrum: ['λ', 'L', 'C'],
+};
+
+// ── State ─────────────────────────────────────────────────────────────────────
+
+let palette = []; // hex strings
+let selectedIndex = -1; // -1 = no selection
+let currentAxis = 'z'; // which axis the slider controls
+const AXES = ['x', 'y', 'z'];
+
+// ── PaletteViz instances ──────────────────────────────────────────────────────
+
+const pixelRatio = Math.min(devicePixelRatio, 2);
+const DUMMY_PALETTE = [[0.5, 0.5, 0.5]]; // minimum 1 color required by PaletteViz
+
+function sharedOptions() {
+  return {
+    width: 500,
+    height: 500,
+    pixelRatio,
+    axis: currentAxis,
+    position: 0.5,
+    colorModel: 'okhslPolar',
+    distanceMetric: 'oklab',
+  };
+}
+
+// Raw viz is always present (showRaw ignores palette for rendering, but needs one to init)
+const vizRaw = new PaletteViz({ ...sharedOptions(), palette: DUMMY_PALETTE, showRaw: true, container: $canvasWrap });
+
+// Closest viz is created lazily when the first color is added
+let vizClosest = null;
+
+function ensureVizClosest() {
+  if (vizClosest) return vizClosest;
+  const vp = vizPalette();
+  if (vp.length === 0) return null;
+  vizClosest = new PaletteViz({
+    ...sharedOptions(),
+    palette: vp,
+    showRaw: false,
+    container: $canvasWrap,
+    colorModel: $colorModel.value,
+    distanceMetric: $distanceMetric.value,
+    axis: currentAxis,
+    position: parseFloat($posSlider.value),
+  });
+  // Keep mask canvas on top of all WebGL canvases
+  $canvasWrap.appendChild(maskCanvas);
+  return vizClosest;
+}
+
+// ── Mask overlay (2D canvas for compositing during drag) ──────────────────────
+
+const maskCanvas = document.createElement('canvas');
+maskCanvas.className = 'mask-canvas';
+maskCanvas.style.display = 'none';
+const maskCtx = maskCanvas.getContext('2d');
+$canvasWrap.appendChild(maskCanvas);
+
+function buildMask(colorIndex) {
+  if (!vizClosest || colorIndex < 0 || colorIndex >= palette.length) return;
+
+  // Force synchronous render so we can read fresh pixels
+  vizClosest.getColorAtUV(0.5, 0.5);
+  vizRaw.getColorAtUV(0.5, 0.5);
+
+  const w = vizClosest.canvas.width;
+  const h = vizClosest.canvas.height;
+
+  const glClosest = vizClosest.canvas.getContext('webgl2');
+  const closestPx = new Uint8Array(w * h * 4);
+  glClosest.bindFramebuffer(glClosest.FRAMEBUFFER, null);
+  glClosest.readPixels(0, 0, w, h, glClosest.RGBA, glClosest.UNSIGNED_BYTE, closestPx);
+
+  const glRaw = vizRaw.canvas.getContext('webgl2');
+  const rawPx = new Uint8Array(w * h * 4);
+  glRaw.bindFramebuffer(glRaw.FRAMEBUFFER, null);
+  glRaw.readPixels(0, 0, w, h, glRaw.RGBA, glRaw.UNSIGNED_BYTE, rawPx);
+
+  const sel = hexToRGB(palette[colorIndex]);
+  const sr = Math.round(sel[0] * 255);
+  const sg = Math.round(sel[1] * 255);
+  const sb = Math.round(sel[2] * 255);
+  const tol = 3;
+
+  if (maskCanvas.width !== w || maskCanvas.height !== h) {
+    maskCanvas.width = w;
+    maskCanvas.height = h;
+  }
+
+  const imageData = maskCtx.createImageData(w, h);
+  const out = imageData.data;
+
+  // WebGL readPixels = bottom-to-top; canvas putImageData = top-to-bottom
+  for (let row = 0; row < h; row++) {
+    const srcRow = (h - 1 - row) * w * 4;
+    const dstRow = row * w * 4;
+    for (let col = 0; col < w; col++) {
+      const si = srcRow + col * 4;
+      const di = dstRow + col * 4;
+
+      if (
+        Math.abs(closestPx[si] - sr) <= tol &&
+        Math.abs(closestPx[si + 1] - sg) <= tol &&
+        Math.abs(closestPx[si + 2] - sb) <= tol
+      ) {
+        // Selected region → show raw
+        out[di] = rawPx[si];
+        out[di + 1] = rawPx[si + 1];
+        out[di + 2] = rawPx[si + 2];
+        out[di + 3] = rawPx[si + 3];
+      } else {
+        // Other regions → show closest
+        out[di] = closestPx[si];
+        out[di + 1] = closestPx[si + 1];
+        out[di + 2] = closestPx[si + 2];
+        out[di + 3] = closestPx[si + 3];
+      }
+    }
+  }
+
+  maskCtx.putImageData(imageData, 0, 0);
+
+  // Show mask, hide both WebGL canvases (mask replaces them)
+  maskCanvas.style.display = '';
+  vizClosest.canvas.style.display = 'none';
+  vizRaw.canvas.style.display = 'none';
+}
+
+function hideMask() {
+  maskCanvas.style.display = 'none';
+  vizRaw.canvas.style.display = '';
+  updateView();
+}
+
+// ── Controls ──────────────────────────────────────────────────────────────────
+
+function labeled(text, el) {
+  const $label = document.createElement('label');
+  const $span = document.createElement('span');
+  $span.textContent = text;
+  $label.appendChild($span);
+  $label.appendChild(el);
+  return $label;
+}
+
+// Color model dropdown
+const $colorModel = document.createElement('select');
+$colorModel.innerHTML = `
+  <optgroup label="OK — Hue-based">
+    <option value="okhslPolar" selected>OKHsl Polar</option>
+    <option value="okhsl">OKHsl</option>
+    <option value="okhsvPolar">OKHsv Polar</option>
+    <option value="okhsv">OKHsv</option>
+  </optgroup>
+  <optgroup label="OK — Lab / LCH">
+    <option value="oklab">OKLab</option>
+    <option value="oklch">OKLch</option>
+    <option value="oklchPolar">OKLch Polar</option>
+    <option value="oklrab">OKLrab</option>
+    <option value="oklrch">OKLrch</option>
+    <option value="oklrchPolar">OKLrch Polar</option>
+    <option value="oklchDiag">OKLch Complementary</option>
+    <option value="oklrchDiag">OKLrch Complementary</option>
+  </optgroup>
+  <optgroup label="CIE Lab / LCH — D65">
+    <option value="cielab">CIELab</option>
+    <option value="cielch">CIELch</option>
+    <option value="cielchPolar">CIELch Polar</option>
+  </optgroup>
+  <optgroup label="CIE Lab / LCH — D50">
+    <option value="cielabD50">CIELab D50</option>
+    <option value="cielchD50">CIELch D50</option>
+    <option value="cielchD50Polar">CIELch D50 Polar</option>
+  </optgroup>
+  <optgroup label="CAM16 — D65">
+    <option value="cam16ucsD65">CAM16-UCS D65</option>
+    <option value="cam16ucsD65Polar">CAM16-UCS Polar D65</option>
+  </optgroup>
+  <optgroup label="Classic">
+    <option value="hslPolar">HSL Polar</option>
+    <option value="hsl">HSL</option>
+    <option value="hsvPolar">HSV Polar</option>
+    <option value="hsv">HSV</option>
+    <option value="hwbPolar">HWB Polar</option>
+    <option value="hwb">HWB</option>
+    <option value="rgb">RGB</option>
+  </optgroup>
+  <optgroup label="Spectral">
+    <option value="spectrum">Visible Spectrum</option>
+  </optgroup>
+`;
+// Axis selector — 3 buttons showing axis names, in same row as color model
+const $axisGroup = document.createElement('span');
+$axisGroup.className = 'axis-buttons';
+const $axisBtns = AXES.map((a, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'axis-btn';
+  btn.dataset.axis = a;
+  if (a === currentAxis) btn.classList.add('is-active');
+  btn.addEventListener('click', () => setAxis(a));
+  $axisGroup.appendChild(btn);
+  return btn;
+});
+
+function setAxis(axis) {
+  currentAxis = axis;
+  vizRaw.axis = axis;
+  if (vizClosest) vizClosest.axis = axis;
+  $axisBtns.forEach((btn) => btn.classList.toggle('is-active', btn.dataset.axis === axis));
+  updateSliderLabel();
+  updateAxisButtonLabels();
+  scheduleMaskUpdate();
+}
+
+function updateAxisButtonLabels() {
+  const names = AXIS_NAMES[$colorModel.value] || ['X', 'Y', 'Z'];
+  $axisBtns.forEach((btn, i) => {
+    btn.textContent = names[i];
+  });
+}
+
+$colorModel.addEventListener('change', () => {
+  const model = $colorModel.value;
+  vizRaw.colorModel = model;
+  if (vizClosest) vizClosest.colorModel = model;
+  updateSliderLabel();
+  updateAxisButtonLabels();
+  scheduleMaskUpdate();
+});
+
+// Layout: color model row with axis buttons on the right
+const $modelRow = document.createElement('label');
+$modelRow.className = 'picker__model-row';
+const $modelSpan = document.createElement('span');
+$modelSpan.textContent = 'Color model';
+const $modelControls = document.createElement('span');
+$modelControls.className = 'picker__model-controls';
+$modelControls.appendChild($colorModel);
+$modelControls.appendChild($axisGroup);
+$modelRow.appendChild($modelSpan);
+$modelRow.appendChild($modelControls);
+$tools.appendChild($modelRow);
+updateAxisButtonLabels();
+
+// Distance metric dropdown
+const $distanceMetric = document.createElement('select');
+$distanceMetric.innerHTML = `
+  <optgroup label="OK">
+    <option value="oklab" selected>OKLab</option>
+    <option value="oklrab">OKLrab</option>
+  </optgroup>
+  <optgroup label="CIE — D65">
+    <option value="deltaE76">Euclidean / ΔE76</option>
+    <option value="deltaE94">ΔE94</option>
+    <option value="deltaE2000">ΔE2000</option>
+  </optgroup>
+  <optgroup label="CIE — D50">
+    <option value="cielabD50">Euclidean D50</option>
+  </optgroup>
+  <optgroup label="Misc">
+    <option value="cam16ucsD65">CAM16-UCS D65</option>
+    <option value="rgb">RGB</option>
+  </optgroup>
+`;
+$distanceMetric.addEventListener('change', () => {
+  vizRaw.distanceMetric = $distanceMetric.value;
+  if (vizClosest) vizClosest.distanceMetric = $distanceMetric.value;
+  scheduleMaskUpdate();
+});
+$tools.appendChild(labeled('Distance metric', $distanceMetric));
+
+// Position slider
+const $posSlider = document.createElement('input');
+$posSlider.type = 'range';
+$posSlider.min = '0';
+$posSlider.max = '1';
+$posSlider.step = '0.001';
+$posSlider.value = '0.5';
+
+const $sliderLabel = document.createElement('label');
+$sliderLabel.textContent = 'L';
+
+$posSlider.addEventListener('input', () => {
+  const v = parseFloat($posSlider.value);
+  vizRaw.position = v;
+  if (vizClosest) vizClosest.position = v;
+  scheduleMaskUpdate();
+});
+
+$sliderWrap.appendChild($sliderLabel);
+$sliderWrap.appendChild($posSlider);
+
+function updateSliderLabel() {
+  const names = AXIS_NAMES[$colorModel.value] || ['X', 'Y', 'Z'];
+  const axisIdx = AXES.indexOf(currentAxis);
+  $sliderLabel.textContent = names[axisIdx];
+}
+updateSliderLabel();
+
+// ── Palette management ────────────────────────────────────────────────────────
+
+function vizPalette() {
+  return toVizPalette(palette);
+}
+
+function syncVizPalette() {
+  const vp = vizPalette();
+  // Raw viz always needs a palette for init, but with showRaw the colors don't matter visually.
+  // Update it when we have colors so getColorAtUV works correctly.
+  vizRaw.palette = vp.length > 0 ? vp : DUMMY_PALETTE;
+  if (vp.length > 0) {
+    ensureVizClosest();
+    if (vizClosest) vizClosest.palette = vp;
+  } else if (vizClosest) {
+    vizClosest.destroy();
+    vizClosest = null;
+  }
+}
+
+function addColor(hex) {
+  palette.push(hex);
+  syncVizPalette();
+  selectedIndex = palette.length - 1;
+  renderColorList();
+  scheduleMaskUpdate();
+  scheduleHashUpdate();
+  beamSendPalette();
+}
+
+function removeColor(index) {
+  palette.splice(index, 1);
+  if (selectedIndex >= palette.length) selectedIndex = palette.length - 1;
+  if (palette.length === 0) selectedIndex = -1;
+  syncVizPalette();
+  renderColorList();
+  scheduleMaskUpdate();
+  scheduleHashUpdate();
+  beamSendPalette();
+}
+
+function setColorAt(index, hex) {
+  palette[index] = hex;
+  syncVizPalette();
+  renderColorList();
+  scheduleMaskUpdate();
+  scheduleHashUpdate();
+  beamSendPalette();
+}
+
+function selectColor(index) {
+  selectedIndex = index;
+  renderColorList();
+  scheduleMaskUpdate();
+}
+
+// ── Render color list ─────────────────────────────────────────────────────────
+
+function renderColorList() {
+  $colors.innerHTML = '';
+  if (palette.length === 0) {
+    const $empty = document.createElement('p');
+    $empty.className = 'picker__empty';
+    $empty.innerHTML = 'Click the shader or press <kbd>C</kbd> to add a color.';
+    $colors.appendChild($empty);
+    return;
+  }
+
+  palette.forEach((hex, i) => {
+    const $swatch = document.createElement('div');
+    $swatch.className = 'color-swatch';
+    if (i === selectedIndex) $swatch.classList.add('is-selected');
+    $swatch.style.setProperty('--color', hex);
+    $swatch.dataset.index = i;
+
+    const $preview = document.createElement('div');
+    $preview.className = 'color-swatch__preview';
+
+    const $hex = document.createElement('span');
+    $hex.className = 'color-swatch__hex';
+    $hex.textContent = hex;
+    $preview.appendChild($hex);
+
+    const $remove = document.createElement('button');
+    $remove.className = 'color-swatch__remove';
+    $remove.textContent = '\u00d7';
+    $remove.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeColor(i);
+    });
+
+    $swatch.appendChild($preview);
+    $swatch.appendChild($remove);
+
+    $swatch.addEventListener('click', () => selectColor(i));
+    $colors.appendChild($swatch);
+  });
+}
+
+// ── View layer ────────────────────────────────────────────────────────────────
+// Decides which canvas is visible based on state + interaction.
+//  • pickMode ON  → raw on top (user is choosing a new color)
+//  • dragging      → mask on top (selected region reveals raw)
+//  • else          → closest on top (normal), or raw-only when palette empty
+
+let pickMode = false; // "add color" toggle
+
+function updateView() {
+  const hasColors = palette.length > 0;
+
+  if (pickMode) {
+    // Pick mode: raw canvas on top, hide closest
+    vizRaw.canvas.style.zIndex = '2';
+    if (vizClosest) vizClosest.canvas.style.display = 'none';
+    return;
+  }
+
+  vizRaw.canvas.style.zIndex = '';
+
+  if (!hasColors || !vizClosest) {
+    if (vizClosest) vizClosest.canvas.style.display = 'none';
+    return;
+  }
+
+  // Normal: show closest on top
+  vizClosest.canvas.style.display = '';
+}
+
+// Alias for use in palette management callbacks
+function scheduleMaskUpdate() {
+  updateView();
+}
+
+
+// ── Canvas pointer interaction ────────────────────────────────────────────────
+// Click        → select palette color (or add first color / pick in pickMode)
+// Click + drag → add color and update it live as you move
+
+const DRAG_THRESHOLD = 5; // px to distinguish click from drag
+let pointerState = null;  // { x, y, id, dragging, dragIndex }
+
+function getUV(e) {
+  const rect = $canvasWrap.getBoundingClientRect();
+  const u = (e.clientX - rect.left) / rect.width;
+  const v = 1 - (e.clientY - rect.top) / rect.height;
+  return { u, v, inBounds: u >= 0 && u <= 1 && v >= 0 && v <= 1 };
+}
+
+function getRawHexAtUV(u, v) {
+  const raw = vizRaw.getColorAtUV(u, v);
+  return rgbToHex(raw);
+}
+
+// Fast update during drag: only touch the viz + the one DOM swatch, skip full re-render
+function liveUpdateColor(index, hex) {
+  palette[index] = hex;
+  const rgb = hexToRGB(hex);
+  vizRaw.setColor(rgb, index);
+  if (vizClosest) vizClosest.setColor(rgb, index);
+
+  // Update just the DOM swatch for this index
+  const $swatch = $colors.querySelector(`[data-index="${index}"]`);
+  if ($swatch) {
+    $swatch.style.setProperty('--color', hex);
+    const $hex = $swatch.querySelector('.color-swatch__hex');
+    if ($hex) $hex.textContent = hex;
+  }
+}
+
+$canvasWrap.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  pointerState = { x: e.clientX, y: e.clientY, id: e.pointerId, dragging: false, dragIndex: -1 };
+  $canvasWrap.setPointerCapture(e.pointerId);
+});
+
+$canvasWrap.addEventListener('pointermove', (e) => {
+  // Probe (cursor tooltip)
+  probeEvent = e;
+  if (probeRAF === null) probeRAF = requestAnimationFrame(updateProbe);
+
+  if (!pointerState || pointerState.id !== e.pointerId) return;
+
+  const dx = e.clientX - pointerState.x;
+  const dy = e.clientY - pointerState.y;
+
+  if (!pointerState.dragging && Math.hypot(dx, dy) > DRAG_THRESHOLD) {
+    pointerState.dragging = true;
+
+    // Drag start: add a new color at the original pointer position
+    const { u, v, inBounds } = getUV(e);
+    if (inBounds) {
+      const hex = getRawHexAtUV(u, v);
+      addColor(hex);
+      pointerState.dragIndex = palette.length - 1;
+      buildMask(pointerState.dragIndex);
+    }
+  }
+
+  // While dragging: update the color live and rebuild mask
+  if (pointerState.dragging && pointerState.dragIndex >= 0) {
+    const { u, v, inBounds } = getUV(e);
+    if (inBounds) {
+      liveUpdateColor(pointerState.dragIndex, getRawHexAtUV(u, v));
+      buildMask(pointerState.dragIndex);
+    }
+  }
+});
+
+$canvasWrap.addEventListener('pointerup', (e) => {
+  if (!pointerState || pointerState.id !== e.pointerId) return;
+  const wasDragging = pointerState.dragging;
+  const dragIndex = pointerState.dragIndex;
+  pointerState = null;
+
+  if (wasDragging) {
+    hideMask();
+    // End of drag: do a final full sync so everything is consistent
+    const { u, v, inBounds } = getUV(e);
+    if (inBounds && dragIndex >= 0) {
+      setColorAt(dragIndex, getRawHexAtUV(u, v));
+    }
+    if (pickMode) exitPickMode();
+    return;
+  }
+
+  // Simple click
+  const { u, v, inBounds } = getUV(e);
+  if (!inBounds) return;
+
+  if (pickMode) {
+    addColor(getRawHexAtUV(u, v));
+    exitPickMode();
+    return;
+  }
+
+  if (palette.length === 0 || !vizClosest) {
+    addColor(getRawHexAtUV(u, v));
+    return;
+  }
+
+  // Normal click with palette: select the color at this pixel
+  const closestColor = vizClosest.getColorAtUV(u, v);
+  const matchIndex = findPaletteIndex(closestColor);
+  if (matchIndex >= 0) {
+    selectColor(matchIndex);
+  }
+});
+
+$canvasWrap.addEventListener('pointercancel', () => {
+  pointerState = null;
+  hideMask();
+});
+
+$canvasWrap.addEventListener('pointerleave', () => {
+  hideProbe();
+});
+
+// ── Scroll on shader → adjust position ────────────────────────────────────────
+
+// Hue axes wrap around; other axes clamp 0–1
+function isHueAxis() {
+  const names = AXIS_NAMES[$colorModel.value] || ['X', 'Y', 'Z'];
+  const axisIdx = AXES.indexOf(currentAxis);
+  return names[axisIdx] === 'H';
+}
+
+$canvasWrap.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  // Normalize: line-mode (~3–100 per tick) vs pixel-mode (trackpad, smaller)
+  const delta = e.deltaMode === 1 ? e.deltaY * 20 : e.deltaY;
+  const step = delta * 0.001;
+  let v = parseFloat($posSlider.value) - step;
+
+  if (isHueAxis()) {
+    v = v - Math.floor(v); // wrap 0–1
+  } else {
+    v = Math.max(0, Math.min(1, v));
+  }
+
+  $posSlider.value = String(v);
+  vizRaw.position = v;
+  if (vizClosest) vizClosest.position = v;
+  scheduleMaskUpdate();
+}, { passive: false });
+
+function findPaletteIndex(rgb) {
+  const tol = 4 / 255;
+  for (let i = 0; i < palette.length; i++) {
+    const c = hexToRGB(palette[i]);
+    if (
+      Math.abs(rgb[0] - c[0]) < tol &&
+      Math.abs(rgb[1] - c[1]) < tol &&
+      Math.abs(rgb[2] - c[2]) < tol
+    ) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// ── Pick mode (add button toggle) ─────────────────────────────────────────────
+
+function enterPickMode() {
+  pickMode = true;
+  $addBtn.classList.add('is-picking');
+  $addBtn.innerHTML = 'Cancel pick <kbd>C</kbd>';
+  updateView();
+}
+
+function exitPickMode() {
+  pickMode = false;
+  $addBtn.classList.remove('is-picking');
+  $addBtn.innerHTML = 'Add color <kbd>C</kbd>';
+  updateView();
+}
+
+function togglePickMode() {
+  if (pickMode) exitPickMode();
+  else enterPickMode();
+}
+
+$addBtn.addEventListener('click', togglePickMode);
+
+// ── Cursor probe ──────────────────────────────────────────────────────────────
+
+const $probe = document.createElement('div');
+$probe.className = 'cursor-probe';
+$probe.innerHTML =
+  '<span class="cursor-probe__dot"></span><span class="cursor-probe__label"></span>';
+const $probeDot = $probe.querySelector('.cursor-probe__dot');
+const $probeLabel = $probe.querySelector('.cursor-probe__label');
+document.body.appendChild($probe);
+
+let probeRAF = null;
+let probeEvent = null;
+
+const hideProbe = () => $probe.classList.remove('is-visible');
+
+const updateProbe = () => {
+  probeRAF = null;
+  if (!probeEvent) return;
+  const rect = $canvasWrap.getBoundingClientRect();
+  const u = (probeEvent.clientX - rect.left) / rect.width;
+  const v = 1 - (probeEvent.clientY - rect.top) / rect.height;
+  if (u < 0 || u > 1 || v < 0 || v > 1) return hideProbe();
+
+  const color = vizRaw.getColorAtUV(u, v);
+  const hex = rgbToHex(color);
+  $probeDot.style.background = hex;
+  $probeLabel.textContent = hex;
+  $probe.style.left = `${probeEvent.clientX + 14}px`;
+  $probe.style.top = `${probeEvent.clientY + 14}px`;
+  $probe.classList.add('is-visible');
+};
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'c' || e.key === 'C') {
+    e.preventDefault();
+    togglePickMode();
+  }
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (selectedIndex >= 0 && selectedIndex < palette.length) {
+      e.preventDefault();
+      removeColor(selectedIndex);
+    }
+  }
+  if (e.key === 'Escape' && pickMode) {
+    exitPickMode();
+  }
+});
+
+// ── Paste field ───────────────────────────────────────────────────────────────
+
+const $paste = document.querySelector('[data-paste]');
+$paste.addEventListener('input', () => {
+  const colors = $paste.value
+    .split(/[\s,]+/)
+    .map((s) => s.trim().replace(/^#?/, '#'))
+    .filter((s) => /^#([0-9a-f]{3}){1,2}$/i.test(s));
+  if (colors.length < 1) return;
+  setPalette(colors);
+  $paste.value = '';
+});
+
+// Bulk replace palette (used by paste, hash restore, beam receive)
+function setPalette(colors) {
+  palette = colors;
+  selectedIndex = palette.length > 0 ? 0 : -1;
+  syncVizPalette();
+  renderColorList();
+  scheduleMaskUpdate();
+  scheduleHashUpdate();
+  beamSendPalette();
+}
+
+// ── URL hash state ────────────────────────────────────────────────────────────
+
+function encodeHash() {
+  if (palette.length === 0) return '#';
+  const colorStr = palette.map((c) => c.replace('#', '')).join('-');
+  const params = new URLSearchParams({
+    model: $colorModel.value,
+    metric: $distanceMetric.value,
+    axis: currentAxis,
+    pos: parseFloat($posSlider.value).toFixed(4),
+  });
+  return `#colors/${colorStr}?${params}`;
+}
+
+function decodeHash(hash) {
+  if (!hash || !hash.startsWith('#colors/')) return null;
+  const withoutPrefix = hash.slice('#colors/'.length);
+  const [colorPart, queryPart] = withoutPrefix.split('?');
+  const colors = colorPart
+    .split('-')
+    .map((h) => `#${h}`)
+    .filter((c) => /^#([0-9a-f]{3}){1,2}$/i.test(c));
+  if (colors.length < 1) return null;
+  const params = new URLSearchParams(queryPart || '');
+  return {
+    colors,
+    colorModel: params.get('model') || 'okhslPolar',
+    distanceMetric: params.get('metric') || 'oklab',
+    axis: params.get('axis') || 'z',
+    pos: parseFloat(params.get('pos') ?? '0.5'),
+  };
+}
+
+let _hashTimer = null;
+function scheduleHashUpdate() {
+  clearTimeout(_hashTimer);
+  _hashTimer = setTimeout(() => {
+    history.replaceState(null, '', encodeHash());
+  }, 400);
+}
+
+// Hook all control changes to update hash
+$colorModel.addEventListener('change', scheduleHashUpdate);
+$distanceMetric.addEventListener('change', scheduleHashUpdate);
+$posSlider.addEventListener('input', scheduleHashUpdate);
+$colors.addEventListener('click', scheduleHashUpdate);
+
+function applyHashState(state) {
+  $colorModel.value = state.colorModel;
+  $distanceMetric.value = state.distanceMetric;
+  $posSlider.value = String(state.pos);
+  setAxis(state.axis);
+
+  vizRaw.colorModel = state.colorModel;
+  vizRaw.distanceMetric = state.distanceMetric;
+  vizRaw.position = state.pos;
+
+  palette = state.colors;
+  selectedIndex = palette.length > 0 ? 0 : -1;
+  syncVizPalette();
+
+  if (vizClosest) {
+    vizClosest.colorModel = state.colorModel;
+    vizClosest.distanceMetric = state.distanceMetric;
+    vizClosest.position = state.pos;
+  }
+
+  updateSliderLabel();
+  updateAxisButtonLabels();
+  renderColorList();
+  updateView();
+}
+
+// ── Token Beam ────────────────────────────────────────────────────────────────
+
+const $beamMode = document.querySelector('[data-beam-mode]');
+const $beamToken = document.querySelector('[data-beam-token]');
+const $beamConnect = document.querySelector('[data-beam-connect]');
+const $beamStatus = document.querySelector('[data-beam-status]');
+let beamSession = null;
+
+function beamShowError(msg) {
+  $beamStatus.textContent = msg;
+  $beamStatus.dataset.state = 'error';
+}
+function beamShowInfo(msg) {
+  $beamStatus.textContent = msg;
+  $beamStatus.dataset.state = 'info';
+}
+function beamClearStatus() {
+  delete $beamStatus.dataset.state;
+  $beamStatus.textContent = '';
+}
+function beamResetUI() {
+  $beamToken.disabled = false;
+  $beamMode.disabled = false;
+  $beamConnect.textContent = 'Connect';
+  beamSession = null;
+}
+
+function beamSendPalette() {
+  if (!beamSession || $beamMode.value !== 'send' || palette.length === 0) return;
+  const tokens = {};
+  palette.forEach((hex, i) => {
+    tokens[`color-${i}`] = hex;
+  });
+  beamSession.sync(createCollection('picker-palette', tokens));
+}
+
+$beamMode.addEventListener('change', () => {
+  if (beamSession) {
+    beamSession.disconnect();
+    beamResetUI();
+    beamClearStatus();
+  }
+  $beamToken.placeholder = $beamMode.value === 'send' ? 'Token (auto-generated)…' : 'Session token…';
+  $beamToken.value = '';
+});
+
+$beamConnect.addEventListener('click', () => {
+  if (beamSession) {
+    beamSession.disconnect();
+    beamResetUI();
+    beamClearStatus();
+    return;
+  }
+
+  const mode = $beamMode.value;
+  beamClearStatus();
+
+  if (mode === 'send') {
+    // Source: create session, show token once paired
+    beamSession = new SourceSession({
+      clientType: 'palette-shader-picker',
+      origin: 'Palette Picker',
+      sessionToken: $beamToken.value.trim() || undefined,
+    });
+
+    beamSession.on('paired', ({ sessionToken }) => {
+      $beamToken.value = sessionToken;
+      $beamToken.disabled = true;
+      $beamMode.disabled = true;
+      $beamConnect.textContent = 'Disconnect';
+      beamShowInfo('Paired — sending palette');
+      beamSendPalette();
+    });
+
+    beamSession.on('error', ({ message }) => {
+      beamShowError(message);
+      beamResetUI();
+    });
+    beamSession.on('disconnected', () => {
+      beamResetUI();
+      beamClearStatus();
+    });
+
+    $beamConnect.textContent = 'Connecting…';
+    $beamConnect.disabled = true;
+    beamSession.connect().then(() => {
+      $beamConnect.disabled = false;
+    }).catch((err) => {
+      beamShowError(err instanceof Error ? err.message : 'Could not connect');
+      beamResetUI();
+    });
+
+  } else {
+    // Target: receive palette from a source
+    const token = $beamToken.value.trim();
+    if (!token) {
+      beamShowError('Enter a session token');
+      return;
+    }
+
+    beamSession = new TargetSession({
+      clientType: 'palette-shader-picker',
+      sessionToken: token,
+    });
+
+    beamSession.on('paired', () => {
+      $beamToken.disabled = true;
+      $beamMode.disabled = true;
+      $beamConnect.textContent = 'Disconnect';
+      beamShowInfo('Paired — receiving');
+    });
+
+    beamSession.on('sync', ({ payload }) => {
+      const hexColors = [...new Set(extractColorTokens(payload).map((e) => e.hex))];
+      if (hexColors.length >= 1) {
+        setPalette(hexColors);
+      }
+    });
+
+    beamSession.on('error', ({ message }) => {
+      beamShowError(message);
+      beamResetUI();
+    });
+    beamSession.on('disconnected', () => {
+      beamResetUI();
+      beamClearStatus();
+    });
+
+    $beamConnect.textContent = 'Connecting…';
+    $beamConnect.disabled = true;
+    beamSession.connect().then(() => {
+      $beamConnect.disabled = false;
+    }).catch((err) => {
+      beamShowError(err instanceof Error ? err.message : 'Could not connect');
+      beamResetUI();
+    });
+  }
+});
+
+// ── Resize handling ───────────────────────────────────────────────────────────
+
+const resizeObserver = new ResizeObserver((entries) => {
+  for (const entry of entries) {
+    const w = Math.round(entry.contentRect.width);
+    if (w > 0) {
+      vizRaw.resize(w, w);
+      if (vizClosest) vizClosest.resize(w, w);
+      scheduleMaskUpdate();
+    }
+  }
+});
+resizeObserver.observe($canvasWrap);
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+
+renderColorList();
+updateView();
+
+// Restore from URL hash after first paint
+requestAnimationFrame(() => {
+  setTimeout(() => {
+    const state = decodeHash(location.hash);
+    if (state) applyHashState(state);
+  }, 0);
+});
