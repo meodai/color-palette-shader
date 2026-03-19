@@ -408,8 +408,8 @@ input[type='range']::-moz-range-thumb {
 }
 
 .picker__swatch {
-  width: 1.4rem;
-  height: 1.4rem;
+  width: 1.8rem;
+  height: 1.8rem;
   border: var(--s-line) solid var(--c-border);
   cursor: pointer;
   position: relative;
