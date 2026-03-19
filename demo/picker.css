@@ -382,29 +382,52 @@ input[type='range']::-moz-range-thumb {
   border-bottom: var(--s-line) solid var(--c-surface-on);
 }
 
-.picker__slider button {
+.picker__axis-switcher {
+  display: flex;
+  overflow: hidden;
+  border-right: var(--s-line) solid var(--c-surface-on);
+  transition: width 0.3s cubic-bezier(0.3, 0.7, 0, 1);
+}
+
+.picker__axis-btn {
   font-size: 0.75em;
   font-family: inherit;
   font-weight: inherit;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  min-width: 1.5em;
+  min-width: 0;
+  width: 0;
   text-align: center;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.4rem 0.75rem;
+  padding: 0.4rem 0;
   background: var(--c-surface);
-  color: var(--c-surface-on);
+  color: var(--c-surface-on-alt);
   border: none;
-  border-right: var(--s-line) solid var(--c-surface-on);
   cursor: pointer;
-  transition: background 0.05s linear, color 0.05s linear;
+  overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.3, 0.7, 0, 1), padding 0.3s cubic-bezier(0.3, 0.7, 0, 1), background 0.05s linear, color 0.05s linear;
 }
 
-.picker__slider button:hover {
+.picker__axis-btn.is-active {
+  width: 2.5em;
+  padding: 0.4rem 0.75rem;
+  color: var(--c-surface-on);
+}
+
+.picker__axis-switcher:hover .picker__axis-btn {
+  width: 2.5em;
+  padding: 0.4rem 0.75rem;
+}
+
+.picker__axis-btn:hover {
   background: var(--c-surface-on);
   color: var(--c-surface);
+}
+
+.picker__axis-btn + .picker__axis-btn {
+  border-left: var(--s-line) solid var(--c-border);
 }
 
 .picker__slider-cell {

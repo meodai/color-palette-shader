@@ -361,12 +361,17 @@ $posSlider.max = '1';
 $posSlider.step = '0.001';
 $posSlider.value = '0.5';
 
-const $sliderLabel = document.createElement('button');
-$sliderLabel.type = 'button';
-$sliderLabel.textContent = 'L';
-$sliderLabel.addEventListener('click', () => {
-  const nextIdx = (AXES.indexOf(currentAxis) + 1) % AXES.length;
-  setAxis(AXES[nextIdx]);
+const $sliderAxisWrap = document.createElement('div');
+$sliderAxisWrap.className = 'picker__axis-switcher';
+const $sliderAxisBtns = AXES.map((a, i) => {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'picker__axis-btn';
+  btn.dataset.axis = a;
+  if (a === currentAxis) btn.classList.add('is-active');
+  btn.addEventListener('click', () => setAxis(a));
+  $sliderAxisWrap.appendChild(btn);
+  return btn;
 });
 
 $posSlider.addEventListener('input', () => {
@@ -379,13 +384,15 @@ $posSlider.addEventListener('input', () => {
 const $sliderCell = document.createElement('div');
 $sliderCell.className = 'picker__slider-cell';
 $sliderCell.appendChild($posSlider);
-$sliderWrap.appendChild($sliderLabel);
+$sliderWrap.appendChild($sliderAxisWrap);
 $sliderWrap.appendChild($sliderCell);
 
 function updateSliderLabel() {
   const names = AXIS_NAMES[$colorModel.value] || ['X', 'Y', 'Z'];
-  const axisIdx = AXES.indexOf(currentAxis);
-  $sliderLabel.textContent = names[axisIdx];
+  $sliderAxisBtns.forEach((btn, i) => {
+    btn.textContent = names[i];
+    btn.classList.toggle('is-active', AXES[i] === currentAxis);
+  });
   updateSliderGradient();
 }
 
