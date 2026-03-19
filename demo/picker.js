@@ -24,6 +24,14 @@ const $sliderWrap = document.querySelector('[data-slider-wrap]');
 const $addBtn = document.querySelector('[data-add]');
 const $colors = document.querySelector('[data-colors]');
 
+// ── Settings toggle ──────────────────────────────────────────────────────────
+
+const $settingsToggle = document.querySelector('[data-settings-toggle]');
+
+$settingsToggle.addEventListener('change', () => {
+  $tools.hidden = !$settingsToggle.checked;
+});
+
 // ── Axis names per color model ────────────────────────────────────────────────
 
 const AXIS_NAMES = {
@@ -66,7 +74,7 @@ const AXIS_NAMES = {
 
 let palette = []; // hex strings
 let selectedIndex = -1; // -1 = no selection
-let currentAxis = 'z'; // which axis the slider controls
+let currentAxis = 'y'; // which axis the slider controls (default: S for okhsl)
 const AXES = ['x', 'y', 'z'];
 
 // ── PaletteViz instances ──────────────────────────────────────────────────────
@@ -81,7 +89,7 @@ function sharedOptions() {
     pixelRatio,
     axis: currentAxis,
     position: 0.5,
-    colorModel: 'okhslPolar',
+    colorModel: 'okhsl',
     distanceMetric: 'oklab',
   };
 }
@@ -210,8 +218,8 @@ function labeled(text, el) {
 const $colorModel = document.createElement('select');
 $colorModel.innerHTML = `
   <optgroup label="OK — Hue-based">
-    <option value="okhslPolar" selected>OKHsl Polar</option>
-    <option value="okhsl">OKHsl</option>
+    <option value="okhsl" selected>OKHsl</option>
+    <option value="okhslPolar">OKHsl Polar</option>
     <option value="okhsvPolar">OKHsv Polar</option>
     <option value="okhsv">OKHsv</option>
   </optgroup>
@@ -332,6 +340,17 @@ $distanceMetric.addEventListener('change', () => {
 });
 $tools.appendChild(labeled('Distance metric', $distanceMetric));
 
+// Outline toggle
+const $outlineCheckbox = document.createElement('input');
+$outlineCheckbox.type = 'checkbox';
+$outlineCheckbox.checked = false;
+$outlineCheckbox.addEventListener('change', () => {
+  const w = $outlineCheckbox.checked ? 2 : 0;
+  vizRaw.outlineWidth = w;
+  if (vizClosest) vizClosest.outlineWidth = w;
+});
+$tools.appendChild(labeled('Outline', $outlineCheckbox));
+
 // Position slider
 const $posSlider = document.createElement('input');
 $posSlider.type = 'range';
@@ -357,6 +376,98 @@ function updateSliderLabel() {
   const names = AXIS_NAMES[$colorModel.value] || ['X', 'Y', 'Z'];
   const axisIdx = AXES.indexOf(currentAxis);
   $sliderLabel.textContent = names[axisIdx];
+  updateSliderGradient();
+}
+
+// ── Slider gradient ──────────────────────────────────────────────────────────
+
+const SLIDER_CULORI_MODE = {
+  okhsl: 'okhsl', okhslPolar: 'okhsl',
+  okhsv: 'okhsv', okhsvPolar: 'okhsv',
+  oklch: 'oklch', oklchPolar: 'oklch', oklchDiag: 'oklch',
+  oklrab: 'oklch', oklrch: 'oklch', oklrchPolar: 'oklch', oklrchDiag: 'oklch',
+  oklab: 'oklab',
+  hsl: 'hsl', hslPolar: 'hsl',
+  hsv: 'hsv', hsvPolar: 'hsv',
+  hwb: 'hwb', hwbPolar: 'hwb',
+  rgb: 'rgb', rgb6bit: 'rgb', rgb8bit: 'rgb', rgb12bit: 'rgb', rgb15bit: 'rgb', rgb18bit: 'rgb',
+  cielab: 'lab65', cielch: 'lch65', cielchPolar: 'lch65',
+  cielabD50: 'lab', cielchD50: 'lch', cielchD50Polar: 'lch',
+};
+
+const SLIDER_COMPONENTS = {
+  okhsl: ['h', 's', 'l'], okhsv: ['h', 's', 'v'],
+  oklch: ['h', 'c', 'l'], oklab: ['a', 'b', 'l'],
+  hsl: ['h', 's', 'l'], hsv: ['h', 's', 'v'], hwb: ['h', 'w', 'b'],
+  rgb: ['r', 'g', 'b'],
+  lab65: ['a', 'b', 'l'], lch65: ['h', 'c', 'l'],
+  lab: ['a', 'b', 'l'], lch: ['h', 'c', 'l'],
+};
+
+const SLIDER_RANGES = {
+  okhsl: { h: [0, 360], s: [0, 1], l: [0, 1] },
+  okhsv: { h: [0, 360], s: [0, 1], v: [0, 1] },
+  oklch: { h: [0, 360], c: [0, 0.4], l: [0, 1] },
+  oklab: { l: [0, 1], a: [-0.4, 0.4], b: [-0.4, 0.4] },
+  hsl: { h: [0, 360], s: [0, 1], l: [0, 1] },
+  hsv: { h: [0, 360], s: [0, 1], v: [0, 1] },
+  hwb: { h: [0, 360], w: [0, 1], b: [0, 1] },
+  rgb: { r: [0, 1], g: [0, 1], b: [0, 1] },
+  lab65: { l: [0, 100], a: [-128, 128], b: [-128, 128] },
+  lch65: { h: [0, 360], c: [0, 150], l: [0, 100] },
+  lab: { l: [0, 100], a: [-128, 128], b: [-128, 128] },
+  lch: { h: [0, 360], c: [0, 150], l: [0, 100] },
+};
+
+const SLIDER_CENTERS = {
+  okhsl: { h: 180, s: 0.5, l: 0.5 },
+  okhsv: { h: 180, s: 0.5, v: 0.5 },
+  oklch: { h: 180, c: 0.15, l: 0.5 },
+  oklab: { l: 0.5, a: 0, b: 0 },
+  hsl: { h: 180, s: 0.5, l: 0.5 },
+  hsv: { h: 180, s: 0.5, v: 0.5 },
+  hwb: { h: 180, w: 0.25, b: 0.25 },
+  rgb: { r: 0.5, g: 0.5, b: 0.5 },
+  lab65: { l: 50, a: 0, b: 0 },
+  lch65: { h: 180, c: 50, l: 50 },
+  lab: { l: 50, a: 0, b: 0 },
+  lch: { h: 180, c: 50, l: 50 },
+};
+
+function updateSliderGradient() {
+  const model = $colorModel.value;
+  const culoriMode = SLIDER_CULORI_MODE[model];
+  if (!culoriMode) {
+    $sliderWrap.style.removeProperty('--slider-gradient');
+    return;
+  }
+
+  const comps = SLIDER_COMPONENTS[culoriMode];
+  const ranges = SLIDER_RANGES[culoriMode];
+  const centers = SLIDER_CENTERS[culoriMode];
+  const axisIdx = AXES.indexOf(currentAxis);
+  const varyComp = comps[axisIdx];
+  const [min, max] = ranges[varyComp];
+
+  const STEPS = 12;
+  const stops = [];
+  for (let i = 0; i <= STEPS; i++) {
+    const t = i / STEPS;
+    const val = min + t * (max - min);
+    const color = { mode: culoriMode };
+    comps.forEach((c) => { color[c] = c === varyComp ? val : centers[c]; });
+    const rgb = toSRGB(color);
+    if (!rgb) { stops.push('#000000'); continue; }
+    const r = rgb.r ?? 0, g = rgb.g ?? 0, b = rgb.b ?? 0;
+    stops.push(rgbToHex([
+      Math.max(0, Math.min(1, isNaN(r) ? 0 : r)),
+      Math.max(0, Math.min(1, isNaN(g) ? 0 : g)),
+      Math.max(0, Math.min(1, isNaN(b) ? 0 : b)),
+    ]));
+  }
+
+  $sliderWrap.style.setProperty('--slider-gradient',
+    `linear-gradient(to right, ${stops.join(', ')})`);
 }
 updateSliderLabel();
 
@@ -500,6 +611,7 @@ function scheduleMaskUpdate() {
 
 const DRAG_THRESHOLD = 5; // px to distinguish click from drag
 let pointerState = null;  // { x, y, id, dragging, dragIndex }
+let dragMaskRAF = null;
 
 function getUV(e) {
   const rect = $canvasWrap.getBoundingClientRect();
@@ -558,12 +670,18 @@ $canvasWrap.addEventListener('pointermove', (e) => {
     }
   }
 
-  // While dragging: update the color live and rebuild mask
+  // While dragging: update the color live and rebuild mask (throttled to rAF)
   if (pointerState.dragging && pointerState.dragIndex >= 0) {
     const { u, v, inBounds } = getUV(e);
     if (inBounds) {
       liveUpdateColor(pointerState.dragIndex, getRawHexAtUV(u, v));
-      buildMask(pointerState.dragIndex);
+      if (dragMaskRAF === null) {
+        const idx = pointerState.dragIndex;
+        dragMaskRAF = requestAnimationFrame(() => {
+          dragMaskRAF = null;
+          buildMask(idx);
+        });
+      }
     }
   }
 });
@@ -573,6 +691,7 @@ $canvasWrap.addEventListener('pointerup', (e) => {
   const wasDragging = pointerState.dragging;
   const dragIndex = pointerState.dragIndex;
   pointerState = null;
+  if (dragMaskRAF !== null) { cancelAnimationFrame(dragMaskRAF); dragMaskRAF = null; }
 
   if (wasDragging) {
     hideMask();
@@ -610,6 +729,7 @@ $canvasWrap.addEventListener('pointerup', (e) => {
 
 $canvasWrap.addEventListener('pointercancel', () => {
   pointerState = null;
+  if (dragMaskRAF !== null) { cancelAnimationFrame(dragMaskRAF); dragMaskRAF = null; }
   hideMask();
 });
 
@@ -784,7 +904,7 @@ function decodeHash(hash) {
   const params = new URLSearchParams(queryPart || '');
   return {
     colors,
-    colorModel: params.get('model') || 'okhslPolar',
+    colorModel: params.get('model') || 'okhsl',
     distanceMetric: params.get('metric') || 'oklab',
     axis: params.get('axis') || 'z',
     pos: parseFloat(params.get('pos') ?? '0.5'),
@@ -836,8 +956,10 @@ function applyHashState(state) {
 const $beamMode = document.querySelector('[data-beam-mode]');
 const $beamToken = document.querySelector('[data-beam-token]');
 const $beamConnect = document.querySelector('[data-beam-connect]');
+const $beamCopy = document.querySelector('[data-beam-copy]');
 const $beamStatus = document.querySelector('[data-beam-status]');
 let beamSession = null;
+let beamSessionToken = null;
 
 function beamShowError(msg) {
   $beamStatus.textContent = msg;
@@ -851,15 +973,9 @@ function beamClearStatus() {
   delete $beamStatus.dataset.state;
   $beamStatus.textContent = '';
 }
-function beamResetUI() {
-  $beamToken.disabled = false;
-  $beamMode.disabled = false;
-  $beamConnect.textContent = 'Connect';
-  beamSession = null;
-}
 
 function beamSendPalette() {
-  if (!beamSession || $beamMode.value !== 'send' || palette.length === 0) return;
+  if (!beamSession || !beamSession.hasPeers() || palette.length === 0) return;
   const tokens = {};
   palette.forEach((hex, i) => {
     tokens[`color-${i}`] = hex;
@@ -867,108 +983,162 @@ function beamSendPalette() {
   beamSession.sync(createCollection('picker-palette', tokens));
 }
 
-$beamMode.addEventListener('change', () => {
+// ── Send mode: auto-connect, server generates token ───────────────────────────
+
+function initBeamSource() {
   if (beamSession) {
     beamSession.disconnect();
-    beamResetUI();
-    beamClearStatus();
+    beamSession = null;
   }
-  $beamToken.placeholder = $beamMode.value === 'send' ? 'Token (auto-generated)…' : 'Session token…';
+  beamSessionToken = null;
+  beamClearStatus();
+
   $beamToken.value = '';
+  $beamToken.disabled = true;
+  $beamToken.placeholder = 'Generating token…';
+  $beamConnect.style.display = 'none';
+  $beamCopy.style.display = '';
+  $beamCopy.textContent = 'Copy';
+
+  beamSession = new SourceSession({
+    serverUrl: 'wss://tokenbeam.dev',
+    clientType: 'web',
+    origin: 'Palette Picker',
+    icon: { type: 'unicode', value: '🎨' },
+  });
+
+  beamSession.on('paired', ({ sessionToken }) => {
+    beamSessionToken = sessionToken;
+    $beamToken.value = sessionToken;
+    $beamToken.placeholder = '';
+    beamShowInfo('Share this token — waiting for receiver…');
+  });
+
+  beamSession.on('peer-connected', () => {
+    beamShowInfo('Paired — sending palette');
+    beamSendPalette();
+  });
+
+  beamSession.on('peer-disconnected', () => {
+    beamShowInfo('Peer disconnected — waiting…');
+  });
+
+  beamSession.on('error', ({ message }) => {
+    beamShowError(message);
+  });
+
+  beamSession.on('disconnected', () => {
+    beamClearStatus();
+  });
+
+  beamSession.connect().catch((err) => {
+    beamShowError(err instanceof Error ? err.message : 'Could not connect');
+    $beamToken.placeholder = 'Connection failed';
+  });
+}
+
+$beamCopy.addEventListener('click', () => {
+  if (!beamSessionToken) return;
+  navigator.clipboard.writeText(beamSessionToken).then(() => {
+    $beamCopy.textContent = 'Copied!';
+    setTimeout(() => { $beamCopy.textContent = 'Copy'; }, 1500);
+  });
 });
 
-$beamConnect.addEventListener('click', () => {
+// ── Receive mode: user enters token, clicks connect ───────────────────────────
+
+function initBeamTarget() {
   if (beamSession) {
     beamSession.disconnect();
-    beamResetUI();
-    beamClearStatus();
+    beamSession = null;
+  }
+  beamSessionToken = null;
+  beamClearStatus();
+
+  $beamToken.value = '';
+  $beamToken.disabled = false;
+  $beamToken.placeholder = 'Paste session token…';
+  $beamConnect.style.display = '';
+  $beamConnect.textContent = 'Connect';
+  $beamConnect.disabled = false;
+  $beamCopy.style.display = 'none';
+}
+
+function connectBeamTarget() {
+  const token = $beamToken.value.trim();
+  if (!token) {
+    beamShowError('Enter a session token');
     return;
   }
 
-  const mode = $beamMode.value;
+  if (beamSession) {
+    beamSession.disconnect();
+    beamSession = null;
+  }
   beamClearStatus();
 
-  if (mode === 'send') {
-    // Source: create session, show token once paired
-    beamSession = new SourceSession({
-      clientType: 'palette-shader-picker',
-      origin: 'Palette Picker',
-      sessionToken: $beamToken.value.trim() || undefined,
-    });
+  beamSession = new TargetSession({
+    serverUrl: 'wss://tokenbeam.dev',
+    clientType: 'web',
+    sessionToken: token,
+  });
 
-    beamSession.on('paired', ({ sessionToken }) => {
-      $beamToken.value = sessionToken;
-      $beamToken.disabled = true;
-      $beamMode.disabled = true;
-      $beamConnect.textContent = 'Disconnect';
-      beamShowInfo('Paired — sending palette');
-      beamSendPalette();
-    });
+  beamSession.on('paired', () => {
+    $beamToken.disabled = true;
+    $beamConnect.textContent = 'Disconnect';
+    beamShowInfo('Paired — receiving');
+  });
 
-    beamSession.on('error', ({ message }) => {
-      beamShowError(message);
-      beamResetUI();
-    });
-    beamSession.on('disconnected', () => {
-      beamResetUI();
-      beamClearStatus();
-    });
-
-    $beamConnect.textContent = 'Connecting…';
-    $beamConnect.disabled = true;
-    beamSession.connect().then(() => {
-      $beamConnect.disabled = false;
-    }).catch((err) => {
-      beamShowError(err instanceof Error ? err.message : 'Could not connect');
-      beamResetUI();
-    });
-
-  } else {
-    // Target: receive palette from a source
-    const token = $beamToken.value.trim();
-    if (!token) {
-      beamShowError('Enter a session token');
-      return;
+  beamSession.on('sync', ({ payload }) => {
+    const hexColors = [...new Set(extractColorTokens(payload).map((e) => e.hex))];
+    if (hexColors.length >= 1) {
+      setPalette(hexColors);
     }
+  });
 
-    beamSession = new TargetSession({
-      clientType: 'palette-shader-picker',
-      sessionToken: token,
-    });
+  beamSession.on('error', ({ message }) => {
+    beamShowError(message);
+  });
 
-    beamSession.on('paired', () => {
-      $beamToken.disabled = true;
-      $beamMode.disabled = true;
-      $beamConnect.textContent = 'Disconnect';
-      beamShowInfo('Paired — receiving');
-    });
+  beamSession.on('disconnected', () => {
+    $beamToken.disabled = false;
+    $beamConnect.textContent = 'Connect';
+    beamClearStatus();
+    beamSession = null;
+  });
 
-    beamSession.on('sync', ({ payload }) => {
-      const hexColors = [...new Set(extractColorTokens(payload).map((e) => e.hex))];
-      if (hexColors.length >= 1) {
-        setPalette(hexColors);
-      }
-    });
+  $beamConnect.textContent = 'Connecting…';
+  $beamConnect.disabled = true;
+  beamSession.connect().then(() => {
+    $beamConnect.disabled = false;
+  }).catch((err) => {
+    beamShowError(err instanceof Error ? err.message : 'Could not connect');
+    $beamConnect.textContent = 'Connect';
+    $beamConnect.disabled = false;
+    beamSession = null;
+  });
+}
 
-    beamSession.on('error', ({ message }) => {
-      beamShowError(message);
-      beamResetUI();
-    });
-    beamSession.on('disconnected', () => {
-      beamResetUI();
-      beamClearStatus();
-    });
-
-    $beamConnect.textContent = 'Connecting…';
-    $beamConnect.disabled = true;
-    beamSession.connect().then(() => {
-      $beamConnect.disabled = false;
-    }).catch((err) => {
-      beamShowError(err instanceof Error ? err.message : 'Could not connect');
-      beamResetUI();
-    });
+$beamConnect.addEventListener('click', () => {
+  if ($beamMode.value === 'receive' && beamSession && beamSession.getState() === 'paired') {
+    // Disconnect
+    beamSession.disconnect();
+    beamSession = null;
+    initBeamTarget();
+    return;
   }
+  connectBeamTarget();
 });
+
+// ── Mode switch ───────────────────────────────────────────────────────────────
+
+$beamMode.addEventListener('change', () => {
+  if ($beamMode.value === 'send') initBeamSource();
+  else initBeamTarget();
+});
+
+// Auto-start in send mode
+initBeamSource();
 
 // ── Resize handling ───────────────────────────────────────────────────────────
 

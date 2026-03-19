@@ -7,6 +7,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        picker: fileURLToPath(new URL('./picker.html', import.meta.url)),
       },
     },
   },
