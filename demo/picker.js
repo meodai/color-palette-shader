@@ -103,7 +103,7 @@ let vizClosest = null;
 function ensureVizClosest() {
   if (vizClosest) return vizClosest;
   const vp = vizPalette();
-  if (vp.length === 0) return null;
+  if (vp.length < 2) return null;
   vizClosest = new PaletteViz({
     ...sharedOptions(),
     palette: vp,
@@ -466,6 +466,9 @@ function updateSliderGradient() {
     ]));
   }
 
+  // Shader inverts z-axis: colorCoords.z = 1 - progress
+  if (currentAxis === 'z') stops.reverse();
+
   $sliderWrap.style.setProperty('--slider-gradient',
     `linear-gradient(to right, ${stops.join(', ')})`);
 }
@@ -482,7 +485,7 @@ function syncVizPalette() {
   // Raw viz always needs a palette for init, but with showRaw the colors don't matter visually.
   // Update it when we have colors so getColorAtUV works correctly.
   vizRaw.palette = vp.length > 0 ? vp : DUMMY_PALETTE;
-  if (vp.length > 0) {
+  if (vp.length >= 2) {
     ensureVizClosest();
     if (vizClosest) vizClosest.palette = vp;
   } else if (vizClosest) {
