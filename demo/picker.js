@@ -420,18 +420,18 @@ const SLIDER_RANGES = {
 };
 
 const SLIDER_CENTERS = {
-  okhsl: { h: 180, s: 0.5, l: 0.5 },
-  okhsv: { h: 180, s: 0.5, v: 0.5 },
-  oklch: { h: 180, c: 0.15, l: 0.5 },
-  oklab: { l: 0.5, a: 0, b: 0 },
-  hsl: { h: 180, s: 0.5, l: 0.5 },
-  hsv: { h: 180, s: 0.5, v: 0.5 },
-  hwb: { h: 180, w: 0.25, b: 0.25 },
+  okhsl: { h: 10, s: 0.5, l: 0.5 },
+  okhsv: { h: 10, s: 0.5, v: 0.5 },
+  oklch: { h: 25, c: 0.15, l: 0.5 },
+  oklab: { l: 0.5, a: 0.1, b: 0.05 },
+  hsl: { h: 10, s: 0.5, l: 0.5 },
+  hsv: { h: 10, s: 0.5, v: 0.5 },
+  hwb: { h: 10, w: 0.25, b: 0.25 },
   rgb: { r: 0.5, g: 0.5, b: 0.5 },
-  lab65: { l: 50, a: 0, b: 0 },
-  lch65: { h: 180, c: 50, l: 50 },
-  lab: { l: 50, a: 0, b: 0 },
-  lch: { h: 180, c: 50, l: 50 },
+  lab65: { l: 50, a: 40, b: 20 },
+  lch65: { h: 30, c: 50, l: 50 },
+  lab: { l: 50, a: 40, b: 20 },
+  lch: { h: 30, c: 50, l: 50 },
 };
 
 function updateSliderGradient() {

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Color Picker — palette-shader</title>
+    <title>PickyPalette</title>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/Iosevka/6.0.0/iosevka/iosevka.min.css"
@@ -12,13 +12,14 @@
   </head>
   <body>
     <div class="picker">
-      <div class="picker__settings">
+      <div class="picker__header">
+        <span class="picker__title">PickyPalette</span>
         <label class="picker__settings-toggle">
           <span>Settings</span>
           <input type="checkbox" data-settings-toggle />
         </label>
-        <div class="picker__settings-body" data-tools hidden></div>
       </div>
+      <div class="picker__settings-body" data-tools hidden></div>
       <div class="picker__canvas-wrap" data-canvas-wrap>
         <!-- canvases inserted by JS -->
       </div>
