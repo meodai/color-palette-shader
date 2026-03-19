@@ -113,6 +113,8 @@ function ensureVizClosest() {
     distanceMetric: $distanceMetric.value,
     axis: currentAxis,
     position: parseFloat($posSlider.value),
+    outlineWidth: $outlineCheckbox.checked ? 2 : 0,
+    gamutClip: $gamutClipCheckbox.checked,
   });
   // Keep mask canvas on top of all WebGL canvases
   $canvasWrap.appendChild(maskCanvas);
@@ -361,6 +363,17 @@ $revealCheckbox.addEventListener('change', () => {
   scheduleHashUpdate();
 });
 $tools.appendChild(labeled('Reveal Color Space While Picking', $revealCheckbox));
+
+// Gamut clip toggle
+const $gamutClipCheckbox = document.createElement('input');
+$gamutClipCheckbox.type = 'checkbox';
+$gamutClipCheckbox.checked = false;
+$gamutClipCheckbox.addEventListener('change', () => {
+  vizRaw.gamutClip = $gamutClipCheckbox.checked;
+  if (vizClosest) vizClosest.gamutClip = $gamutClipCheckbox.checked;
+  scheduleHashUpdate();
+});
+$tools.appendChild(labeled('Clip to sRGB', $gamutClipCheckbox));
 
 // Position slider
 const $posSlider = document.createElement('input');
@@ -776,6 +789,41 @@ $canvasWrap.addEventListener('wheel', (e) => {
   scheduleMaskUpdate();
 }, { passive: false });
 
+// Two-finger touch pan → adjust position
+let touchState = null;
+
+$canvasWrap.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    touchState = { y: (e.touches[0].clientY + e.touches[1].clientY) / 2 };
+  }
+}, { passive: false });
+
+$canvasWrap.addEventListener('touchmove', (e) => {
+  if (e.touches.length === 2 && touchState) {
+    e.preventDefault();
+    const y = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+    const delta = touchState.y - y;
+    touchState.y = y;
+    const step = delta * 0.003;
+    let v = parseFloat($posSlider.value) + step;
+
+    if (isHueAxis()) {
+      v = v - Math.floor(v);
+    } else {
+      v = Math.max(0, Math.min(1, v));
+    }
+
+    $posSlider.value = String(v);
+    vizRaw.position = v;
+    if (vizClosest) vizClosest.position = v;
+    scheduleMaskUpdate();
+  }
+}, { passive: false });
+
+$canvasWrap.addEventListener('touchend', () => { touchState = null; });
+$canvasWrap.addEventListener('touchcancel', () => { touchState = null; });
+
 function findPaletteIndex(rgb) {
   const tol = 4 / 255;
   for (let i = 0; i < palette.length; i++) {
@@ -914,6 +962,7 @@ function encodeHash() {
     pos: parseFloat($posSlider.value).toFixed(4),
     ...$outlineCheckbox.checked && { outline: '1' },
     ...!$revealCheckbox.checked && { reveal: '0' },
+    ...$gamutClipCheckbox.checked && { gamut: '1' },
   });
   return colorStr ? `#colors/${colorStr}?${params}` : `#?${params}`;
 }
@@ -941,6 +990,7 @@ function decodeHash(hash) {
     pos: parseFloat(params.get('pos') ?? '0.5'),
     outline: params.get('outline') === '1',
     reveal: params.get('reveal') !== '0',
+    gamut: params.get('gamut') === '1',
   };
 }
 
@@ -969,6 +1019,9 @@ function applyHashState(state) {
 
   $revealCheckbox.checked = state.reveal;
 
+  $gamutClipCheckbox.checked = state.gamut;
+  vizRaw.gamutClip = state.gamut;
+
 
 
   vizRaw.colorModel = state.colorModel;
@@ -984,6 +1037,7 @@ function applyHashState(state) {
     vizClosest.distanceMetric = state.distanceMetric;
     vizClosest.position = state.pos;
     vizClosest.outlineWidth = outlineW;
+    vizClosest.gamutClip = state.gamut;
   }
 
   // setAxis after vizClosest exists so it gets the axis too

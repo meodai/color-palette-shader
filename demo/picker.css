@@ -95,6 +95,47 @@ kbd {
   color: inherit;
 }
 
+.picker__links {
+  margin-top: 1.5em;
+}
+
+.picker__about h2 {
+  letter-spacing: -0.03em;
+  font-weight: 200;
+  margin-top: 2em;
+  margin-bottom: 0.75em;
+}
+
+.picker__manual {
+  border: var(--s-line) solid var(--c-surface-on);
+  border-bottom: none;
+}
+
+.picker__manual:last-of-type {
+  border-bottom: var(--s-line) solid var(--c-surface-on);
+}
+
+.picker__manual summary {
+  padding: 0.4rem 0.75rem 0.4rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  transition: background 0.05s linear;
+}
+
+.picker__manual summary:hover {
+  background: var(--c-surface-on);
+  color: var(--c-surface);
+}
+
+.picker__manual p {
+  font-size: 0.8em;
+  padding: 0.4rem 0.75rem 0.6rem;
+  color: var(--c-surface-on);
+  border-top: var(--s-line) solid var(--c-border);
+}
+
 .picker__about a:hover {
   text-decoration-thickness: 2px;
 }
