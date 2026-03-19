@@ -25,6 +25,10 @@
         <p>Hover a swatch and click the <kbd>&times;</kbd> button. You can also select a swatch by clicking it, then press <kbd>Delete</kbd> or <kbd>Backspace</kbd>.</p>
       </details>
       <details class="picker__manual">
+        <summary>Inspecting a Color</summary>
+        <p>Hold <kbd>Shift</kbd> and hover a swatch to isolate it on the canvas — only that color's region is shown, the rest reveals the raw color space. This lets you see exactly how much territory a single color claims.</p>
+      </details>
+      <details class="picker__manual">
         <summary>Pasting Colors</summary>
         <p>Type or paste hex values into the text field at the bottom — comma or space separated (e.g. <code>#ff0000, #00ff00, #0000ff</code>). The entire palette will be replaced with the pasted colors.</p>
       </details>
@@ -81,7 +85,11 @@
       <button class="picker__add" data-add>Add color <kbd>C</kbd></button>
       <div class="picker__swatches" data-swatches></div>
 
-      <div class="picker__bottom">
+      <label class="picker__io-toggle">
+        <span><span class="picker__io-led" data-io-led></span> Import / Export</span>
+        <input type="checkbox" data-io-toggle />
+      </label>
+      <div class="picker__bottom" data-io-body hidden>
         <textarea
           class="picker__paste"
           data-paste

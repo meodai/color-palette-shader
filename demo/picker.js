@@ -32,6 +32,26 @@ $settingsToggle.addEventListener('change', () => {
   $tools.hidden = !$settingsToggle.checked;
 });
 
+// ── Import / Export toggle ────────────────────────────────────────────────────
+
+const $ioToggle = document.querySelector('[data-io-toggle]');
+const $ioBody = document.querySelector('[data-io-body]');
+const $ioLed = document.querySelector('[data-io-led]');
+
+$ioToggle.addEventListener('change', () => {
+  $ioBody.hidden = !$ioToggle.checked;
+});
+
+function openIO() {
+  $ioToggle.checked = true;
+  $ioBody.hidden = false;
+}
+
+function closeIO() {
+  $ioToggle.checked = false;
+  $ioBody.hidden = true;
+}
+
 // ── Axis names per color model ────────────────────────────────────────────────
 
 const AXIS_NAMES = {
@@ -195,6 +215,72 @@ function buildMask(colorIndex) {
   maskCtx.putImageData(imageData, 0, 0);
 
   // Show mask, hide both WebGL canvases (mask replaces them)
+  maskCanvas.style.display = '';
+  vizClosest.canvas.style.display = 'none';
+  vizRaw.canvas.style.display = 'none';
+}
+
+function buildHighlightMask(colorIndex) {
+  if (!vizClosest || colorIndex < 0 || colorIndex >= palette.length) return;
+
+  vizClosest.getColorAtUV(0.5, 0.5);
+  vizRaw.getColorAtUV(0.5, 0.5);
+
+  const w = vizClosest.canvas.width;
+  const h = vizClosest.canvas.height;
+
+  const glClosest = vizClosest.canvas.getContext('webgl2');
+  const closestPx = new Uint8Array(w * h * 4);
+  glClosest.bindFramebuffer(glClosest.FRAMEBUFFER, null);
+  glClosest.readPixels(0, 0, w, h, glClosest.RGBA, glClosest.UNSIGNED_BYTE, closestPx);
+
+  const glRaw = vizRaw.canvas.getContext('webgl2');
+  const rawPx = new Uint8Array(w * h * 4);
+  glRaw.bindFramebuffer(glRaw.FRAMEBUFFER, null);
+  glRaw.readPixels(0, 0, w, h, glRaw.RGBA, glRaw.UNSIGNED_BYTE, rawPx);
+
+  const sel = hexToRGB(palette[colorIndex]);
+  const sr = Math.round(sel[0] * 255);
+  const sg = Math.round(sel[1] * 255);
+  const sb = Math.round(sel[2] * 255);
+  const tol = 3;
+
+  if (maskCanvas.width !== w || maskCanvas.height !== h) {
+    maskCanvas.width = w;
+    maskCanvas.height = h;
+  }
+
+  const imageData = maskCtx.createImageData(w, h);
+  const out = imageData.data;
+
+  for (let row = 0; row < h; row++) {
+    const srcRow = (h - 1 - row) * w * 4;
+    const dstRow = row * w * 4;
+    for (let col = 0; col < w; col++) {
+      const si = srcRow + col * 4;
+      const di = dstRow + col * 4;
+
+      if (
+        Math.abs(closestPx[si] - sr) <= tol &&
+        Math.abs(closestPx[si + 1] - sg) <= tol &&
+        Math.abs(closestPx[si + 2] - sb) <= tol
+      ) {
+        // Hovered region → show closest (the palette color)
+        out[di] = closestPx[si];
+        out[di + 1] = closestPx[si + 1];
+        out[di + 2] = closestPx[si + 2];
+        out[di + 3] = closestPx[si + 3];
+      } else {
+        // Other regions → show raw color space
+        out[di] = rawPx[si];
+        out[di + 1] = rawPx[si + 1];
+        out[di + 2] = rawPx[si + 2];
+        out[di + 3] = rawPx[si + 3];
+      }
+    }
+  }
+
+  maskCtx.putImageData(imageData, 0, 0);
   maskCanvas.style.display = '';
   vizClosest.canvas.style.display = 'none';
   vizRaw.canvas.style.display = 'none';
@@ -535,6 +621,7 @@ function syncVizPalette() {
 
 function addColor(hex) {
   if (palette.length >= MAX_COLORS) return;
+  pushUndo();
   palette.push(hex);
   syncVizPalette();
   selectedIndex = palette.length - 1;
@@ -546,6 +633,7 @@ function addColor(hex) {
 }
 
 function removeColor(index) {
+  pushUndo();
   palette.splice(index, 1);
   if (selectedIndex >= palette.length) selectedIndex = palette.length - 1;
   if (palette.length === 0) selectedIndex = -1;
@@ -594,6 +682,13 @@ function renderSwatches() {
     $s.appendChild($rm);
 
     $s.addEventListener('click', () => selectColor(i));
+    $s.addEventListener('mouseenter', (e) => {
+      if (!e.shiftKey || pointerState?.dragging || !vizClosest) return;
+      buildHighlightMask(i);
+    });
+    $s.addEventListener('mouseleave', () => {
+      hideMask();
+    });
     $swatches.appendChild($s);
   });
 }
@@ -640,6 +735,16 @@ function scheduleMaskUpdate() {
 const DRAG_THRESHOLD = 5; // px to distinguish click from drag
 let pointerState = null;  // { x, y, id, dragging, dragIndex }
 let dragMaskRAF = null;
+
+function cancelDrag() {
+  if (!pointerState || !pointerState.dragging) return;
+  const idx = pointerState.dragIndex;
+  pointerState = null;
+  if (dragMaskRAF !== null) { cancelAnimationFrame(dragMaskRAF); dragMaskRAF = null; }
+  hideMask();
+  if (idx >= 0) removeColor(idx);
+  if (pickMode) exitPickMode();
+}
 
 function getUV(e) {
   const rect = $canvasWrap.getBoundingClientRect();
@@ -894,10 +999,38 @@ const updateProbe = () => {
   $probe.classList.add('is-visible');
 };
 
+// ── Undo stack ───────────────────────────────────────────────────────────────
+
+const undoStack = [];
+const MAX_UNDO = 50;
+
+function pushUndo() {
+  undoStack.push({ palette: [...palette], selectedIndex });
+  if (undoStack.length > MAX_UNDO) undoStack.shift();
+}
+
+function undo() {
+  const state = undoStack.pop();
+  if (!state) return;
+  palette = state.palette;
+  selectedIndex = state.selectedIndex;
+  syncVizPalette();
+  renderSwatches();
+  syncPasteField();
+  updateView();
+  scheduleMaskUpdate();
+  scheduleHashUpdate();
+}
+
 // ── Keyboard shortcuts ────────────────────────────────────────────────────────
 
 document.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+  if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+    e.preventDefault();
+    undo();
+    return;
+  }
   if (e.key === 'c' || e.key === 'C') {
     e.preventDefault();
     togglePickMode();
@@ -908,8 +1041,13 @@ document.addEventListener('keydown', (e) => {
       removeColor(selectedIndex);
     }
   }
-  if (e.key === 'Escape' && pickMode) {
-    exitPickMode();
+  if (e.key === 'Escape') {
+    if (pointerState && pointerState.dragging) {
+      e.preventDefault();
+      cancelDrag();
+    } else if (pickMode) {
+      exitPickMode();
+    }
   }
 });
 
@@ -926,6 +1064,7 @@ $paste.addEventListener('input', () => {
     .filter((s) => /^#([0-9a-f]{3}){1,2}$/i.test(s));
   if (colors.length < 1) return;
   setPalette(colors);
+  closeIO();
 });
 
 function syncPasteField() {
@@ -936,6 +1075,7 @@ function syncPasteField() {
 
 // Bulk replace palette (used by paste, hash restore, beam receive)
 function setPalette(colors) {
+  pushUndo();
   palette = colors.slice(0, MAX_COLORS);
   selectedIndex = palette.length > 0 ? 0 : -1;
   syncVizPalette();
@@ -1084,6 +1224,7 @@ function beamSendPalette() {
 // ── Send mode: auto-connect, server generates token ───────────────────────────
 
 function initBeamSource() {
+  $ioLed.classList.remove('is-active');
   if (beamSession) {
     beamSession.disconnect();
     beamSession = null;
@@ -1146,6 +1287,7 @@ $beamCopy.addEventListener('click', () => {
 // ── Receive mode: user enters token, clicks connect ───────────────────────────
 
 function initBeamTarget() {
+  $ioLed.classList.remove('is-active');
   if (beamSession) {
     beamSession.disconnect();
     beamSession = null;
@@ -1191,6 +1333,8 @@ function connectBeamTarget() {
     const hexColors = [...new Set(extractColorTokens(payload).map((e) => e.hex))];
     if (hexColors.length >= 1) {
       setPalette(hexColors);
+      $ioLed.classList.add('is-active');
+      closeIO();
     }
   });
 
@@ -1202,6 +1346,7 @@ function connectBeamTarget() {
     $beamToken.disabled = false;
     $beamConnect.textContent = 'Connect';
     beamClearStatus();
+    $ioLed.classList.remove('is-active');
     beamSession = null;
   });
 

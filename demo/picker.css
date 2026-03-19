@@ -590,11 +590,49 @@ input[type='range']::-moz-range-thumb {
   color: var(--c-surface);
 }
 
+/* ── Import / Export toggle ─────────────────────────────────────────── */
+
+.picker__io-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.75em;
+  letter-spacing: 0.02em;
+  border-top: var(--s-line) solid var(--c-border);
+}
+
+.picker__io-toggle > span {
+  display: flex;
+  align-items: center;
+}
+
+.picker__io-led {
+  display: inline-block;
+  width: 0;
+  height: 0.5em;
+  border-radius: 50%;
+  transition: width 0.3s cubic-bezier(0.3, 0.7, 0, 1), margin 0.3s cubic-bezier(0.3, 0.7, 0, 1), background 0.3s ease;
+}
+
+.picker__io-led.is-active {
+  width: 0.5em;
+  margin-right: 0.4em;
+  background: #4a2;
+  box-shadow: 0 0 4px #4a2;
+}
+
 .picker__bottom {
   flex: 0 0 auto;
   border-top: var(--s-line) solid var(--c-border);
   display: flex;
   flex-direction: column;
+}
+
+.picker__bottom[hidden] {
+  display: none;
 }
 
 
