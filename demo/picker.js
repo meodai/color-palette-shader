@@ -19,10 +19,10 @@ const rgbToHex = (rgb) => `#${toHexByte(rgb[0])}${toHexByte(rgb[1])}${toHexByte(
 // ── DOM refs ──────────────────────────────────────────────────────────────────
 
 const $tools = document.querySelector('[data-tools]');
+const $swatches = document.querySelector('[data-swatches]');
 const $canvasWrap = document.querySelector('[data-canvas-wrap]');
 const $sliderWrap = document.querySelector('[data-slider-wrap]');
 const $addBtn = document.querySelector('[data-add]');
-const $colors = document.querySelector('[data-colors]');
 
 // ── Settings toggle ──────────────────────────────────────────────────────────
 
@@ -500,7 +500,8 @@ function addColor(hex) {
   palette.push(hex);
   syncVizPalette();
   selectedIndex = palette.length - 1;
-  renderColorList();
+  renderSwatches();
+  syncPasteField();
   scheduleMaskUpdate();
   scheduleHashUpdate();
   beamSendPalette();
@@ -511,7 +512,8 @@ function removeColor(index) {
   if (selectedIndex >= palette.length) selectedIndex = palette.length - 1;
   if (palette.length === 0) selectedIndex = -1;
   syncVizPalette();
-  renderColorList();
+  renderSwatches();
+  syncPasteField();
   scheduleMaskUpdate();
   scheduleHashUpdate();
   beamSendPalette();
@@ -520,7 +522,8 @@ function removeColor(index) {
 function setColorAt(index, hex) {
   palette[index] = hex;
   syncVizPalette();
-  renderColorList();
+  renderSwatches();
+  syncPasteField();
   scheduleMaskUpdate();
   scheduleHashUpdate();
   beamSendPalette();
@@ -528,50 +531,32 @@ function setColorAt(index, hex) {
 
 function selectColor(index) {
   selectedIndex = index;
-  renderColorList();
+  renderSwatches();
   scheduleMaskUpdate();
 }
 
-// ── Render color list ─────────────────────────────────────────────────────────
+// ── Render swatch grid ───────────────────────────────────────────────────────
 
-function renderColorList() {
-  $colors.innerHTML = '';
-  if (palette.length === 0) {
-    const $empty = document.createElement('p');
-    $empty.className = 'picker__empty';
-    $empty.innerHTML = 'Click the shader or press <kbd>C</kbd> to add a color.';
-    $colors.appendChild($empty);
-    return;
-  }
-
+function renderSwatches() {
+  $swatches.innerHTML = '';
   palette.forEach((hex, i) => {
-    const $swatch = document.createElement('div');
-    $swatch.className = 'color-swatch';
-    if (i === selectedIndex) $swatch.classList.add('is-selected');
-    $swatch.style.setProperty('--color', hex);
-    $swatch.dataset.index = i;
+    const $s = document.createElement('span');
+    $s.className = 'picker__swatch';
+    $s.style.background = hex;
+    $s.dataset.index = i;
+    if (i === selectedIndex) $s.classList.add('is-selected');
 
-    const $preview = document.createElement('div');
-    $preview.className = 'color-swatch__preview';
-
-    const $hex = document.createElement('span');
-    $hex.className = 'color-swatch__hex';
-    $hex.textContent = hex;
-    $preview.appendChild($hex);
-
-    const $remove = document.createElement('button');
-    $remove.className = 'color-swatch__remove';
-    $remove.textContent = '\u00d7';
-    $remove.addEventListener('click', (e) => {
+    const $rm = document.createElement('button');
+    $rm.className = 'picker__swatch__remove';
+    $rm.textContent = '\u00d7';
+    $rm.addEventListener('click', (e) => {
       e.stopPropagation();
       removeColor(i);
     });
+    $s.appendChild($rm);
 
-    $swatch.appendChild($preview);
-    $swatch.appendChild($remove);
-
-    $swatch.addEventListener('click', () => selectColor(i));
-    $colors.appendChild($swatch);
+    $s.addEventListener('click', () => selectColor(i));
+    $swatches.appendChild($s);
   });
 }
 
@@ -638,12 +623,8 @@ function liveUpdateColor(index, hex) {
   if (vizClosest) vizClosest.setColor(rgb, index);
 
   // Update just the DOM swatch for this index
-  const $swatch = $colors.querySelector(`[data-index="${index}"]`);
-  if ($swatch) {
-    $swatch.style.setProperty('--color', hex);
-    const $hex = $swatch.querySelector('.color-swatch__hex');
-    if ($hex) $hex.textContent = hex;
-  }
+  const $s = $swatches.querySelector(`[data-index="${index}"]`);
+  if ($s) $s.style.background = hex;
 }
 
 $canvasWrap.addEventListener('pointerdown', (e) => {
@@ -862,22 +843,31 @@ document.addEventListener('keydown', (e) => {
 // ── Paste field ───────────────────────────────────────────────────────────────
 
 const $paste = document.querySelector('[data-paste]');
+let pasteIsSync = false;
+
 $paste.addEventListener('input', () => {
+  if (pasteIsSync) return;
   const colors = $paste.value
     .split(/[\s,]+/)
     .map((s) => s.trim().replace(/^#?/, '#'))
     .filter((s) => /^#([0-9a-f]{3}){1,2}$/i.test(s));
   if (colors.length < 1) return;
   setPalette(colors);
-  $paste.value = '';
 });
+
+function syncPasteField() {
+  pasteIsSync = true;
+  $paste.value = palette.join(', ');
+  pasteIsSync = false;
+}
 
 // Bulk replace palette (used by paste, hash restore, beam receive)
 function setPalette(colors) {
   palette = colors;
   selectedIndex = palette.length > 0 ? 0 : -1;
   syncVizPalette();
-  renderColorList();
+  renderSwatches();
+  syncPasteField();
   scheduleMaskUpdate();
   scheduleHashUpdate();
   beamSendPalette();
@@ -932,7 +922,7 @@ function scheduleHashUpdate() {
 $colorModel.addEventListener('change', scheduleHashUpdate);
 $distanceMetric.addEventListener('change', scheduleHashUpdate);
 $posSlider.addEventListener('input', scheduleHashUpdate);
-$colors.addEventListener('click', scheduleHashUpdate);
+$swatches.addEventListener('click', scheduleHashUpdate);
 
 function applyHashState(state) {
   $colorModel.value = state.colorModel;
@@ -964,7 +954,7 @@ function applyHashState(state) {
 
   updateSliderLabel();
   updateAxisButtonLabels();
-  renderColorList();
+  renderSwatches();
   updateView();
 }
 
