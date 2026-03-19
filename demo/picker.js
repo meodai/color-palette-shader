@@ -30,7 +30,6 @@ const $settingsToggle = document.querySelector('[data-settings-toggle]');
 
 $settingsToggle.addEventListener('change', () => {
   $tools.hidden = !$settingsToggle.checked;
-  scheduleHashUpdate();
 });
 
 // ── Axis names per color model ────────────────────────────────────────────────
@@ -129,6 +128,7 @@ const maskCtx = maskCanvas.getContext('2d');
 $canvasWrap.appendChild(maskCanvas);
 
 function buildMask(colorIndex) {
+  if (!$revealCheckbox.checked) return;
   if (!vizClosest || colorIndex < 0 || colorIndex >= palette.length) return;
 
   // Force synchronous render so we can read fresh pixels
@@ -352,6 +352,15 @@ $outlineCheckbox.addEventListener('change', () => {
   scheduleHashUpdate();
 });
 $tools.appendChild(labeled('Outline', $outlineCheckbox));
+
+// Reveal on Pick toggle
+const $revealCheckbox = document.createElement('input');
+$revealCheckbox.type = 'checkbox';
+$revealCheckbox.checked = true;
+$revealCheckbox.addEventListener('change', () => {
+  scheduleHashUpdate();
+});
+$tools.appendChild(labeled('Reveal Color Space While Picking', $revealCheckbox));
 
 // Position slider
 const $posSlider = document.createElement('input');
@@ -904,7 +913,7 @@ function encodeHash() {
     axis: currentAxis,
     pos: parseFloat($posSlider.value).toFixed(4),
     ...$outlineCheckbox.checked && { outline: '1' },
-    ...$settingsToggle.checked && { settings: '1' },
+    ...!$revealCheckbox.checked && { reveal: '0' },
   });
   return colorStr ? `#colors/${colorStr}?${params}` : `#?${params}`;
 }
@@ -931,7 +940,7 @@ function decodeHash(hash) {
     axis: params.get('axis') || 'y',
     pos: parseFloat(params.get('pos') ?? '0.5'),
     outline: params.get('outline') === '1',
-    settings: params.get('settings') === '1',
+    reveal: params.get('reveal') !== '0',
   };
 }
 
@@ -958,8 +967,9 @@ function applyHashState(state) {
   const outlineW = state.outline ? 2 : 0;
   vizRaw.outlineWidth = outlineW;
 
-  $settingsToggle.checked = state.settings;
-  $tools.hidden = !state.settings;
+  $revealCheckbox.checked = state.reveal;
+
+
 
   vizRaw.colorModel = state.colorModel;
   vizRaw.distanceMetric = state.distanceMetric;
