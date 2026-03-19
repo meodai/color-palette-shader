@@ -512,6 +512,7 @@ function syncVizPalette() {
 }
 
 function addColor(hex) {
+  if (palette.length >= MAX_COLORS) return;
   palette.push(hex);
   syncVizPalette();
   selectedIndex = palette.length - 1;
@@ -878,7 +879,7 @@ function syncPasteField() {
 
 // Bulk replace palette (used by paste, hash restore, beam receive)
 function setPalette(colors) {
-  palette = colors;
+  palette = colors.slice(0, MAX_COLORS);
   selectedIndex = palette.length > 0 ? 0 : -1;
   syncVizPalette();
   renderSwatches();
@@ -891,9 +892,12 @@ function setPalette(colors) {
 
 // ── URL hash state ────────────────────────────────────────────────────────────
 
+const MAX_COLORS = 128;
+
 function encodeHash() {
-  if (palette.length === 0) return '#';
-  const colorStr = palette.map((c) => c.replace('#', '')).join('-');
+  const colorStr = palette.length > 0
+    ? palette.map((c) => c.replace('#', '')).join('-')
+    : '';
   const params = new URLSearchParams({
     model: $colorModel.value,
     metric: $distanceMetric.value,
@@ -902,24 +906,29 @@ function encodeHash() {
     ...$outlineCheckbox.checked && { outline: '1' },
     ...$settingsToggle.checked && { settings: '1' },
   });
-  return `#colors/${colorStr}?${params}`;
+  return colorStr ? `#colors/${colorStr}?${params}` : `#?${params}`;
 }
 
 function decodeHash(hash) {
-  if (!hash || !hash.startsWith('#colors/')) return null;
-  const withoutPrefix = hash.slice('#colors/'.length);
-  const [colorPart, queryPart] = withoutPrefix.split('?');
+  if (!hash || hash === '#') return null;
+  let colorPart = '', queryPart = '';
+  if (hash.startsWith('#colors/')) {
+    const rest = hash.slice('#colors/'.length);
+    [colorPart, queryPart] = rest.split('?');
+  } else if (hash.startsWith('#?')) {
+    queryPart = hash.slice(2);
+  } else {
+    return null;
+  }
   const colors = colorPart
-    .split('-')
-    .map((h) => `#${h}`)
-    .filter((c) => /^#([0-9a-f]{3}){1,2}$/i.test(c));
-  if (colors.length < 1) return null;
+    ? colorPart.split('-').map((h) => `#${h}`).filter((c) => /^#([0-9a-f]{3}){1,2}$/i.test(c))
+    : [];
   const params = new URLSearchParams(queryPart || '');
   return {
     colors,
     colorModel: params.get('model') || 'okhsl',
     distanceMetric: params.get('metric') || 'oklab',
-    axis: params.get('axis') || 'z',
+    axis: params.get('axis') || 'y',
     pos: parseFloat(params.get('pos') ?? '0.5'),
     outline: params.get('outline') === '1',
     settings: params.get('settings') === '1',
@@ -944,7 +953,6 @@ function applyHashState(state) {
   $colorModel.value = state.colorModel;
   $distanceMetric.value = state.distanceMetric;
   $posSlider.value = String(state.pos);
-  setAxis(state.axis);
 
   $outlineCheckbox.checked = state.outline;
   const outlineW = state.outline ? 2 : 0;
@@ -957,7 +965,7 @@ function applyHashState(state) {
   vizRaw.distanceMetric = state.distanceMetric;
   vizRaw.position = state.pos;
 
-  palette = state.colors;
+  palette = state.colors.slice(0, MAX_COLORS);
   selectedIndex = palette.length > 0 ? 0 : -1;
   syncVizPalette();
 
@@ -967,6 +975,9 @@ function applyHashState(state) {
     vizClosest.position = state.pos;
     vizClosest.outlineWidth = outlineW;
   }
+
+  // setAxis after vizClosest exists so it gets the axis too
+  setAxis(state.axis);
 
   updateSliderLabel();
   updateAxisButtonLabels();
