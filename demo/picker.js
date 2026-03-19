@@ -440,7 +440,7 @@ function updateSliderGradient() {
   const model = $colorModel.value;
   const culoriMode = SLIDER_CULORI_MODE[model];
   if (!culoriMode) {
-    $sliderWrap.style.removeProperty('--slider-gradient');
+    $posSlider.style.removeProperty('--slider-gradient');
     return;
   }
 
@@ -471,7 +471,7 @@ function updateSliderGradient() {
   // Shader inverts z-axis: colorCoords.z = 1 - progress
   if (currentAxis === 'z') stops.reverse();
 
-  $sliderWrap.style.setProperty('--slider-gradient',
+  $posSlider.style.setProperty('--slider-gradient',
     `linear-gradient(to right, ${stops.join(', ')})`);
 }
 updateSliderLabel();
@@ -1087,7 +1087,7 @@ function connectBeamTarget() {
 
   beamSession = new TargetSession({
     serverUrl: 'wss://tokenbeam.dev',
-    clientType: 'palette-shader',
+    clientType: 'pickypalette',
     sessionToken: token,
   });
 
