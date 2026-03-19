@@ -495,7 +495,7 @@ input[type='range']::-moz-range-thumb {
 
 .picker__bottom {
   flex: 0 0 auto;
-  border-top: var(--s-line) solid var(--c-surface-on);
+  border-top: var(--s-line) solid var(--c-border);
   display: flex;
   flex-direction: column;
 }
@@ -509,11 +509,11 @@ input[type='range']::-moz-range-thumb {
   width: 100%;
   padding: 0.6rem 0.75rem;
   border: none;
-  border-bottom: var(--s-line) solid var(--c-surface-on);
+  border-bottom: none;
   background: var(--c-surface);
   color: var(--c-surface-on);
   font-size: 0.8em;
-  height: 3.5em;
+  height: 5em;
   flex: 0 0 auto;
   outline: none;
   font-family: inherit;
@@ -534,6 +534,16 @@ input[type='range']::-moz-range-thumb {
   display: flex;
   flex-wrap: wrap;
   flex: 0 0 auto;
+  border-top: var(--s-line) solid var(--c-border);
+}
+
+.beam__label {
+  flex: 0 0 auto;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.75em;
+  letter-spacing: 0.02em;
+  color: var(--c-surface-on-alt);
+  border-right: var(--s-line) solid var(--c-surface-on);
 }
 
 .beam__mode {
@@ -630,7 +640,7 @@ input[type='range']::-moz-range-thumb {
   padding: 0.25rem 0.75rem;
   font-size: 0.75em;
   color: color-mix(in lab, tomato 60%, var(--c-surface-on));
-  border-top: var(--s-line) solid var(--c-border);
+  border-top: var(--s-line) solid var(--c-surface-on);
 }
 
 .beam__status[data-state='error'] {

@@ -1034,7 +1034,7 @@ function initBeamSource() {
     beamSessionToken = sessionToken;
     $beamToken.value = sessionToken;
     $beamToken.placeholder = '';
-    beamShowInfo('Share this token — waiting for receiver…');
+    beamShowInfo('Copy this token to sync — waiting for receiver…');
   });
 
   beamSession.on('peer-connected', () => {
