@@ -361,8 +361,13 @@ $posSlider.max = '1';
 $posSlider.step = '0.001';
 $posSlider.value = '0.5';
 
-const $sliderLabel = document.createElement('label');
+const $sliderLabel = document.createElement('button');
+$sliderLabel.type = 'button';
 $sliderLabel.textContent = 'L';
+$sliderLabel.addEventListener('click', () => {
+  const nextIdx = (AXES.indexOf(currentAxis) + 1) % AXES.length;
+  setAxis(AXES[nextIdx]);
+});
 
 $posSlider.addEventListener('input', () => {
   const v = parseFloat($posSlider.value);

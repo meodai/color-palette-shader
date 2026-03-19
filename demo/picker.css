@@ -382,8 +382,10 @@ input[type='range']::-moz-range-thumb {
   border-bottom: var(--s-line) solid var(--c-surface-on);
 }
 
-.picker__slider label {
+.picker__slider button {
   font-size: 0.75em;
+  font-family: inherit;
+  font-weight: inherit;
   letter-spacing: 0.02em;
   white-space: nowrap;
   min-width: 1.5em;
@@ -393,7 +395,16 @@ input[type='range']::-moz-range-thumb {
   justify-content: center;
   padding: 0.4rem 0.75rem;
   background: var(--c-surface);
+  color: var(--c-surface-on);
+  border: none;
   border-right: var(--s-line) solid var(--c-surface-on);
+  cursor: pointer;
+  transition: background 0.05s linear, color 0.05s linear;
+}
+
+.picker__slider button:hover {
+  background: var(--c-surface-on);
+  color: var(--c-surface);
 }
 
 .picker__slider-cell {
