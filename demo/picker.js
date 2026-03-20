@@ -124,8 +124,11 @@ function ensureVizClosest() {
   if (vizClosest) return vizClosest;
   const vp = vizPalette();
   if (vp.length < 2) return null;
+  const w = Math.round($canvasWrap.clientWidth) || 500;
   vizClosest = new PaletteViz({
     ...sharedOptions(),
+    width: w,
+    height: w,
     palette: vp,
     showRaw: false,
     container: $canvasWrap,
