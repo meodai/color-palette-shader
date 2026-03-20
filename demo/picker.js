@@ -664,7 +664,9 @@ function selectColor(index) {
 // ── Render swatch grid ───────────────────────────────────────────────────────
 
 function renderSwatches() {
-  $swatches.innerHTML = '';
+  // Remove all swatches but keep $addBtn
+  while ($swatches.firstChild !== $addBtn) $swatches.firstChild.remove();
+
   palette.forEach((hex, i) => {
     const $s = document.createElement('span');
     $s.className = 'picker__swatch';
@@ -689,8 +691,11 @@ function renderSwatches() {
     $s.addEventListener('mouseleave', () => {
       hideMask();
     });
-    $swatches.appendChild($s);
+    $swatches.insertBefore($s, $addBtn);
   });
+
+  // Toggle compact mode
+  $addBtn.classList.toggle('is-compact', palette.length > 0);
 }
 
 // ── View layer ────────────────────────────────────────────────────────────────
@@ -946,17 +951,22 @@ function findPaletteIndex(rgb) {
 
 // ── Pick mode (add button toggle) ─────────────────────────────────────────────
 
+const $addIcon = $addBtn.querySelector('.picker__add-icon');
+const $addLabel = $addBtn.querySelector('.picker__add-label');
+
 function enterPickMode() {
   pickMode = true;
   $addBtn.classList.add('is-picking');
-  $addBtn.innerHTML = 'Cancel pick <kbd>C</kbd>';
+  $addIcon.textContent = '\u00d7';
+  $addLabel.innerHTML = '<kbd>C</kbd> Cancel pick';
   updateView();
 }
 
 function exitPickMode() {
   pickMode = false;
   $addBtn.classList.remove('is-picking');
-  $addBtn.innerHTML = 'Add color <kbd>C</kbd>';
+  $addIcon.textContent = '+';
+  $addLabel.innerHTML = '<kbd>C</kbd> Add color';
   updateView();
 }
 

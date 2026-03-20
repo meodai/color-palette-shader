@@ -82,8 +82,12 @@
         <!-- canvases inserted by JS -->
       </div>
       <div class="picker__slider" data-slider-wrap></div>
-      <button class="picker__add" data-add>Add color <kbd>C</kbd></button>
-      <div class="picker__swatches" data-swatches></div>
+      <div class="picker__swatches" data-swatches>
+        <button class="picker__add" data-add>
+          <span class="picker__add-label"><kbd>C</kbd> Add color</span>
+          <span class="picker__add-icon">+</span>
+        </button>
+      </div>
 
       <label class="picker__io-toggle">
         <span><span class="picker__io-led" data-io-led></span> Import / Export</span>
