@@ -271,10 +271,6 @@ input[type='checkbox']:checked::after {
   flex: 0 0 auto;
 }
 
-.picker__model-row > span:first-child {
-  flex: 0 0 auto;
-}
-
 .picker__model-controls {
   display: flex;
   flex: 1;
@@ -403,16 +399,14 @@ input[type='range']::-moz-range-thumb {
   gap: 0;
 }
 
-
 .picker__swatch {
   min-width: 0;
   height: 1.8rem;
   flex: 1 1 0;
-  transition: flex 0.15s cubic-bezier(0.3, 0.7, 0, 1), transform 0.1s ease;
   border: var(--s-line) solid var(--c-border);
   cursor: pointer;
   position: relative;
-  transition: transform 0.1s ease;
+  transition: flex 0.15s cubic-bezier(0.3, 0.7, 0, 1), transform 0.1s ease;
 }
 
 .picker__swatch:hover {
@@ -468,7 +462,6 @@ input[type='range']::-moz-range-thumb {
   image-rendering: auto;
   z-index: 3;
 }
-
 
 /* ── Position slider ───────────────────────────────────────────────────── */
 
@@ -693,7 +686,6 @@ input[type='range']::-moz-range-thumb {
   display: none;
 }
 
-
 /* ── Paste field ───────────────────────────────────────────────────────── */
 
 .picker__paste {
@@ -702,12 +694,10 @@ input[type='range']::-moz-range-thumb {
   width: 100%;
   padding: 0.6rem 0.75rem;
   border: none;
-  border-bottom: none;
   background: var(--c-surface);
   color: var(--c-surface-on);
   font-size: 0.8em;
   height: 5em;
-  flex: 0 0 auto;
   outline: none;
   font-family: inherit;
   font-weight: inherit;

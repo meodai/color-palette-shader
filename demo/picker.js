@@ -149,8 +149,10 @@ maskCanvas.style.display = 'none';
 const maskCtx = maskCanvas.getContext('2d');
 $canvasWrap.appendChild(maskCanvas);
 
-function buildMask(colorIndex) {
-  if (!$revealCheckbox.checked) return;
+// Shared mask compositor: reads pixels from both canvases, composites them based
+// on which pixels match the selected color. `matchSource` is shown in matching
+// regions, `otherSource` in non-matching regions.
+function compositeMask(colorIndex, matchSource, otherSource) {
   if (!vizClosest || colorIndex < 0 || colorIndex >= palette.length) return;
 
   // Force synchronous render so we can read fresh pixels
@@ -181,6 +183,10 @@ function buildMask(colorIndex) {
     maskCanvas.height = h;
   }
 
+  const sources = { closest: closestPx, raw: rawPx };
+  const matchPx = sources[matchSource];
+  const otherPx = sources[otherSource];
+
   const imageData = maskCtx.createImageData(w, h);
   const out = imageData.data;
 
@@ -192,98 +198,34 @@ function buildMask(colorIndex) {
       const si = srcRow + col * 4;
       const di = dstRow + col * 4;
 
-      if (
+      const isMatch =
         Math.abs(closestPx[si] - sr) <= tol &&
         Math.abs(closestPx[si + 1] - sg) <= tol &&
-        Math.abs(closestPx[si + 2] - sb) <= tol
-      ) {
-        // Selected region → show raw
-        out[di] = rawPx[si];
-        out[di + 1] = rawPx[si + 1];
-        out[di + 2] = rawPx[si + 2];
-        out[di + 3] = rawPx[si + 3];
-      } else {
-        // Other regions → show closest
-        out[di] = closestPx[si];
-        out[di + 1] = closestPx[si + 1];
-        out[di + 2] = closestPx[si + 2];
-        out[di + 3] = closestPx[si + 3];
-      }
+        Math.abs(closestPx[si + 2] - sb) <= tol;
+
+      const src = isMatch ? matchPx : otherPx;
+      out[di] = src[si];
+      out[di + 1] = src[si + 1];
+      out[di + 2] = src[si + 2];
+      out[di + 3] = src[si + 3];
     }
   }
 
   maskCtx.putImageData(imageData, 0, 0);
-
-  // Show mask, hide both WebGL canvases (mask replaces them)
   maskCanvas.style.display = '';
   vizClosest.canvas.style.display = 'none';
   vizRaw.canvas.style.display = 'none';
 }
 
+function buildMask(colorIndex) {
+  if (!$revealCheckbox.checked) return;
+  // Selected region → show raw color space, other regions → show closest
+  compositeMask(colorIndex, 'raw', 'closest');
+}
+
 function buildHighlightMask(colorIndex) {
-  if (!vizClosest || colorIndex < 0 || colorIndex >= palette.length) return;
-
-  vizClosest.getColorAtUV(0.5, 0.5);
-  vizRaw.getColorAtUV(0.5, 0.5);
-
-  const w = vizClosest.canvas.width;
-  const h = vizClosest.canvas.height;
-
-  const glClosest = vizClosest.canvas.getContext('webgl2');
-  const closestPx = new Uint8Array(w * h * 4);
-  glClosest.bindFramebuffer(glClosest.FRAMEBUFFER, null);
-  glClosest.readPixels(0, 0, w, h, glClosest.RGBA, glClosest.UNSIGNED_BYTE, closestPx);
-
-  const glRaw = vizRaw.canvas.getContext('webgl2');
-  const rawPx = new Uint8Array(w * h * 4);
-  glRaw.bindFramebuffer(glRaw.FRAMEBUFFER, null);
-  glRaw.readPixels(0, 0, w, h, glRaw.RGBA, glRaw.UNSIGNED_BYTE, rawPx);
-
-  const sel = hexToRGB(palette[colorIndex]);
-  const sr = Math.round(sel[0] * 255);
-  const sg = Math.round(sel[1] * 255);
-  const sb = Math.round(sel[2] * 255);
-  const tol = 3;
-
-  if (maskCanvas.width !== w || maskCanvas.height !== h) {
-    maskCanvas.width = w;
-    maskCanvas.height = h;
-  }
-
-  const imageData = maskCtx.createImageData(w, h);
-  const out = imageData.data;
-
-  for (let row = 0; row < h; row++) {
-    const srcRow = (h - 1 - row) * w * 4;
-    const dstRow = row * w * 4;
-    for (let col = 0; col < w; col++) {
-      const si = srcRow + col * 4;
-      const di = dstRow + col * 4;
-
-      if (
-        Math.abs(closestPx[si] - sr) <= tol &&
-        Math.abs(closestPx[si + 1] - sg) <= tol &&
-        Math.abs(closestPx[si + 2] - sb) <= tol
-      ) {
-        // Hovered region → show closest (the palette color)
-        out[di] = closestPx[si];
-        out[di + 1] = closestPx[si + 1];
-        out[di + 2] = closestPx[si + 2];
-        out[di + 3] = closestPx[si + 3];
-      } else {
-        // Other regions → show raw color space
-        out[di] = rawPx[si];
-        out[di + 1] = rawPx[si + 1];
-        out[di + 2] = rawPx[si + 2];
-        out[di + 3] = rawPx[si + 3];
-      }
-    }
-  }
-
-  maskCtx.putImageData(imageData, 0, 0);
-  maskCanvas.style.display = '';
-  vizClosest.canvas.style.display = 'none';
-  vizRaw.canvas.style.display = 'none';
+  // Hovered region → show closest (the palette color), other regions → show raw
+  compositeMask(colorIndex, 'closest', 'raw');
 }
 
 function hideMask() {
@@ -732,7 +674,6 @@ function scheduleMaskUpdate() {
   updateView();
 }
 
-
 // ── Canvas pointer interaction ────────────────────────────────────────────────
 // Click        → select palette color (or add first color / pick in pickMode)
 // Click + drag → add color and update it live as you move
@@ -1027,7 +968,6 @@ function undo() {
   syncVizPalette();
   renderSwatches();
   syncPasteField();
-  updateView();
   scheduleMaskUpdate();
   scheduleHashUpdate();
 }
@@ -1091,7 +1031,6 @@ function setPalette(colors) {
   syncVizPalette();
   renderSwatches();
   syncPasteField();
-  updateView();
   scheduleMaskUpdate();
   scheduleHashUpdate();
   beamSendPalette();
@@ -1171,8 +1110,6 @@ function applyHashState(state) {
 
   $gamutClipCheckbox.checked = state.gamut;
   vizRaw.gamutClip = state.gamut;
-
-
 
   vizRaw.colorModel = state.colorModel;
   vizRaw.distanceMetric = state.distanceMetric;
