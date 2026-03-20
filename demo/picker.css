@@ -446,6 +446,7 @@ input[type='range']::-moz-range-thumb {
   overflow: hidden;
   border-bottom: var(--s-line) solid var(--c-surface-on);
   cursor: crosshair;
+  touch-action: none;
 }
 
 .picker__canvas-wrap canvas {
