@@ -3,123 +3,63 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PickyPalette</title>
+    <title>PickyPalette has moved</title>
+    <meta http-equiv="refresh" content="3;url=https://pickypalette.color.pizza/" />
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/Iosevka/6.0.0/iosevka/iosevka.min.css"
     />
-    <link rel="stylesheet" href="./picker.css" />
+    <style>
+      :root {
+        color-scheme: light dark;
+        --c-surface: light-dark(#fff, #292f2f);
+        --c-surface-on: light-dark(#292f2f, #fff);
+        font-family: 'Iosevka Web', 'Iosevka', ui-monospace, monospace;
+        font-weight: 300;
+        font-size: calc(0.75rem + 0.3vw);
+      }
+      body {
+        background: var(--c-surface);
+        color: var(--c-surface-on);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100dvh;
+        margin: 0;
+        padding: 2rem;
+        text-align: center;
+      }
+      h1 { font-weight: 200; letter-spacing: -0.03em; }
+      a { color: inherit; }
+      p { margin-top: 1em; font-size: 0.9em; }
+      .pie {
+        width: 1.6em;
+        height: 1.6em;
+        margin: 1.5em auto 0;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 1px solid var(--c-surface-on);
+      }
+      .pie circle {
+        fill: none;
+        stroke: var(--c-surface-on);
+        stroke-width: 32;
+        stroke-dasharray: 100 100;
+        stroke-dashoffset: 100;
+        transform: rotate(-90deg);
+        transform-origin: center;
+        animation: fill-pie 3s linear forwards;
+      }
+      @keyframes fill-pie {
+        to { stroke-dashoffset: 0; }
+      }
+    </style>
   </head>
   <body>
-    <div class="picker__about">
-      <h1>PickyPalette</h1>
-      <p>A color picker that shows how much visual weight each color claims in your palette. The canvas maps a color space onto a plane — as you add colors, it splits into regions showing which color is closest at every point. A color that's far from all others claims a large region; one that's close to a neighbor gets squeezed into a sliver. There's no predetermined weight factor — it emerges naturally from how your colors are distributed, measured by a perceptual distance metric (like OKLab or ΔE2000) from color science. Drag to pick a color and see its territory shift in real time.</p>
-
-      <h2>User Manual / Glossary</h2>
-      <details class="picker__manual">
-        <summary>Adding Colors</summary>
-        <p>Click the canvas or press <kbd>C</kbd> to enter pick mode, then click to place a color. You can also drag directly on the canvas to add a color and adjust it in one motion.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Removing Colors</summary>
-        <p>Hover a swatch and click the <kbd>&times;</kbd> button. You can also select a swatch by clicking it, then press <kbd>Delete</kbd> or <kbd>Backspace</kbd>.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Inspecting a Color</summary>
-        <p>Hold <kbd>Shift</kbd> and hover a swatch to isolate it on the canvas — only that color's region is shown, the rest reveals the raw color space. This lets you see exactly how much territory a single color claims.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Pasting Colors</summary>
-        <p>Type or paste hex values into the text field at the bottom — comma or space separated (e.g. <code>#ff0000, #00ff00, #0000ff</code>). The entire palette will be replaced with the pasted colors.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Position Slider &amp; Axis</summary>
-        <p>The slider controls the third dimension of the color space — the one not shown on the canvas. Click the axis label next to it to cycle through axes (e.g. H, S, L). You can also scroll or two-finger swipe on the canvas to adjust it.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Color Model</summary>
-        <p>The color space used to render the canvas. Different models emphasize different relationships — OKHsl is perceptually uniform, HSL is the classic web model, OKLab shows perceptual lightness vs. chroma.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Distance Metric</summary>
-        <p>How "closeness" between colors is measured when splitting the canvas into regions. OKLab is a good perceptual default. ΔE2000 matches human vision more precisely but is slower. RGB is naive but fast.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Outline</summary>
-        <p>Draws a thin border between palette regions so you can see boundaries more clearly.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Reveal Color Space While Picking</summary>
-        <p>When dragging to pick a color, the selected color's region shows the raw color space underneath instead of the flat palette color.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Clip to sRGB</summary>
-        <p>Hides out-of-gamut colors that can't be displayed on a standard screen. Only has an effect on color models that go beyond sRGB — like OKLab, OKLCH, or CIELab. Models that are inherently bound to sRGB (HSL, HSV, RGB) are unaffected.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Sharing &amp; Saving</summary>
-        <p>Your entire palette and all settings are stored in the URL. Bookmark it to save your work, or share the link with someone to give them the exact same view.</p>
-      </details>
-      <details class="picker__manual">
-        <summary>Token Beam</summary>
-        <p><a href="https://tokenbeam.dev" target="_blank" rel="noopener">Token Beam</a> is a real-time sync protocol for design tokens. It lets you beam your palette directly into tools like Figma, Aseprite, Blender, or any app with a Token Beam plugin. In Send mode, a session token is generated — copy it and paste it into the receiving tool. In Receive mode, paste a token from an external source to pull colors in.</p>
-      </details>
-
-      <p class="picker__links">Built with <a href="./">palette-shader</a> — <a href="https://github.com/meodai/color-palette-shader">GitHub</a></p>
-      <p>If you find this useful, consider <a href="https://ko-fi.com/colorparrot" rel="noopener" target="_blank">buying me a coffee</a>.</p>
-      <a href="https://ko-fi.com/colorparrot" rel="noopener" target="_blank" class="kofi"><img src="https://storage.ko-fi.com/cdn/brandasset/kofi_s_logo_nolabel.png" alt="Ko-fi" /></a>
-    </div>
-    <div class="picker">
-      <div class="picker__header">
-        <span class="picker__title">PickyPalette</span>
-        <label class="picker__settings-toggle">
-          <span>Settings</span>
-          <input type="checkbox" data-settings-toggle />
-        </label>
-      </div>
-      <div class="picker__settings-body" data-tools hidden></div>
-      <div class="picker__canvas-wrap" data-canvas-wrap>
-        <!-- canvases inserted by JS -->
-      </div>
-      <div class="picker__slider" data-slider-wrap></div>
-      <div class="picker__swatches" data-swatches>
-        <button class="picker__add" data-add>
-          <span class="picker__add-label"><kbd>C</kbd> Add color</span>
-          <span class="picker__add-icon">+</span>
-        </button>
-      </div>
-
-      <label class="picker__io-toggle">
-        <span><span class="picker__io-led" data-io-led></span> Import / Export</span>
-        <input type="checkbox" data-io-toggle />
-      </label>
-      <div class="picker__bottom" data-io-body hidden>
-        <textarea
-          class="picker__paste"
-          data-paste
-          placeholder="Paste hex colors (comma or space separated)…"
-        ></textarea>
-
-        <div class="picker__beam">
-        <span class="beam__label">&#x22B7; Token Beam</span>
-        <select class="beam__mode" data-beam-mode>
-          <option value="send" selected>Send</option>
-          <option value="receive">Receive</option>
-        </select>
-        <input
-          class="beam__token"
-          data-beam-token
-          type="text"
-          placeholder="Token (auto-generated)…"
-          spellcheck="false"
-          autocomplete="off"
-        />
-        <button class="beam__connect" data-beam-connect>Connect</button>
-        <button class="beam__copy" data-beam-copy title="Copy token">Copy</button>
-        <span class="beam__status" data-beam-status></span>
-        </div>
-      </div>
-    </div>
-    <script type="module" src="./picker.js"></script>
+    <h1>PickyPalette has moved</h1>
+    <p>This project now lives at <a href="https://github.com/meodai/pickypalette">github.com/meodai/pickypalette</a>.</p>
+    <p>Redirecting in 3 seconds&hellip; or <a href="https://pickypalette.color.pizza/">go now</a>.</p>
+    <svg class="pie" viewBox="0 0 36 36"><circle r="16" cx="18" cy="18" pathLength="100"/></svg>
   </body>
 </html>
