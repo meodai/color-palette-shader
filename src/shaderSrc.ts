@@ -237,7 +237,11 @@ vec3 modelToRGB(vec3 colorCoords) {
 
 const mainSrc = `
 void main(){
-  vec2 uv = vUv;
+  #ifdef OUTPUT_LINEAR
+    vec2 uv = uvOverride;
+  #else
+    vec2 uv = vUv;
+  #endif
   #ifdef AUTO_FLIP_Y
     uv.y = 1. - uv.y;
   #endif
@@ -305,18 +309,37 @@ void main(){
 
   vec3 rgb = modelToRGB(colorCoords);
 
-  #ifdef GAMUT_CLIP
-  if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) {
-    fragColor = vec4(0.0);
-    return;
-  }
-  #endif
-
-  rgb = clamp(rgb, 0.0, 1.0);
-  #ifdef SHOW_RAW
-    fragColor = vec4(rgb, 1.);
+  #ifdef OUTPUT_LINEAR
+    // Float readback path: output unclamped linear RGB.
+    // modelToRGB returns sRGB — undo the transfer function to get linear.
+    #ifdef SHOW_RAW
+      fragColor = vec4(
+        srgb_transfer_function_inv(rgb.r),
+        srgb_transfer_function_inv(rgb.g),
+        srgb_transfer_function_inv(rgb.b),
+        1.0);
+    #else
+      vec3 matched = closestColor(clamp(rgb, 0.0, 1.0), paletteTexture);
+      fragColor = vec4(
+        srgb_transfer_function_inv(matched.r),
+        srgb_transfer_function_inv(matched.g),
+        srgb_transfer_function_inv(matched.b),
+        1.0);
+    #endif
   #else
-    fragColor = vec4(closestColor(rgb, paletteTexture), 1.);
+    #ifdef GAMUT_CLIP
+    if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) {
+      fragColor = vec4(0.0);
+      return;
+    }
+    #endif
+
+    rgb = clamp(rgb, 0.0, 1.0);
+    #ifdef SHOW_RAW
+      fragColor = vec4(rgb, 1.);
+    #else
+      fragColor = vec4(closestColor(rgb, paletteTexture), 1.);
+    #endif
   #endif
 }`;
 
@@ -480,8 +503,11 @@ export function assembleFragShader(
   colorModel: number,
   distanceMetric: number,
   showRaw: boolean,
+  outputLinear = false,
 ): string {
   const needs = resolveNeeds(colorModel, distanceMetric, showRaw);
+  // OUTPUT_LINEAR needs srgb_transfer_function_inv from the oklab chunk
+  if (outputLinear) needs.oklab = true;
   let src = `
 precision highp float;
 precision highp sampler2D;
@@ -493,6 +519,7 @@ out vec4 fragColor;
 uniform float progress;
 uniform sampler2D paletteTexture;
 `;
+  if (outputLinear) src += `uniform vec2 uvOverride;\n`;
   src += assembleChunks(needs);
   src += modelToRGBSrc + mainSrc;
   return src;

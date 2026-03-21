@@ -46,6 +46,17 @@ export class PaletteViz extends BasePaletteRenderer {
   #uOutlineWidth: WebGLUniformLocation | null = null;
   #uOutlineResolution: WebGLUniformLocation | null = null;
 
+  // 1×1 float FBO for getColorAtUV_float (lazily created)
+  #floatFbo: WebGLFramebuffer | null = null;
+  #floatFboTexture: WebGLTexture | null = null;
+  #linearProgram: WebGLProgram | null = null;
+  #uLinearProgress: WebGLUniformLocation | null = null;
+  #uLinearPaletteTexture: WebGLUniformLocation | null = null;
+  #uLinearPaletteMetricTexture: WebGLUniformLocation | null = null;
+  #uLinearPaletteSize: WebGLUniformLocation | null = null;
+  #uLinearUvOverride: WebGLUniformLocation | null = null;
+  #linearProgramDirty = true;
+
   constructor({
     palette = randomPalette(),
     width = 512,
@@ -131,6 +142,7 @@ export class PaletteViz extends BasePaletteRenderer {
     this.#uPaletteMetricTexture = gl.getUniformLocation(this.#program, 'paletteMetricTexture');
     this.#uPaletteSize = gl.getUniformLocation(this.#program, 'uPaletteSize');
     this.metricPaletteDirty = true;
+    this.#linearProgramDirty = true;
   }
 
   #buildFBO(): void {
@@ -222,6 +234,9 @@ export class PaletteViz extends BasePaletteRenderer {
     if (this.#blitProgram) gl.deleteProgram(this.#blitProgram);
     if (this.#fboTexture) gl.deleteTexture(this.#fboTexture);
     if (this.#fbo) gl.deleteFramebuffer(this.#fbo);
+    if (this.#linearProgram) gl.deleteProgram(this.#linearProgram);
+    if (this.#floatFboTexture) gl.deleteTexture(this.#floatFboTexture);
+    if (this.#floatFbo) gl.deleteFramebuffer(this.#floatFbo);
     gl.deleteProgram(this.#program);
     gl.deleteBuffer(this.#quadBuffer);
     gl.deleteVertexArray(this.#vao);
@@ -289,6 +304,97 @@ export class PaletteViz extends BasePaletteRenderer {
     gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     return [out[0] / 255, out[1] / 255, out[2] / 255];
+  }
+
+  getColorAtUV_float(x: number, y: number): ColorRGB {
+    if (!Number.isFinite(x) || !Number.isFinite(y))
+      throw new Error('x and y must be finite numbers');
+    if (x < 0 || x > 1 || y < 0 || y > 1) throw new Error('x and y must be in the range [0, 1]');
+    this.flushScheduledPaint();
+
+    const gl = this.glContext;
+
+    // Lazily create the 1×1 RGBA16F FBO (requires EXT_color_buffer_float)
+    if (!this.#floatFbo) {
+      gl.getExtension('EXT_color_buffer_float');
+
+      this.#floatFboTexture = gl.createTexture()!;
+      gl.bindTexture(gl.TEXTURE_2D, this.#floatFboTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, 1, 1, 0, gl.RGBA, gl.HALF_FLOAT, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+
+      this.#floatFbo = gl.createFramebuffer()!;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.#floatFbo);
+      gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_2D,
+        this.#floatFboTexture,
+        0,
+      );
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+    // Rebuild linear program when main program defines have changed
+    if (this.#programDirty) this.#linearProgramDirty = true;
+
+    if (this.#linearProgramDirty) {
+      if (this.#linearProgram) gl.deleteProgram(this.#linearProgram);
+      const defines = { ...this.#defines(), OUTPUT_LINEAR: 1 };
+      const fragSrc = assembleFragShader(
+        COLOR_MODEL_MAP[this.#colorModel],
+        DISTANCE_METRIC_MAP[this.#distanceMetric],
+        this.#showRaw,
+        true,
+      );
+      this.#linearProgram = buildProgram(gl, defines, fragSrc, vertexShaderSrc);
+      this.#uLinearProgress = gl.getUniformLocation(this.#linearProgram, 'progress');
+      this.#uLinearPaletteTexture = gl.getUniformLocation(this.#linearProgram, 'paletteTexture');
+      this.#uLinearPaletteMetricTexture = gl.getUniformLocation(
+        this.#linearProgram,
+        'paletteMetricTexture',
+      );
+      this.#uLinearPaletteSize = gl.getUniformLocation(this.#linearProgram, 'uPaletteSize');
+      this.#uLinearUvOverride = gl.getUniformLocation(this.#linearProgram, 'uvOverride');
+      this.#linearProgramDirty = false;
+    }
+
+    // Save current viewport
+    const savedViewport = gl.getParameter(gl.VIEWPORT) as Int32Array;
+
+    // Render 1 pixel into the float FBO at the requested UV
+    gl.bindFramebuffer(gl.FRAMEBUFFER, this.#floatFbo);
+    gl.viewport(0, 0, 1, 1);
+    gl.useProgram(this.#linearProgram);
+
+    gl.uniform2f(this.#uLinearUvOverride, x, y);
+    gl.uniform1f(this.#uLinearProgress, this.#position);
+    gl.uniform1i(this.#uLinearPaletteSize, this.paletteState.length);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.paletteTexture);
+    gl.uniform1i(this.#uLinearPaletteTexture, 0);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, this.metricTexture);
+    gl.uniform1i(this.#uLinearPaletteMetricTexture, 1);
+
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindVertexArray(this.#vao);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.flush();
+
+    // Read back the single float pixel
+    const out = new Float32Array(4);
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, out);
+
+    // Restore state
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.bindVertexArray(null);
+    gl.viewport(savedViewport[0], savedViewport[1], savedViewport[2], savedViewport[3]);
+
+    return [out[0], out[1], out[2]];
   }
 
   // ── Shader properties ────────────────────────────────────────────────────────

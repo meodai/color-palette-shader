@@ -182,6 +182,33 @@ Returns the current shader result at normalized UV coordinates (`0–1` on both 
 const color = viz.getColorAtUV(0.5, 0.5); // center
 ```
 
+### `getColorAtUV_float(x, y)`
+
+Returns the color at normalized UV coordinates as `[r, g, b]` in **unclamped linear RGB** with full float precision. Unlike `getColorAtUV`, values are not quantized to 8-bit and are not clamped to `[0, 1]` — out-of-gamut colors preserve their original value. The sRGB transfer function is bypassed so the consumer receives linear-light values suitable for further color-space conversions without double-gamma.
+
+Renders a single pixel on demand into a 1×1 `RGBA16F` framebuffer — zero per-frame cost.
+
+```js
+const [r, g, b] = viz.getColorAtUV_float(0.5, 0.5);
+// r, g, b are linear RGB — may be < 0 or > 1 for out-of-gamut colors
+```
+
+Converting to OKLab (or any other color space) with [culori](https://culorijs.org/):
+
+```js
+import { converter, formatCss } from 'culori';
+
+const toOklab = converter('oklab');
+const [r, g, b] = viz.getColorAtUV_float(0.5, 0.5);
+
+// Feed linear RGB directly into culori's linear-sRGB mode
+const oklab = toOklab({ mode: 'lrgb', r, g, b });
+// → { mode: 'oklab', l: 0.72, a: 0.08, b: 0.12 }
+
+formatCss(oklab);
+// → 'oklab(0.72 0.08 0.12)'
+```
+
 ---
 
 ## Color models

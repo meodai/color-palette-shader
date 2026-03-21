@@ -1,9 +1,10 @@
 import './style.css';
 import { PaletteViz, PaletteViz3D } from 'palette-shader';
 import { TargetSession, extractColorTokens } from 'token-beam';
-import { converter } from 'culori';
+import { converter, formatCss } from 'culori';
 
 const toSRGB = converter('rgb');
+const toOklab = converter('oklab');
 const hexToRGB = (hex) => {
   const c = toSRGB(hex);
   return [c.r, c.g, c.b];
@@ -409,9 +410,10 @@ function getInvertZMode() {
 const $cursorProbe = document.createElement('div');
 $cursorProbe.className = 'cursor-probe';
 $cursorProbe.innerHTML =
-  '<span class="cursor-probe__dot"></span><span class="cursor-probe__label"></span>';
+  '<span class="cursor-probe__dot"></span><span class="cursor-probe__label"></span><span class="cursor-probe__oklab"></span>';
 const $cursorProbeDot = $cursorProbe.querySelector('.cursor-probe__dot');
 const $cursorProbeLabel = $cursorProbe.querySelector('.cursor-probe__label');
+const $cursorProbeOklab = $cursorProbe.querySelector('.cursor-probe__oklab');
 document.body.appendChild($cursorProbe);
 
 const toHexByte = (v) =>
@@ -443,6 +445,7 @@ const updateProbe = () => {
     const hex = rgbToHex(color);
     $cursorProbeDot.style.background = hex;
     $cursorProbeLabel.textContent = hex;
+    $cursorProbeOklab.textContent = '';
     $cursorProbe.style.left = `${probeEvent.clientX + 14}px`;
     $cursorProbe.style.top = `${probeEvent.clientY + 14}px`;
     $cursorProbe.classList.add('is-visible');
@@ -463,7 +466,16 @@ const updateProbe = () => {
   const color = vizMatch.getColorAtUV(u, 1 - v);
   const hex = rgbToHex(color);
   $cursorProbeDot.style.background = hex;
-  $cursorProbeLabel.textContent = `${hex}`;
+  $cursorProbeLabel.textContent = hex;
+
+  const linear = vizMatch.getColorAtUV_float(u, 1 - v);
+  const lrgb = { mode: 'lrgb', r: linear[0], g: linear[1], b: linear[2] };
+  const oklab = toOklab(lrgb);
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const oklabR = { ...oklab, l: r2(oklab.l), a: r2(oklab.a), b: r2(oklab.b) };
+  const oog = linear[0] < 0 || linear[0] > 1 || linear[1] < 0 || linear[1] > 1 || linear[2] < 0 || linear[2] > 1;
+  $cursorProbeOklab.textContent = `${formatCss(oklabR)}${oog ? ' ⚠ oog' : ''}`;
+
   $cursorProbe.style.left = `${probeEvent.clientX + 14}px`;
   $cursorProbe.style.top = `${probeEvent.clientY + 14}px`;
   $cursorProbe.classList.add('is-visible');
