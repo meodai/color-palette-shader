@@ -233,6 +233,15 @@ export abstract class BasePaletteRenderer {
     this.schedulePaint();
   }
 
+  /** Force a synchronous render immediately, bypassing the rAF schedule.
+   *  Use when the canvas/FBO must reflect the latest state right now — e.g.
+   *  before reading pixels back from the canvas. */
+  render(): void {
+    if (this.destroyed) return;
+    this.flushScheduledPaint();
+    this.renderFrame();
+  }
+
   set palette(palette: ColorList) {
     if (palette.length === 0) throw new Error('Palette must contain at least one color');
     this.paletteState = palette;

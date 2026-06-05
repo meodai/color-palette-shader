@@ -174,9 +174,20 @@ viz.removeColor([0.659, 0.855, 0.863]);
 
 Cancel the animation frame, release all WebGL resources (programs, textures, framebuffer, buffer, VAO), and remove the canvas from the DOM.
 
+### `render()`
+
+Force a synchronous render immediately, bypassing the `requestAnimationFrame` schedule. Use this when the canvas (or its WebGL drawing buffer) must reflect the latest state right now — for example before reading pixels back from the canvas in the same JS tick.
+
+```js
+viz.render();
+// canvas drawing buffer is now up to date — safe to readPixels(...)
+```
+
 ### `getColorAtUV(x, y)`
 
 Returns the current shader result at normalized UV coordinates (`0–1` on both axes) as `[r, g, b]` in `0–1` sRGB. This reads directly from the WebGL render target (or outline source buffer), not from DOM canvas sampling.
+
+When a paint is already pending (state changed since the last frame) it renders first; when the render target is already current it skips the redundant render and reads back directly. If you need to guarantee a fresh render as a side effect, call `render()` explicitly.
 
 ```js
 const color = viz.getColorAtUV(0.5, 0.5); // center
