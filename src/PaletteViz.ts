@@ -209,7 +209,6 @@ export class PaletteViz extends BasePaletteRenderer {
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.bindVertexArray(this.#vao);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    gl.flush();
 
     // ── Pass 2: blit FBO to canvas (outline when enabled) ────────────────────
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -287,8 +286,12 @@ export class PaletteViz extends BasePaletteRenderer {
     if (!Number.isFinite(x) || !Number.isFinite(y))
       throw new Error('x and y must be finite numbers');
     if (x < 0 || x > 1 || y < 0 || y > 1) throw new Error('x and y must be in the range [0, 1]');
-    this.flushScheduledPaint();
-    this.renderFrame();
+    // The #fbo already holds the current frame from the last scheduled paint;
+    // only re-render when a paint is pending (i.e. state changed since then).
+    if (this.animationFrameId !== null) {
+      this.flushScheduledPaint();
+      this.renderFrame();
+    }
 
     const gl = this.glContext;
     const px = Math.min(
@@ -300,6 +303,7 @@ export class PaletteViz extends BasePaletteRenderer {
       Math.max(0, Math.round(y * (this.canvas.height - 1))),
     );
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.#fbo);
+    gl.flush();
     const out = new Uint8Array(4);
     gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);

@@ -491,8 +491,12 @@ export class PaletteViz3D extends BasePaletteRenderer {
       throw new Error('x and y must be finite numbers');
     }
     if (x < 0 || x > 1 || y < 0 || y > 1) throw new Error('x and y must be in the range [0, 1]');
-    this.flushScheduledPaint();
-    this.renderFrame();
+    // The #fbo already holds the current frame from the last scheduled paint;
+    // only re-render when a paint is pending (i.e. state changed since then).
+    if (this.animationFrameId !== null) {
+      this.flushScheduledPaint();
+      this.renderFrame();
+    }
 
     const gl = this.glContext;
     const px = Math.min(
