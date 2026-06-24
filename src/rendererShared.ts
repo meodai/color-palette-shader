@@ -107,8 +107,11 @@ export abstract class BasePaletteRenderer {
 
     this.canvasElement = document.createElement('canvas');
     this.canvasElement.classList.add(canvasClassName);
-    const gl = this.canvasElement.getContext('webgl2');
+    const gl = this.canvasElement.getContext('webgl2', { antialias: false });
     if (!gl) throw new Error('WebGL2 not supported');
+    // Disable dithering so float→8-bit conversion is deterministic across
+    // drivers (matters for getColorAtUV readback; no visual cost for flat fills).
+    gl.disable(gl.DITHER);
     this.glContext = gl;
 
     this.paletteTexture = gl.createTexture()!;
