@@ -53,6 +53,29 @@ void main() {
 
 // modelToRGB and main are separated so the selective assembler can reuse them.
 export const modelToRGBSrc = `
+#ifdef GAMUT_CLIP
+// True when an (extended-range, sRGB-encoded) colour falls outside the clip
+// gamut. GAMUT_CLIP == 1 → sRGB, 2 → Display P3. P3 shares sRGB's transfer
+// curve, so the test is done on linear values after the linear-sRGB → P3 matrix.
+float gamutClipLinear(float a) {
+  float s = a < 0.0 ? -1.0 : 1.0;
+  a = abs(a);
+  return s * (a > 0.04045 ? pow((a + 0.055) / 1.055, 2.4) : a / 12.92);
+}
+bool outsideClipGamut(vec3 rgb) {
+  #if GAMUT_CLIP == 2
+    vec3 lin = vec3(gamutClipLinear(rgb.r), gamutClipLinear(rgb.g), gamutClipLinear(rgb.b));
+    vec3 p3 = mat3(
+      0.8224621, 0.0331941, 0.0170827,
+      0.1775380, 0.9668058, 0.0723974,
+      0.0000000, 0.0000000, 0.9105199
+    ) * lin;
+    return any(lessThan(p3, vec3(-1e-5))) || any(greaterThan(p3, vec3(1.0 + 1e-5)));
+  #else
+    return any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)));
+  #endif
+}
+#endif
 // Display bounds for the unbounded axes of each model.
 // CIELab values follow the CSS Color 4 reference ranges
 // (https://www.w3.org/TR/css-color-4/); the OKLab bound is deliberately wider
@@ -330,7 +353,7 @@ void main(){
     #endif
   #else
     #ifdef GAMUT_CLIP
-    if (any(lessThan(rgb, vec3(0.0))) || any(greaterThan(rgb, vec3(1.0)))) {
+    if (outsideClipGamut(rgb)) {
       fragColor = vec4(0.0);
       return;
     }
@@ -625,7 +648,7 @@ void main() {
   vec3 rgb = modelToRGB(cc);
 
   #ifdef GAMUT_CLIP
-    if (any(lessThan(rgb, vec3(-0.0))) || any(greaterThan(rgb, vec3(1.0)))) discard;
+    if (outsideClipGamut(rgb)) discard;
   #endif
 
   #ifdef SHOW_RAW
@@ -682,7 +705,7 @@ void main() {
 
   #ifdef GAMUT_CLIP
     vec3 rgb = modelToRGB(cc);
-    if (any(lessThan(rgb, vec3(-0.0))) || any(greaterThan(rgb, vec3(1.0)))) discard;
+    if (outsideClipGamut(rgb)) discard;
   #endif
 
   fragColor = vec4(1.0);

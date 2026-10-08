@@ -4,6 +4,7 @@ import {
   SupportedColorModels,
   Axis,
   DistanceMetric,
+  GamutClip,
 } from './types.ts';
 import { paletteToRGBA, randomPalette } from './palette.ts';
 import { Defines, buildProgram, uploadPaletteTexture } from './webgl.ts';
@@ -13,6 +14,8 @@ import {
   BasePaletteRenderer,
   COLOR_MODEL_MAP,
   DISTANCE_METRIC_MAP,
+  GAMUT_CLIP_MAP,
+  normalizeGamutClip,
 } from './rendererShared.ts';
 
 export class PaletteViz extends BasePaletteRenderer {
@@ -24,7 +27,7 @@ export class PaletteViz extends BasePaletteRenderer {
   #invertAxes: Axis[] = [];
   #showRaw = false;
   #outlineWidth = 0;
-  #gamutClip = false;
+  #gamutClip: GamutClip = false;
 
   // WebGL
   #program: WebGLProgram | null = null;
@@ -89,7 +92,7 @@ export class PaletteViz extends BasePaletteRenderer {
     this.#invertAxes = this.normalizeInvertAxes(invertAxes);
     this.#showRaw = showRaw;
     this.#outlineWidth = outlineWidth;
-    this.#gamutClip = gamutClip;
+    this.#gamutClip = normalizeGamutClip(gamutClip);
     const gl = this.glContext;
 
     // Quad buffer + VAO — set up once, reused every frame.
@@ -124,7 +127,7 @@ export class PaletteViz extends BasePaletteRenderer {
       INVERT_Z: this.#invertAxes.includes('z') ? 1 : false,
       AUTO_FLIP_Y: useImplicitPolarFlipY ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
-      GAMUT_CLIP: this.#gamutClip ? 1 : false,
+      GAMUT_CLIP: this.#gamutClip ? GAMUT_CLIP_MAP[this.#gamutClip] : false,
     };
   }
 
@@ -460,12 +463,12 @@ export class PaletteViz extends BasePaletteRenderer {
     return this.#showRaw;
   }
 
-  set gamutClip(value: boolean) {
-    this.#gamutClip = value;
+  set gamutClip(value: GamutClip | true) {
+    this.#gamutClip = normalizeGamutClip(value);
     this.#programDirty = true;
     this.schedulePaint();
   }
-  get gamutClip() {
+  get gamutClip(): GamutClip {
     return this.#gamutClip;
   }
 

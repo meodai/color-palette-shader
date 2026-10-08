@@ -473,7 +473,13 @@ const updateProbe = () => {
   const oklab = toOklab(lrgb);
   const r2 = (n) => Math.round(n * 100) / 100;
   const oklabR = { ...oklab, l: r2(oklab.l), a: r2(oklab.a), b: r2(oklab.b) };
-  const oog = linear[0] < 0 || linear[0] > 1 || linear[1] < 0 || linear[1] > 1 || linear[2] < 0 || linear[2] > 1;
+  const oog =
+    linear[0] < 0 ||
+    linear[0] > 1 ||
+    linear[1] < 0 ||
+    linear[1] > 1 ||
+    linear[2] < 0 ||
+    linear[2] > 1;
   $cursorProbeOklab.textContent = `${formatCss(oklabR)}${oog ? ' ⚠ oog' : ''}`;
 
   $cursorProbe.style.left = `${probeEvent.clientX + 14}px`;
@@ -721,17 +727,24 @@ $showRawCheckbox.addEventListener('change', (e) => {
 });
 $tools.appendChild(labeled('Show raw colors', $showRawCheckbox));
 
-// Gamut clip
-const $gamutClipCheckbox = document.createElement('input');
-$gamutClipCheckbox.type = 'checkbox';
-$gamutClipCheckbox.checked = false;
-$gamutClipCheckbox.addEventListener('change', (e) => {
-  vizzes.forEach((v) => {
-    v.gamutClip = e.target.checked;
-  });
-  if (viz3d) viz3d.gamutClip = e.target.checked;
+// Gamut clip — discard pixels outside the chosen gamut. 'none' maps to false.
+const GAMUT_CLIP_OPTIONS = { none: 'None', srgb: 'sRGB', p3: 'Display P3' };
+const toGamutClip = (value) => (value === 'none' ? false : value);
+const $gamutClipSelect = document.createElement('select');
+Object.entries(GAMUT_CLIP_OPTIONS).forEach(([value, label]) => {
+  const $option = document.createElement('option');
+  $option.value = value;
+  $option.textContent = label;
+  $gamutClipSelect.appendChild($option);
 });
-$tools.appendChild(labeled('Clip to sRGB gamut', $gamutClipCheckbox));
+$gamutClipSelect.addEventListener('change', (e) => {
+  const gamutClip = toGamutClip(e.target.value);
+  vizzes.forEach((v) => {
+    v.gamutClip = gamutClip;
+  });
+  if (viz3d) viz3d.gamutClip = gamutClip;
+});
+$tools.appendChild(labeled('Clip to gamut', $gamutClipSelect));
 
 // ── Palette editor ──────────────────────────────────────────────────────────
 
@@ -829,7 +842,7 @@ function encodeHash(colors, settings) {
     pos: settings.pos.toFixed(4),
     ...(settings.invertZMode !== 'default' && { invert: settings.invertZMode }),
     ...(settings.showRaw && { raw: '1' }),
-    ...(settings.gamutClip && { gamut: '1' }),
+    ...(settings.gamutClip !== 'none' && { gamut: settings.gamutClip }),
     ...(settings.outlineWidth > 0 && { outline: settings.outlineWidth.toString() }),
     ...(settings.is3D && { view3d: '1' }),
   });
@@ -865,7 +878,13 @@ function decodeHash(hash) {
           ? 'none'
           : 'default',
     showRaw: params.get('raw') === '1',
-    gamutClip: params.get('gamut') === '1',
+    // '1' is the legacy boolean form of sRGB clipping.
+    gamutClip:
+      params.get('gamut') === '1'
+        ? 'srgb'
+        : GAMUT_CLIP_OPTIONS[params.get('gamut')]
+          ? params.get('gamut')
+          : 'none',
     outlineWidth: parseFloat(params.get('outline') ?? '0'),
     is3D: params.get('view3d') === '1',
   };
@@ -878,7 +897,7 @@ function getSettings() {
     pos: parseFloat($positionSlider.value),
     invertZMode: getInvertZMode(),
     showRaw: $showRawCheckbox.checked,
-    gamutClip: $gamutClipCheckbox.checked,
+    gamutClip: $gamutClipSelect.value,
     outlineWidth: parseFloat($outlineSlider.value),
     is3D,
   };
@@ -897,14 +916,14 @@ function applyState(state) {
   $distanceMetric.value = state.distanceMetric;
   $positionSlider.value = String(state.pos);
   $showRawCheckbox.checked = state.showRaw;
-  $gamutClipCheckbox.checked = state.gamutClip;
+  $gamutClipSelect.value = state.gamutClip;
   $outlineSlider.value = String(state.outlineWidth);
 
   vizzes.forEach((v) => {
     v.colorModel = state.colorModel;
     v.distanceMetric = state.distanceMetric;
     v.showRaw = state.showRaw;
-    v.gamutClip = state.gamutClip;
+    v.gamutClip = toGamutClip(state.gamutClip);
     v.outlineWidth = state.outlineWidth;
   });
   updateAxisLabels(state.colorModel);
@@ -942,7 +961,7 @@ $positionSlider.addEventListener('input', scheduleHashUpdate);
 $outlineSlider.addEventListener('input', scheduleHashUpdate);
 $invertZCheckbox.addEventListener('change', scheduleHashUpdate);
 $showRawCheckbox.addEventListener('change', scheduleHashUpdate);
-$gamutClipCheckbox.addEventListener('change', scheduleHashUpdate);
+$gamutClipSelect.addEventListener('change', scheduleHashUpdate);
 $palette.addEventListener('input', scheduleHashUpdate, true);
 $palette.addEventListener('click', (e) => {
   if (e.target.classList.contains('color-picker__remove')) scheduleHashUpdate();
@@ -1055,7 +1074,7 @@ function create3DViz() {
     distanceMetric: $distanceMetric.value,
     invertAxes: getInvertZMode() === 'all' ? ['z'] : [],
     showRaw: $showRawCheckbox.checked,
-    gamutClip: $gamutClipCheckbox.checked,
+    gamutClip: toGamutClip($gamutClipSelect.value),
     outlineWidth: parseFloat($outlineSlider.value),
   });
   viz3d.canvas.classList.add('palette-viz-3d');
@@ -1146,9 +1165,6 @@ $invertZCheckbox.addEventListener('change', () => {
 });
 $showRawCheckbox.addEventListener('change', () => {
   if (viz3d) viz3d.showRaw = $showRawCheckbox.checked;
-});
-$gamutClipCheckbox.addEventListener('change', () => {
-  if (viz3d) viz3d.gamutClip = $gamutClipCheckbox.checked;
 });
 $outlineSlider.addEventListener('input', () => {
   if (viz3d) viz3d.outlineWidth = parseFloat($outlineSlider.value);

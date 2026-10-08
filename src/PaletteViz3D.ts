@@ -1,4 +1,10 @@
-import { PaletteViz3DOptions, SupportedColorModels, DistanceMetric, Axis } from './types.ts';
+import {
+  PaletteViz3DOptions,
+  SupportedColorModels,
+  DistanceMetric,
+  Axis,
+  GamutClip,
+} from './types.ts';
 import { randomPalette } from './palette.ts';
 import { Defines, buildProgram } from './webgl.ts';
 import {
@@ -26,7 +32,13 @@ import {
   mat4RotateY,
   mat4Translate,
 } from './math.ts';
-import { BasePaletteRenderer, COLOR_MODEL_MAP, DISTANCE_METRIC_MAP } from './rendererShared.ts';
+import {
+  BasePaletteRenderer,
+  COLOR_MODEL_MAP,
+  DISTANCE_METRIC_MAP,
+  GAMUT_CLIP_MAP,
+  normalizeGamutClip,
+} from './rendererShared.ts';
 
 const GUTTERED_CLIP_PADDING = 0.42;
 const SETTLED_CLIP_PASS_COUNT = 2;
@@ -40,7 +52,7 @@ export class PaletteViz3D extends BasePaletteRenderer {
   #invertAxes: Axis[] = [];
   #showRaw = false;
   #outlineWidth = 0;
-  #gamutClip = false;
+  #gamutClip: GamutClip = false;
 
   #program: WebGLProgram | null = null;
   #depthProgram: WebGLProgram | null = null;
@@ -109,7 +121,7 @@ export class PaletteViz3D extends BasePaletteRenderer {
     this.#invertAxes = this.normalizeInvertAxes(invertAxes);
     this.#showRaw = showRaw;
     this.#outlineWidth = outlineWidth;
-    this.#gamutClip = gamutClip;
+    this.#gamutClip = normalizeGamutClip(gamutClip);
     this.#position = position;
     this.#isPolar = POLAR_MODEL_IDS.has(COLOR_MODEL_MAP[this.#colorModel]);
 
@@ -250,7 +262,7 @@ export class PaletteViz3D extends BasePaletteRenderer {
       INVERT_Y: this.#invertAxes.includes('y') ? 1 : false,
       INVERT_Z: this.#invertAxes.includes('z') ? 1 : false,
       SHOW_RAW: this.#showRaw ? 1 : false,
-      GAMUT_CLIP: this.#gamutClip ? 1 : false,
+      GAMUT_CLIP: this.#gamutClip ? GAMUT_CLIP_MAP[this.#gamutClip] : false,
       IS_POLAR: this.#isPolar ? 1 : false,
       SHAPE_CONE: this.#isPolar && CONE_MODEL_IDS.has(modelId) ? 1 : false,
       SHAPE_CONE_INV: this.#isPolar && CONE_INV_MODEL_IDS.has(modelId) ? 1 : false,
@@ -270,7 +282,7 @@ export class PaletteViz3D extends BasePaletteRenderer {
     );
     const prepassFragSrc = assembleFragShader3DPrepass(
       COLOR_MODEL_MAP[this.#colorModel],
-      this.#gamutClip,
+      this.#gamutClip !== false,
     );
     const vertSrc = this.#isPolar ? vertexShader3DCylSrc : vertexShader3DCubeSrc;
     this.#program = buildProgram(gl, this.#defines(), fragSrc, vertSrc);
@@ -616,13 +628,13 @@ export class PaletteViz3D extends BasePaletteRenderer {
     return new Float32Array(this.#modelMatrix);
   }
 
-  set gamutClip(value: boolean) {
-    this.#gamutClip = value;
+  set gamutClip(value: GamutClip | true) {
+    this.#gamutClip = normalizeGamutClip(value);
     this.#programDirty = true;
     this.#meshDirty = true;
     this.schedulePaint();
   }
-  get gamutClip(): boolean {
+  get gamutClip(): GamutClip {
     return this.#gamutClip;
   }
 

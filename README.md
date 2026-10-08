@@ -94,7 +94,7 @@ All options are optional. The palette defaults to a random 20-color set.
 | `invertAxes`     | `('x' \| 'y' \| 'z')[]`      | `[]`               | Invert one or more axes, for example `['z']` or `['x', 'z']`. In 2-D polar views, `y` inversion is resolved as a vertical view flip to avoid the mirrored center seam.                               |
 | `showRaw`        | `boolean`                    | `false`            | Bypass nearest-color matching (shows the raw color space)                                                                                                                                            |
 | `outlineWidth`   | `number`                     | `0`                | Draw a transparent outline where palette regions meet. Width in physical pixels. `0` disables (no overhead).                                                                                         |
-| `gamutClip`      | `boolean`                    | `false`            | Discard out-of-sRGB-gamut pixels instead of clamping. Reveals the true gamut boundary of the color model.                                                                                            |
+| `gamutClip`      | `false \| 'srgb' \| 'p3'`    | `false`            | Discard pixels outside the given gamut instead of clamping. Reveals the true gamut boundary of the color model. `true` is accepted as an alias for `'srgb'`.                                         |
 
 ---
 
@@ -114,7 +114,7 @@ viz.distanceMetric = 'deltaE2000';
 viz.invertAxes = ['z'];
 viz.showRaw = true;
 viz.outlineWidth = 2; // transparent border between regions, in physical pixels
-viz.gamutClip = true; // discard out-of-gamut pixels
+viz.gamutClip = 'p3'; // discard pixels outside Display P3 ('srgb' | 'p3' | false)
 viz.pixelRatio = window.devicePixelRatio; // update after display changes
 ```
 
@@ -343,11 +343,11 @@ Controls how "nearest palette color" is determined per pixel.
 
 **Heuristic / simple**
 
-| Value               | Description                                                                                              | Cost   |
-| ------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
-| `'redmean'`         | "Redmean" weighted Euclidean in sRGB ([Riemersma](https://www.compuphase.com/cmetric.htm)). Weights R and B by mean red for quick perceptual improvement over plain RGB. `'kotsarenkoRamos'` is a deprecated alias (the formula was misattributed). | lowest |
-| `'kotsarenkoRamosYIQ'` | The actual Kotsarenko & Ramos (2010) metric: weighted Euclidean in YIQ (NTSC). Cheap, tuned on perceptual data.                            | lowest |
-| `'rgb'`             | Plain Euclidean in sRGB. Not perceptually uniform. Useful as a baseline.                                 | lowest |
+| Value                  | Description                                                                                                                                                                                                                                         | Cost   |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| `'redmean'`            | "Redmean" weighted Euclidean in sRGB ([Riemersma](https://www.compuphase.com/cmetric.htm)). Weights R and B by mean red for quick perceptual improvement over plain RGB. `'kotsarenkoRamos'` is a deprecated alias (the formula was misattributed). | lowest |
+| `'kotsarenkoRamosYIQ'` | The actual Kotsarenko & Ramos (2010) metric: weighted Euclidean in YIQ (NTSC). Cheap, tuned on perceptual data.                                                                                                                                     | lowest |
+| `'rgb'`                | Plain Euclidean in sRGB. Not perceptually uniform. Useful as a baseline.                                                                                                                                                                            | lowest |
 
 ---
 
@@ -464,7 +464,7 @@ new PaletteViz3D(options?: PaletteViz3DOptions)
 | `invertAxes`     | `('x' \| 'y' \| 'z')[]`      | `[]`                  | Invert one or more axes, for example `['z']` or `['x', 'z']`                 |
 | `showRaw`        | `boolean`                    | `false`               | Bypass nearest-color matching                                                |
 | `outlineWidth`   | `number`                     | `0`                   | Transparent outline width (physical px). `0` disables                        |
-| `gamutClip`      | `boolean`                    | `false`               | Discard out-of-sRGB-gamut pixels instead of clamping                         |
+| `gamutClip`      | `false \| 'srgb' \| 'p3'`    | `false`               | Discard pixels outside the given gamut instead of clamping                   |
 | `modelMatrix`    | `Float32Array`               | slight tilt (default) | Initial 4×4 column-major model rotation matrix                               |
 
 ### Properties (3D)

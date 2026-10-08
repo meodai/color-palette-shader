@@ -67,8 +67,14 @@ export type PaletteVizOptions = {
   invertAxes?: Axis[];
   showRaw?: boolean;
   outlineWidth?: number;
-  gamutClip?: boolean;
+  gamutClip?: GamutClip | true;
 };
+
+/**
+ * Target gamut for `gamutClip`. Pixels outside it are discarded instead of
+ * clamped. `true` is accepted as an alias for `'srgb'`.
+ */
+export type GamutClip = false | 'srgb' | 'p3';
 
 export type PaletteViz3DOptions = {
   palette?: ColorList;
@@ -82,7 +88,7 @@ export type PaletteViz3DOptions = {
   invertAxes?: Axis[];
   showRaw?: boolean;
   outlineWidth?: number;
-  gamutClip?: boolean;
+  gamutClip?: GamutClip | true;
   position?: number;
   modelMatrix?: Float32Array;
 };

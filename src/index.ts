@@ -6,6 +6,7 @@ export type {
   SupportedColorModels,
   Axis,
   DistanceMetric,
+  GamutClip,
   PaletteVizOptions,
   PaletteViz3DOptions,
 } from './types.ts';

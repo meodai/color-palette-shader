@@ -1,4 +1,4 @@
-import { Axis, ColorList } from './types.ts';
+import { Axis, ColorList, GamutClip } from './types.ts';
 import {
   computeMetricPalette,
   initTexture,
@@ -46,6 +46,14 @@ export const COLOR_MODEL_MAP = {
   oklchDiag: 29,
   oklrchDiag: 30,
 } as const;
+
+// GAMUT_CLIP define value per target gamut. `false` leaves the define absent.
+export const GAMUT_CLIP_MAP = { srgb: 1, p3: 2 } as const;
+
+export function normalizeGamutClip(value: GamutClip | true | undefined): GamutClip {
+  if (value === true) return 'srgb';
+  return value === 'srgb' || value === 'p3' ? value : false;
+}
 
 export const DISTANCE_METRIC_MAP = {
   rgb: 0,
